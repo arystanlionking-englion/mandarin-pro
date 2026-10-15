@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -13,11 +14,17 @@ let pool = null;
 if (usePg) {
     pool = new Pool({
         connectionString: DATABASE_URL,
-        ssl: DATABASE_URL.includes('localhost') ? false : { rejectUnauthorized: false }
+        ssl: DATABASE_URL.includes('localhost') ? false : { rejectUnauthorized: false },
+        connectionTimeoutMillis: 15000,
+        idleTimeoutMillis: 30000,
+        max: 10
+    });
+    pool.on('error', (err) => {
+        console.error('PostgreSQL idle client error:', err.message);
     });
     console.log('PostgreSQL storage enabled');
 } else {
-    console.log('File-based storage (database.json)');
+    console.log('File-based storage (database.json) — set DATABASE_URL to use PostgreSQL');
 }
 
 const app = express();
@@ -49,6 +56,7 @@ async function initDB() {
         await pool.query('INSERT INTO app_data (id, data) VALUES (1, $1)', [JSON.stringify(db)]);
         console.log('PostgreSQL: created initial data row');
     }
+    console.log('PostgreSQL: app_data table ready');
 }
 
 // --- PIN Hashing ---
@@ -88,13 +96,19 @@ async function loadDB() {
                 console.log('Database loaded from PostgreSQL');
                 return;
             }
+            // Table exists but empty — initialize with defaults
+            console.log('PostgreSQL: table empty, initializing with defaults');
+            _assignDB(null);
+            _runMigrations();
+            await saveDBImmediate();
+            return;
         } catch (err) {
             console.error('Failed to load from PostgreSQL:', err.message);
+            // DO NOT reset to empty defaults — that would wipe existing data.
+            // Keep in-memory defaults; saves will retry on next saveDB call.
+            console.warn('Keeping in-memory defaults. Will retry save on next change.');
+            return;
         }
-        _assignDB(null);
-        _runMigrations();
-        await saveDBImmediate();
-        return;
     }
     // File-based fallback
     try {
@@ -229,8 +243,9 @@ async function saveDBImmediate() {
         try {
             await pool.query(
                 'INSERT INTO app_data (id, data, updated_at) VALUES (1, $1, NOW()) ON CONFLICT (id) DO UPDATE SET data = $1, updated_at = NOW()',
-                [JSON.stringify(db)]
+                [db]
             );
+            console.log('Data saved to PostgreSQL');
         } catch (err) {
             console.error('Failed to save to PostgreSQL:', err.message);
         }
@@ -263,12 +278,17 @@ function saveDB() {
 }
 
 (async () => {
-    await initDB();
-    await loadDB();
-    initDefaultCoupons();
-    initDefaultQuests();
-    initDefaultTasks();
-    console.log('MANDARIN PRO database ready');
+    try {
+        await initDB();
+        await loadDB();
+        initDefaultCoupons();
+        initDefaultQuests();
+        initDefaultTasks();
+        console.log('MANDARIN PRO database ready');
+    } catch (err) {
+        console.error('FATAL: database initialization failed:', err.message);
+        process.exit(1);
+    }
 })();
 
 // --- Default Coupons ---
