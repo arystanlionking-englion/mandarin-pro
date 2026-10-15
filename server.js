@@ -10,6 +10,7 @@ const { Pool } = require('pg');
 
 const DATABASE_URL = process.env.DATABASE_URL;
 const usePg = !!DATABASE_URL;
+const isRender = !!(process.env.RENDER || process.env.RENDER_SERVICE_ID || process.env.RENDER_EXTERNAL_URL);
 let pool = null;
 if (usePg) {
     pool = new Pool({
@@ -25,6 +26,10 @@ if (usePg) {
     console.log('[PG] PostgreSQL storage enabled');
 } else {
     console.log('[PG] DATABASE_URL not set — using file storage (database.json)');
+    if (isRender) {
+        console.error('[FATAL] On Render the filesystem is EPHEMERAL. Without DATABASE_URL (Supabase) all data is lost after sleep/restart. Refusing to start.');
+        process.exit(1);
+    }
 }
 
 const app = express();
@@ -47,29 +52,44 @@ const DB_PATH = path.join(__dirname, 'database.json');
 async function initDB() {
     if (!usePg) return;
 
-    // Detect existing table schema
+    // Hard connection check with retries (handles Render sleep/wake)
+    let lastErr = null;
+    for (let attempt = 1; attempt <= 10; attempt++) {
+        try {
+            await pool.query('SELECT 1');
+            console.log('[PG] Connected to PostgreSQL (Supabase)');
+            lastErr = null;
+            break;
+        } catch (err) {
+            lastErr = err;
+            console.error(`[PG] Connection attempt ${attempt}/10 failed:`, err.message);
+            if (attempt < 10) await new Promise(r => setTimeout(r, Math.min(30000, 2000 * attempt)));
+        }
+    }
+    if (lastErr) throw lastErr;
+
+    // Always ensure the table exists
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS app_data (
+            key TEXT PRIMARY KEY,
+            value JSONB
+        )
+    `);
+    console.log('[PG] ensured table app_data (key TEXT PRIMARY KEY, value JSONB)');
+
+    // Detect old schema (id INT, data JSONB) and migrate if needed
     const { rows: cols } = await pool.query(`
         SELECT column_name FROM information_schema.columns
         WHERE table_name = 'app_data' AND table_schema = 'public'
     `);
     const columnNames = cols.map(r => r.column_name);
 
-    if (columnNames.length === 0) {
-        // Fresh table with key/value schema
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS app_data (
-                key TEXT PRIMARY KEY,
-                value JSONB NOT NULL DEFAULT '{}'
-            )
-        `);
-        console.log('[PG] Created table app_data (key TEXT, value JSONB)');
-    } else if (columnNames.includes('id') && !columnNames.includes('key')) {
-        // Old schema (id INT, data JSONB) — migrate to key/value
+    if (columnNames.includes('id') && !columnNames.includes('key')) {
         console.log('[PG] Old schema detected, migrating app_data...');
         await pool.query(`
             CREATE TABLE IF NOT EXISTS app_data_new (
                 key TEXT PRIMARY KEY,
-                value JSONB NOT NULL DEFAULT '{}'
+                value JSONB
             )
         `);
         const { rows } = await pool.query('SELECT data FROM app_data WHERE id = 1');
@@ -115,36 +135,52 @@ const INVESTMENT_TYPES = [
 
 let db = { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [] };
 
+// True only after loadDB() successfully populated `db` from the real store.
+// Prevents empty in-memory defaults from being flushed over real data on startup.
+let _dbLoaded = false;
+
 async function loadDB() {
     if (usePg) {
+        // Hard read — errors propagate (no silent empty-object fallback)
         const { rows } = await pool.query("SELECT value FROM app_data WHERE key = 'main'");
-        if (rows.length > 0 && rows[0].value) {
-            const parsed = typeof rows[0].value === 'string' ? JSON.parse(rows[0].value) : rows[0].value;
-            if (!Array.isArray(parsed.users)) {
-                console.error('[PG] Loaded data has invalid users array — starting with defaults (NOT overwriting DB)');
-                _assignDB(null);
-                _runMigrations();
-                return;
+        if (rows.length > 0 && rows[0].value != null) {
+            let parsed = rows[0].value;
+            if (typeof parsed === 'string') {
+                try {
+                    parsed = JSON.parse(parsed);
+                } catch (e) {
+                    console.error('[PG] FATAL: app_data.value is not valid JSON:', e.message);
+                    throw e;
+                }
+            }
+            if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.users)) {
+                console.error('[PG] FATAL: app_data.value is corrupted (users[] missing). Refusing to replace real data with empty defaults.');
+                console.error('[PG] value type:', typeof parsed, 'keys:', parsed && typeof parsed === 'object' ? Object.keys(parsed).slice(0, 40) : 'n/a');
+                throw new Error('Corrupted app_data: users[] missing — will not start with empty DB');
             }
             _assignDB(parsed);
             _runMigrations();
+            _dbLoaded = true;
             console.log('[PG] Database loaded from PostgreSQL, users:', db.users.length);
             return;
         }
-        // No data yet — initialize with defaults and save
-        console.log('[PG] No data found, initializing with defaults');
+        // Table empty — initialize defaults once (first run only)
+        console.log('[PG] No data found in app_data, initializing with defaults (first run)');
         _assignDB(null);
         _runMigrations();
+        _dbLoaded = true;
         await saveDBImmediate();
+        console.log('[PG] Default database written to app_data');
         return;
     }
-    // File-based fallback
+    // File-based fallback (local only — never on Render)
     try {
         const raw = fs.readFileSync(DB_PATH, 'utf-8');
         const parsed = JSON.parse(raw);
         if (!Array.isArray(parsed.users)) throw new Error('Invalid users array');
         _assignDB(parsed);
         _runMigrations();
+        _dbLoaded = true;
     } catch (err) {
         console.error('Failed to load database:', err.message);
         const tmpPath = DB_PATH + '.tmp';
@@ -156,6 +192,7 @@ async function loadDB() {
                     console.log('Recovered database from .tmp file');
                     _assignDB(tmpParsed);
                     _runMigrations();
+                    _dbLoaded = true;
                     fs.copyFileSync(tmpPath, DB_PATH);
                     return;
                 }
@@ -170,6 +207,7 @@ async function loadDB() {
                     console.log('Recovered database from .bak file');
                     _assignDB(bakParsed);
                     _runMigrations();
+                    _dbLoaded = true;
                     fs.copyFileSync(bakPath, DB_PATH);
                     return;
                 }
@@ -181,6 +219,7 @@ async function loadDB() {
         }
         _assignDB(null);
         _runMigrations();
+        _dbLoaded = true;
         saveDB();
     }
 }
@@ -264,25 +303,30 @@ function _runMigrations() {
 
 let _saveDirty = false;
 let _saveTimer = null;
+let _saveRetryCount = 0;
 
 async function saveDBImmediate() {
     if (usePg) {
+        // Never flush uninitialized/empty shell over real Supabase rows
+        if (!_dbLoaded) {
+            console.error('[PG SAVE BLOCKED] saveDBImmediate() before DB load finished — refuse to overwrite Supabase');
+            return;
+        }
+        if (!db || !Array.isArray(db.users)) {
+            console.error('[PG SAVE BLOCKED] in-memory db.users is not an array — refuse to save');
+            return;
+        }
         const payload = JSON.stringify(db);
+        const UPSERT_SQL = "INSERT INTO app_data (key, value) VALUES ('main', $1) ON CONFLICT (key) DO UPDATE SET value = $1";
         try {
-            await pool.query(
-                "INSERT INTO app_data (key, value) VALUES ('main', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
-                [payload]
-            );
+            await pool.query(UPSERT_SQL, [payload]);
         } catch (err) {
             console.error('[PG SAVE ERROR]', err.message);
             console.error(err.stack || '');
             // Retry once after short delay
             try {
                 await new Promise(r => setTimeout(r, 1000));
-                await pool.query(
-                    "INSERT INTO app_data (key, value) VALUES ('main', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
-                    [payload]
-                );
+                await pool.query(UPSERT_SQL, [payload]);
                 console.log('[PG] Save succeeded on retry');
             } catch (err2) {
                 console.error('[PG SAVE ERROR RETRY FAILED]', err2.message);
@@ -293,6 +337,10 @@ async function saveDBImmediate() {
         return;
     }
     // File-based fallback (only when DATABASE_URL is not set)
+    if (!_dbLoaded) {
+        console.error('[FILE SAVE BLOCKED] saveDBImmediate() before DB load finished — refuse to overwrite file');
+        return;
+    }
     try {
         const tmp = DB_PATH + '.tmp';
         fs.writeFileSync(tmp, JSON.stringify(db, null, 2), 'utf-8');
@@ -304,6 +352,10 @@ async function saveDBImmediate() {
 }
 
 function saveDB() {
+    if (!_dbLoaded) {
+        console.error('[SAVE BLOCKED] saveDB() before DB load finished — ignoring to prevent data wipe');
+        return;
+    }
     _saveDirty = true;
     if (!_saveTimer) {
         _saveTimer = setTimeout(async () => {
@@ -312,8 +364,18 @@ function saveDB() {
                 _saveDirty = false;
                 try {
                     await saveDBImmediate();
+                    _saveRetryCount = 0;
                 } catch (err) {
                     console.error('[PG] Debounced save failed:', err.message);
+                    _saveDirty = true;
+                    _saveRetryCount++;
+                    if (_saveRetryCount <= 5) {
+                        const delay = Math.min(15000, 1000 * _saveRetryCount);
+                        console.error(`[PG] Will retry save in ${delay}ms (attempt ${_saveRetryCount}/5)`);
+                        setTimeout(() => saveDB(), delay);
+                    } else {
+                        console.error('[PG] Giving up on save after 5 retries. Data may be stale in Supabase.');
+                    }
                 }
             }
         }, 500);
@@ -335,10 +397,15 @@ function saveDB() {
         console.error(err.stack || '');
         process.exit(1);
     }
+    if (!_dbLoaded) {
+        console.error('[FATAL] loadDB returned but DB is not marked loaded — refusing to listen');
+        process.exit(1);
+    }
     initDefaultCoupons();
     initDefaultQuests();
     initDefaultTasks();
-    console.log('[PG] MANDARIN PRO database ready, users:', db.users.length);
+    console.log('[PG] MANDARIN PRO database ready, users:', db.users.length, 'storage:', usePg ? 'postgresql' : 'file');
+    startHttpServer();
 })();
 
 // --- Default Coupons ---
@@ -5300,18 +5367,26 @@ setInterval(() => {
 }, 10000);
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`MANDARIN PRO server running on http://localhost:${PORT}`);
-});
+function startHttpServer() {
+    server.listen(PORT, () => {
+        console.log(`MANDARIN PRO server running on http://localhost:${PORT}`);
+        console.log(`[PG] HTTP listen AFTER db load. users=${db.users.length} storage=${usePg ? 'postgresql' : 'file'} _dbLoaded=${_dbLoaded}`);
+    });
+}
 
 async function gracefulShutdown() {
     console.log('[PG] Shutting down, flushing data...');
     if (_saveTimer) { clearTimeout(_saveTimer); _saveTimer = null; }
-    try {
-        await saveDBImmediate();
-        console.log('[PG] Data flushed on shutdown');
-    } catch (err) {
-        console.error('[PG] Failed to flush data on shutdown:', err.message);
+    if (_dbLoaded) {
+        try {
+            await saveDBImmediate();
+            console.log('[PG] Data flushed on shutdown');
+        } catch (err) {
+            console.error('[PG] Failed to flush data on shutdown:', err.message);
+            console.error(err.stack || '');
+        }
+    } else {
+        console.error('[PG] Shutdown before DB load — skip save to prevent wiping Supabase');
     }
     if (pool) {
         try { await pool.end(); } catch (e) { console.error('[PG] Pool end error:', e.message); }
