@@ -1,0 +1,8 @@
+node_modules/
+database.json
+database.json.tmp
+database.json.bak
+database.json.corrupted.*
+backup_*.json
+*.log
+.env
