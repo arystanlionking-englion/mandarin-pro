@@ -8,14 +8,57 @@ const path = require('path');
 const crypto = require('crypto');
 const { Pool } = require('pg');
 
-const DATABASE_URL = process.env.DATABASE_URL;
+// Flexible DATABASE_URL resolution: env aliases, whitespace, quotes
+function resolveDatabaseUrl() {
+    const keys = [
+        'DATABASE_URL',
+        'database_url',
+        'DB_URL',
+        'db_url',
+        'POSTGRES_URL',
+        'postgres_url',
+        'POSTGRESQL_URL',
+        'postgresql_url',
+        'SUPABASE_DB_URL',
+        'SUPABASE_DATABASE_URL',
+        'PG_CONNECTION_STRING',
+        'PGURI',
+        'PG_URI',
+        'DB_CONNECTION_STRING',
+        'DATABASE_URI'
+    ];
+    for (const key of keys) {
+        let raw = process.env[key];
+        if (raw == null) continue;
+        raw = String(raw).trim();
+        // Strip accidental surrounding quotes (single/double) from dashboard paste
+        if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
+            raw = raw.slice(1, -1).trim();
+        }
+        if (!raw) continue;
+        // Basic sanity: must look like a postgres connection string
+        if (!/^postgres(ql)?:\/\//i.test(raw)) {
+            console.warn(`[PG] Ignoring ${key}: value does not look like a postgres URL`);
+            continue;
+        }
+        // Ensure SSL mode for hosted Supabase if caller omitted it
+        if (!/localhost|127\.0\.0\.1/i.test(raw) && !/[?&]sslmode=/i.test(raw)) {
+            raw += (raw.includes('?') ? '&' : '?') + 'sslmode=require';
+        }
+        return { url: raw, source: key };
+    }
+    return null;
+}
+
+const resolvedDb = resolveDatabaseUrl();
+const DATABASE_URL = resolvedDb ? resolvedDb.url : '';
 const usePg = !!DATABASE_URL;
 const isRender = !!(process.env.RENDER || process.env.RENDER_SERVICE_ID || process.env.RENDER_EXTERNAL_URL);
 let pool = null;
 if (usePg) {
     pool = new Pool({
         connectionString: DATABASE_URL,
-        ssl: DATABASE_URL.includes('localhost') ? false : { rejectUnauthorized: false },
+        ssl: /localhost|127\.0\.0\.1/i.test(DATABASE_URL) ? false : { rejectUnauthorized: false },
         connectionTimeoutMillis: 30000,
         idleTimeoutMillis: 60000,
         max: 10
@@ -23,12 +66,14 @@ if (usePg) {
     pool.on('error', (err) => {
         console.error('[PG POOL ERROR]', err.message, err.stack || '');
     });
-    console.log('[PG] PostgreSQL storage enabled');
+    console.log(`[PG] PostgreSQL storage enabled (from env: ${resolvedDb.source})`);
+    console.log('[PG] Host hint:', DATABASE_URL.replace(/\/\/([^:]+):([^@]+)@/, '//$1:***@').split('?')[0]);
 } else {
-    console.log('[PG] DATABASE_URL not set — using file storage (database.json)');
+    console.warn('[PG] DATABASE_URL not set (checked DATABASE_URL, DB_URL, POSTGRES_URL, SUPABASE_DB_URL, PG_URI, …)');
+    console.warn('[PG] Falling back to file storage (database.json).');
     if (isRender) {
-        console.error('[FATAL] On Render the filesystem is EPHEMERAL. Without DATABASE_URL (Supabase) all data is lost after sleep/restart. Refusing to start.');
-        process.exit(1);
+        console.warn('[PG][WARN] On Render the filesystem is EPHEMERAL — data WILL be lost on sleep/restart without DATABASE_URL/Supabase.');
+        console.warn('[PG][WARN] Set DATABASE_URL in Render Dashboard → Environment. Server will still start (no exit).');
     }
 }
 
@@ -383,28 +428,62 @@ function saveDB() {
 }
 
 (async () => {
-    try {
-        await initDB();
-    } catch (err) {
-        console.error('[FATAL] initDB failed:', err.message);
-        console.error(err.stack || '');
-        process.exit(1);
+    if (usePg) {
+        console.log('[PG] Startup: PostgreSQL path selected — will create app_data and load key=main');
+    } else {
+        console.warn('[PG] Startup: file storage path (no DATABASE_URL resolved)');
     }
-    try {
-        await loadDB();
-    } catch (err) {
-        console.error('[FATAL] loadDB failed:', err.message);
-        console.error(err.stack || '');
-        process.exit(1);
+
+    let started = false;
+    const maxAttempts = usePg ? 8 : 1;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            await initDB();
+            await loadDB();
+            if (!_dbLoaded) {
+                throw new Error('loadDB finished but _dbLoaded is false');
+            }
+            started = true;
+            break;
+        } catch (err) {
+            console.error(`[PG] Startup DB attempt ${attempt}/${maxAttempts} failed:`, err.message);
+            console.error(err.stack || '');
+            if (attempt < maxAttempts) {
+                const delay = Math.min(30000, 2000 * attempt);
+                console.warn(`[PG] Retrying DB init/load in ${delay}ms (server will not wipe data)…`);
+                await new Promise(r => setTimeout(r, delay));
+            }
+        }
     }
-    if (!_dbLoaded) {
-        console.error('[FATAL] loadDB returned but DB is not marked loaded — refusing to listen');
-        process.exit(1);
+
+    if (started) {
+        initDefaultCoupons();
+        initDefaultQuests();
+        initDefaultTasks();
+        console.log('[PG] MANDARIN PRO database ready, users:', db.users.length, 'storage:', usePg ? 'postgresql' : 'file');
+    } else {
+        // Do NOT exit — keep serving, but never save uninitialized/empty shell
+        console.error('[PG][WARN] DB not loaded after retries. Starting HTTP anyway. Saves stay BLOCKED until load succeeds.');
+        _dbLoaded = false;
+        // Background retry until Supabase/PG becomes available
+        (async function retryLoadLoop() {
+            while (!_dbLoaded) {
+                await new Promise(r => setTimeout(r, 30000));
+                try {
+                    await initDB();
+                    await loadDB();
+                    if (_dbLoaded) {
+                        initDefaultCoupons();
+                        initDefaultQuests();
+                        initDefaultTasks();
+                        console.log('[PG] Late DB load succeeded, users:', db.users.length);
+                    }
+                } catch (e) {
+                    console.error('[PG] Background load retry failed:', e.message);
+                }
+            }
+        })();
     }
-    initDefaultCoupons();
-    initDefaultQuests();
-    initDefaultTasks();
-    console.log('[PG] MANDARIN PRO database ready, users:', db.users.length, 'storage:', usePg ? 'postgresql' : 'file');
     startHttpServer();
 })();
 
