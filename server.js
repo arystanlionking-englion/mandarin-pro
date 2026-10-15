@@ -143,53 +143,25 @@ async function loadDB() {
     }
 }
 
+function getDefaultDB() {
+    return { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], virtualBanks: null, userBankDeposits: [], userBankInvestments: [], bankHistory: [], couponPricesHalved: false, qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [] };
+}
+
 function _assignDB(parsed) {
-    if (!parsed) {
-        db = { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], virtualBanks: null, userBankDeposits: [], userBankInvestments: [], bankHistory: [], qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [] };
-        return;
+    db = getDefaultDB();
+    if (!parsed) return;
+    // Merge all fields from parsed data, preserving defaults for missing fields.
+    // This ensures new fields added to getDefaultDB() are never lost after a load.
+    for (const key of Object.keys(db)) {
+        if (parsed.hasOwnProperty(key)) {
+            db[key] = parsed[key];
+        }
     }
-    db.users = Array.isArray(parsed.users) ? parsed.users : [];
-    db.history = Array.isArray(parsed.history) ? parsed.history : [];
-    db.messages = Array.isArray(parsed.messages) ? parsed.messages : [];
-    db.favorites = (typeof parsed.favorites === 'object' && parsed.favorites) ? parsed.favorites : {};
-    db.notifications = Array.isArray(parsed.notifications) ? parsed.notifications : [];
-    db.adminHistory = Array.isArray(parsed.adminHistory) ? parsed.adminHistory : [];
-    db.adminPinHash = parsed.adminPinHash || null;
-    db.adminSalt = parsed.adminSalt || null;
-    db.groups = Array.isArray(parsed.groups) ? parsed.groups : [];
-    db.groupPermissions = (typeof parsed.groupPermissions === 'object' && parsed.groupPermissions) ? parsed.groupPermissions : {};
-    db.investments = Array.isArray(parsed.investments) ? parsed.investments : [];
-    db.coupons = Array.isArray(parsed.coupons) ? parsed.coupons : [];
-    db.userCoupons = Array.isArray(parsed.userCoupons) ? parsed.userCoupons : [];
-    db.couponNotifications = Array.isArray(parsed.couponNotifications) ? parsed.couponNotifications : [];
-    db.purchaseRequests = Array.isArray(parsed.purchaseRequests) ? parsed.purchaseRequests : [];
-    db.btcPrice = typeof parsed.btcPrice === 'number' && isFinite(parsed.btcPrice) ? parsed.btcPrice : 47000000;
-    db.investmentPrices = (typeof parsed.investmentPrices === 'object' && parsed.investmentPrices) ? parsed.investmentPrices : { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 };
-    db.quests = Array.isArray(parsed.quests) ? parsed.quests : [];
-    db.taskAssignments = Array.isArray(parsed.taskAssignments) ? parsed.taskAssignments : [];
-    db.duels = Array.isArray(parsed.duels) ? parsed.duels : [];
-    db.userXP = (typeof parsed.userXP === 'object' && parsed.userXP) ? parsed.userXP : {};
-    db.sessions = Array.isArray(parsed.sessions) ? parsed.sessions : [];
-    db.approvalRequests = Array.isArray(parsed.approvalRequests) ? parsed.approvalRequests : [];
-    db.userLists = (typeof parsed.userLists === 'object' && parsed.userLists) ? parsed.userLists : {};
-    db.rests = Array.isArray(parsed.rests) ? parsed.rests : [];
-    db.userBlocks = Array.isArray(parsed.userBlocks) ? parsed.userBlocks : [];
-    db.qrTerminalHistory = Array.isArray(parsed.qrTerminalHistory) ? parsed.qrTerminalHistory : [];
-    db.battlePass = (typeof parsed.battlePass === 'object' && parsed.battlePass) ? parsed.battlePass : { seasonEnd: null, userProgress: {} };
+    // Fix nested object that may be null after JSON round-trip
+    if (!db.battlePass || typeof db.battlePass !== 'object') {
+        db.battlePass = { seasonEnd: null, userProgress: {} };
+    }
     if (!db.battlePass.userProgress) db.battlePass.userProgress = {};
-    db.promocodes = Array.isArray(parsed.promocodes) ? parsed.promocodes : [];
-    db.userPromoActivations = Array.isArray(parsed.userPromoActivations) ? parsed.userPromoActivations : [];
-    db.virtualBanks = Array.isArray(parsed.virtualBanks) ? parsed.virtualBanks : null;
-    db.userBankDeposits = Array.isArray(parsed.userBankDeposits) ? parsed.userBankDeposits : [];
-    db.userBankInvestments = Array.isArray(parsed.userBankInvestments) ? parsed.userBankInvestments : [];
-    db.bankHistory = Array.isArray(parsed.bankHistory) ? parsed.bankHistory : [];
-    db.couponPricesHalved = !!parsed.couponPricesHalved;
-    db.qrCodes = Array.isArray(parsed.qrCodes) ? parsed.qrCodes : [];
-    db.qrAccounts = Array.isArray(parsed.qrAccounts) ? parsed.qrAccounts : [];
-    db.qrCodeScans = Array.isArray(parsed.qrCodeScans) ? parsed.qrCodeScans : [];
-    db.testResults = Array.isArray(parsed.testResults) ? parsed.testResults : [];
-    db.savingsGoals = Array.isArray(parsed.savingsGoals) ? parsed.savingsGoals : [];
-    db.bankQuests = Array.isArray(parsed.bankQuests) ? parsed.bankQuests : [];
 }
 
 function _runMigrations() {
@@ -294,6 +266,8 @@ function saveDB() {
     await initDB();
     await loadDB();
     initDefaultCoupons();
+    initDefaultQuests();
+    initDefaultTasks();
     console.log('MANDARIN PRO database ready');
 })();
 
@@ -426,7 +400,6 @@ function initDefaultQuests() {
     });
     saveDB();
 }
-initDefaultQuests();
 
 // --- Default Tasks ---
 // --- Default Tasks (HSK3 Universal) ---
@@ -468,7 +441,6 @@ function initDefaultTasks() {
     });
     saveDB();
 }
-initDefaultTasks();
 
 // --- Helpers ---
 
