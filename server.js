@@ -15,16 +15,16 @@ if (usePg) {
     pool = new Pool({
         connectionString: DATABASE_URL,
         ssl: DATABASE_URL.includes('localhost') ? false : { rejectUnauthorized: false },
-        connectionTimeoutMillis: 15000,
-        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 30000,
+        idleTimeoutMillis: 60000,
         max: 10
     });
     pool.on('error', (err) => {
-        console.error('PostgreSQL idle client error:', err.message);
+        console.error('[PG POOL ERROR]', err.message, err.stack || '');
     });
-    console.log('PostgreSQL storage enabled');
+    console.log('[PG] PostgreSQL storage enabled');
 } else {
-    console.log('File-based storage (database.json) — set DATABASE_URL to use PostgreSQL');
+    console.log('[PG] DATABASE_URL not set — using file storage (database.json)');
 }
 
 const app = express();
@@ -42,21 +42,52 @@ const io = new Server(server, {
 
 const DB_PATH = path.join(__dirname, 'database.json');
 
+// ============ PostgreSQL Storage Layer ============
+
 async function initDB() {
     if (!usePg) return;
-    await pool.query(`
-        CREATE TABLE IF NOT EXISTS app_data (
-            id INT PRIMARY KEY DEFAULT 1,
-            data JSONB NOT NULL DEFAULT '{}',
-            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
+
+    // Detect existing table schema
+    const { rows: cols } = await pool.query(`
+        SELECT column_name FROM information_schema.columns
+        WHERE table_name = 'app_data' AND table_schema = 'public'
     `);
-    const { rows } = await pool.query('SELECT id FROM app_data WHERE id = 1');
-    if (rows.length === 0) {
-        await pool.query('INSERT INTO app_data (id, data) VALUES (1, $1)', [JSON.stringify(db)]);
-        console.log('PostgreSQL: created initial data row');
+    const columnNames = cols.map(r => r.column_name);
+
+    if (columnNames.length === 0) {
+        // Fresh table with key/value schema
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS app_data (
+                key TEXT PRIMARY KEY,
+                value JSONB NOT NULL DEFAULT '{}'
+            )
+        `);
+        console.log('[PG] Created table app_data (key TEXT, value JSONB)');
+    } else if (columnNames.includes('id') && !columnNames.includes('key')) {
+        // Old schema (id INT, data JSONB) — migrate to key/value
+        console.log('[PG] Old schema detected, migrating app_data...');
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS app_data_new (
+                key TEXT PRIMARY KEY,
+                value JSONB NOT NULL DEFAULT '{}'
+            )
+        `);
+        const { rows } = await pool.query('SELECT data FROM app_data WHERE id = 1');
+        if (rows.length > 0 && rows[0].data) {
+            await pool.query(
+                "INSERT INTO app_data_new (key, value) VALUES ('main', $1)",
+                [JSON.stringify(rows[0].data)]
+            );
+            console.log('[PG] Migrated existing data to new schema');
+        }
+        await pool.query('DROP TABLE IF EXISTS app_data');
+        await pool.query('ALTER TABLE app_data_new RENAME TO app_data');
+        console.log('[PG] Migration complete: key/value schema active');
+    } else {
+        console.log('[PG] Table app_data already has key/value schema');
     }
-    console.log('PostgreSQL: app_data table ready');
+
+    console.log('[PG] app_data table ready');
 }
 
 // --- PIN Hashing ---
@@ -86,29 +117,26 @@ let db = { users: [], history: [], messages: [], favorites: {}, notifications: [
 
 async function loadDB() {
     if (usePg) {
-        try {
-            const { rows } = await pool.query('SELECT data FROM app_data WHERE id = 1');
-            if (rows.length > 0 && rows[0].data) {
-                const parsed = rows[0].data;
-                if (!Array.isArray(parsed.users)) throw new Error('Invalid users array');
-                _assignDB(parsed);
+        const { rows } = await pool.query("SELECT value FROM app_data WHERE key = 'main'");
+        if (rows.length > 0 && rows[0].value) {
+            const parsed = typeof rows[0].value === 'string' ? JSON.parse(rows[0].value) : rows[0].value;
+            if (!Array.isArray(parsed.users)) {
+                console.error('[PG] Loaded data has invalid users array — starting with defaults (NOT overwriting DB)');
+                _assignDB(null);
                 _runMigrations();
-                console.log('Database loaded from PostgreSQL');
                 return;
             }
-            // Table exists but empty — initialize with defaults
-            console.log('PostgreSQL: table empty, initializing with defaults');
-            _assignDB(null);
+            _assignDB(parsed);
             _runMigrations();
-            await saveDBImmediate();
-            return;
-        } catch (err) {
-            console.error('Failed to load from PostgreSQL:', err.message);
-            // DO NOT reset to empty defaults — that would wipe existing data.
-            // Keep in-memory defaults; saves will retry on next saveDB call.
-            console.warn('Keeping in-memory defaults. Will retry save on next change.');
+            console.log('[PG] Database loaded from PostgreSQL, users:', db.users.length);
             return;
         }
+        // No data yet — initialize with defaults and save
+        console.log('[PG] No data found, initializing with defaults');
+        _assignDB(null);
+        _runMigrations();
+        await saveDBImmediate();
+        return;
     }
     // File-based fallback
     try {
@@ -234,33 +262,44 @@ function _runMigrations() {
     }
 }
 
-let _saveCount = 0;
 let _saveDirty = false;
 let _saveTimer = null;
 
 async function saveDBImmediate() {
     if (usePg) {
+        const payload = JSON.stringify(db);
         try {
             await pool.query(
-                'INSERT INTO app_data (id, data, updated_at) VALUES (1, $1, NOW()) ON CONFLICT (id) DO UPDATE SET data = $1, updated_at = NOW()',
-                [db]
+                "INSERT INTO app_data (key, value) VALUES ('main', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
+                [payload]
             );
-            console.log('Data saved to PostgreSQL');
         } catch (err) {
-            console.error('Failed to save to PostgreSQL:', err.message);
-        }
-    } else {
-        try {
-            const tmp = DB_PATH + '.tmp';
-            fs.writeFileSync(tmp, JSON.stringify(db, null, 2), 'utf-8');
-            fs.renameSync(tmp, DB_PATH);
-            _saveCount++;
-            if (_saveCount % 50 === 0) {
-                try { fs.copyFileSync(DB_PATH, DB_PATH + '.bak'); } catch {}
+            console.error('[PG SAVE ERROR]', err.message);
+            console.error(err.stack || '');
+            // Retry once after short delay
+            try {
+                await new Promise(r => setTimeout(r, 1000));
+                await pool.query(
+                    "INSERT INTO app_data (key, value) VALUES ('main', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
+                    [payload]
+                );
+                console.log('[PG] Save succeeded on retry');
+            } catch (err2) {
+                console.error('[PG SAVE ERROR RETRY FAILED]', err2.message);
+                console.error(err2.stack || '');
+                throw err2;
             }
-        } catch (err) {
-            console.error('Failed to save database:', err.message);
         }
+        return;
+    }
+    // File-based fallback (only when DATABASE_URL is not set)
+    try {
+        const tmp = DB_PATH + '.tmp';
+        fs.writeFileSync(tmp, JSON.stringify(db, null, 2), 'utf-8');
+        fs.renameSync(tmp, DB_PATH);
+    } catch (err) {
+        console.error('[FILE SAVE ERROR]', err.message);
+        throw err;
     }
 }
 
@@ -271,24 +310,35 @@ function saveDB() {
             _saveTimer = null;
             if (_saveDirty) {
                 _saveDirty = false;
-                await saveDBImmediate();
+                try {
+                    await saveDBImmediate();
+                } catch (err) {
+                    console.error('[PG] Debounced save failed:', err.message);
+                }
             }
-        }, 2000);
+        }, 500);
     }
 }
 
 (async () => {
     try {
         await initDB();
-        await loadDB();
-        initDefaultCoupons();
-        initDefaultQuests();
-        initDefaultTasks();
-        console.log('MANDARIN PRO database ready');
     } catch (err) {
-        console.error('FATAL: database initialization failed:', err.message);
+        console.error('[FATAL] initDB failed:', err.message);
+        console.error(err.stack || '');
         process.exit(1);
     }
+    try {
+        await loadDB();
+    } catch (err) {
+        console.error('[FATAL] loadDB failed:', err.message);
+        console.error(err.stack || '');
+        process.exit(1);
+    }
+    initDefaultCoupons();
+    initDefaultQuests();
+    initDefaultTasks();
+    console.log('[PG] MANDARIN PRO database ready, users:', db.users.length);
 })();
 
 // --- Default Coupons ---
@@ -5255,10 +5305,17 @@ server.listen(PORT, () => {
 });
 
 async function gracefulShutdown() {
-    console.log('Shutting down, flushing data...');
+    console.log('[PG] Shutting down, flushing data...');
     if (_saveTimer) { clearTimeout(_saveTimer); _saveTimer = null; }
-    if (_saveDirty) { _saveDirty = false; await saveDBImmediate(); }
-    if (pool) await pool.end();
+    try {
+        await saveDBImmediate();
+        console.log('[PG] Data flushed on shutdown');
+    } catch (err) {
+        console.error('[PG] Failed to flush data on shutdown:', err.message);
+    }
+    if (pool) {
+        try { await pool.end(); } catch (e) { console.error('[PG] Pool end error:', e.message); }
+    }
     process.exit(0);
 }
 process.on('SIGINT', gracefulShutdown);
