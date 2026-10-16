@@ -41,9 +41,15 @@ function resolveDatabaseUrl() {
             console.warn(`[PG] Ignoring ${key}: value does not look like a postgres URL`);
             continue;
         }
-        // Ensure SSL mode for hosted Supabase if caller omitted it
-        if (!/localhost|127\.0\.0\.1/i.test(raw) && !/[?&]sslmode=/i.test(raw)) {
-            raw += (raw.includes('?') ? '&' : '?') + 'sslmode=require';
+        // Hosted Supabase: force sslmode=no-verify. pg parses connectionString AFTER
+        // explicit options, so sslmode=require becomes ssl:true and overrides
+        // Pool's ssl:{rejectUnauthorized:false} → "self-signed certificate in chain".
+        if (!/localhost|127\.0\.0\.1/i.test(raw)) {
+            if (/[?&]sslmode=/i.test(raw)) {
+                raw = raw.replace(/([?&])sslmode=[^&]*/i, '$1sslmode=no-verify');
+            } else {
+                raw += (raw.includes('?') ? '&' : '?') + 'sslmode=no-verify';
+            }
         }
         return { url: raw, source: key };
     }
