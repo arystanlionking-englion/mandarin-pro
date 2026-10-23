@@ -210,7 +210,7 @@ const INVESTMENT_TYPES = [
     { id: 'certificates', name: 'Сертификаты', icon: 'award', emoji: '🏅' }
 ];
 
-let db = { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [], journal: { groups: [], students: [], records: [], settings: { reward: 300 } }, accountRequests: [] };
+let db = { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [], journal: { groups: [], students: [], records: [], settings: { reward: 300 } }, accountRequests: [], securityLog: [], auditLog: [] };
 
 // True only after loadDB() successfully populated `db` from the real store.
 // Prevents empty in-memory defaults from being flushed over real data on startup.
@@ -302,7 +302,7 @@ async function loadDB() {
 }
 
 function getDefaultDB() {
-    return { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], virtualBanks: null, userBankDeposits: [], userBankInvestments: [], bankHistory: [], couponPricesHalved: false, qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [], journal: { groups: [], students: [], records: [], settings: { reward: 300 } }, mafia: null, accountRequests: [] };
+    return { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], virtualBanks: null, userBankDeposits: [], userBankInvestments: [], bankHistory: [], couponPricesHalved: false, qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [], journal: { groups: [], students: [], records: [], settings: { reward: 300 } }, mafia: null, accountRequests: [], securityLog: [], auditLog: [] };
 }
 
 function getDefaultMafia() {
@@ -762,6 +762,100 @@ function findUser(id) { return db.users.find(u => u.id === id); }
 function findUserByName(name) { return db.users.find(u => u.name === name); }
 function isUserBlocked(userId) { const now = Date.now(); return db.userBlocks.find(b => b.userId === userId && (b.expiresAt === null || b.expiresAt > now)) || null; }
 
+// --- Security: login rate limit & threat log ---
+const loginAttempts = new Map(); // key -> { count, firstAt, lockedUntil }
+const LOGIN_MAX_FAILS = 8;
+const LOGIN_LOCK_MS = 10 * 60 * 1000;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+
+function clientKey(socket, userId) {
+    const ip = (socket && socket.handshake && (socket.handshake.headers['x-forwarded-for'] || socket.handshake.address)) || 'unknown';
+    return String(userId || 'anon') + '|' + String(ip).split(',')[0].trim();
+}
+
+function loginLockRemaining(key) {
+    const e = loginAttempts.get(key);
+    if (!e || !e.lockedUntil) return 0;
+    return e.lockedUntil > Date.now() ? e.lockedUntil - Date.now() : 0;
+}
+
+function registerLoginFail(key, label) {
+    const now = Date.now();
+    let e = loginAttempts.get(key);
+    if (!e || now - e.firstAt > LOGIN_WINDOW_MS) {
+        e = { count: 0, firstAt: now, lockedUntil: 0 };
+        loginAttempts.set(key, e);
+    }
+    e.count++;
+    if (e.count >= LOGIN_MAX_FAILS) {
+        e.lockedUntil = now + LOGIN_LOCK_MS;
+        logSecurityEvent('login_lock', label, 'Превышен лимит попыток входа (' + e.count + ')');
+        notifyAdminsThreat('🔐 Блокировка входа', (label || 'Неизвестный') + ': превышен лимит попыток входа');
+    }
+    return e;
+}
+
+function clearLoginFails(key) {
+    loginAttempts.delete(key);
+}
+
+function logSecurityEvent(type, target, details) {
+    if (!Array.isArray(db.securityLog)) db.securityLog = [];
+    const entry = {
+        id: genId(),
+        type: String(type || 'unknown'),
+        target: target == null ? null : String(target).slice(0, 120),
+        details: String(details || '').slice(0, 300),
+        timestamp: Date.now()
+    };
+    db.securityLog.push(entry);
+    if (db.securityLog.length > 500) db.securityLog = db.securityLog.slice(-500);
+    console.warn('[SECURITY]', entry.type, entry.target || '', entry.details);
+    appendAudit({
+        actorRole: 'system',
+        action: 'security_' + entry.type,
+        target: entry.target,
+        result: 'error',
+        source: 'security',
+        reason: entry.details
+    });
+    try { saveDB(); } catch (e) { }
+    return entry;
+}
+
+function notifyAdminsThreat(title, body) {
+    try {
+        for (const sid of adminSockets) {
+            io.to(sid).emit('security:threat', { title: String(title || 'Угроза'), body: String(body || ''), timestamp: Date.now() });
+        }
+    } catch (e) { }
+}
+
+function sanitizeImageSrc(src) {
+    if (src == null || src === '') return null;
+    if (typeof src !== 'string') return null;
+    const s = src.trim();
+    if (!s) return null;
+    if (/^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,[A-Za-z0-9+/=\s]+$/i.test(s) && s.length <= 3000000) {
+        // SVG data-urls are allowed as images; browsers do not execute scripts in <img>
+        return s;
+    }
+    return null;
+}
+
+function isSafeHttpUrl(raw) {
+    if (typeof raw !== 'string') return false;
+    const s = raw.trim();
+    if (!s || s.length > 2048) return false;
+    if (/^(javascript|data|vbscript|file|about|blob):/i.test(s)) return false;
+    try {
+        const u = new URL(s);
+        return u.protocol === 'https:' || u.protocol === 'http:';
+    } catch {
+        return false;
+    }
+}
+
 // Public user data for OTHER users (no balance, no PIN)
 function publicUserLight(u, onlineIds) {
     const ux = db.userXP[u.id] || { xp: 0, level: 1 };
@@ -960,6 +1054,80 @@ function emitBankUpdate() {
     }
 }
 
+// --- Content safety: URLs & attachments ---
+const URL_RE = /(https?:\/\/|www\.|javascript:|data:text\/html|vbscript:|<a\s|<img\s|<iframe|[\w.-]+\.(com|net|org|ru|io|xyz|top|club|info|biz|cc|tv|me|su|tk|ml|cf|ga|gq|pw|online|site|shop|fun|icu|live|pro|store|app|dev|tech|space|click|link|download|zip|exe)\b)/i;
+
+function textHasUrl(text) {
+    return URL_RE.test(String(text == null ? '' : text));
+}
+
+function payloadHasAttachment(data) {
+    if (!data || typeof data !== 'object') return false;
+    const keys = ['file', 'attachment', 'attachments', 'photo', 'image', 'images', 'base64', 'blob', 'files', 'media', 'sticker', 'voice', 'video'];
+    for (const k of keys) {
+        const v = data[k];
+        if (v == null || v === '' || v === false) continue;
+        if (typeof v === 'string') {
+            if (/^data:/i.test(v) || v.length > 2000) return true;
+            continue;
+        }
+        if (Array.isArray(v) && v.length) return true;
+        if (typeof v === 'object' && Object.keys(v).length) return true;
+    }
+    return false;
+}
+
+function sanitizeTextNoUrl(raw, maxLen) {
+    let s = String(raw == null ? '' : raw);
+    if (payloadHasAttachment({ text: s }) || textHasUrl(s)) return null;
+    s = s.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').trim();
+    if (maxLen) s = s.slice(0, maxLen);
+    return s;
+}
+
+// --- Immutable-style audit log (append-only on server) ---
+function ensureAuditLog() {
+    if (!Array.isArray(db.auditLog)) db.auditLog = [];
+    return db.auditLog;
+}
+
+function auditHash(prevHash, payload) {
+    return crypto.createHash('sha256')
+        .update(String(prevHash || '') + '|' + JSON.stringify(payload))
+        .digest('hex')
+        .slice(0, 32);
+}
+
+function appendAudit(entry) {
+    try {
+        const log = ensureAuditLog();
+        const prev = log.length ? log[log.length - 1] : null;
+        const rec = {
+            id: genId(),
+            ts: Date.now(),
+            actorId: entry.actorId || null,
+            actorName: entry.actorName || null,
+            actorRole: entry.actorRole || 'system',
+            action: String(entry.action || 'unknown'),
+            target: entry.target == null ? null : String(entry.target).slice(0, 160),
+            oldValue: entry.oldValue == null ? null : String(entry.oldValue).slice(0, 200),
+            newValue: entry.newValue == null ? null : String(entry.newValue).slice(0, 200),
+            result: entry.result === 'error' ? 'error' : 'success',
+            source: entry.source || 'system',
+            reason: entry.reason ? String(entry.reason).slice(0, 200) : null
+        };
+        rec.prevHash = prev ? prev.hash : null;
+        rec.hash = auditHash(rec.prevHash, rec);
+        log.push(rec);
+        if (log.length > 2000) db.auditLog = log.slice(-2000);
+        try { saveDB(); } catch (e) { }
+        return rec;
+    } catch (e) {
+        console.error('[AUDIT] append failed', e.message);
+        return null;
+    }
+}
+
 // --- Admin History Logging ---
 
 function logAdminAction(action, targetUserId, targetUserName, amount, reason, details) {
@@ -974,6 +1142,15 @@ function logAdminAction(action, targetUserId, targetUserName, amount, reason, de
         details: details || ''
     };
     db.adminHistory.push(entry);
+    appendAudit({
+        actorRole: 'admin',
+        action: action,
+        target: targetUserName || targetUserId || null,
+        newValue: amount ? String(amount) : (details || ''),
+        result: 'success',
+        source: 'admin_ui',
+        reason: reason || null
+    });
     return entry;
 }
 
@@ -1494,6 +1671,19 @@ function mafiaMaybeFinishTimer() {
     t.endAt = 0;
     return true;
 }
+function mafiaForceLobby(reason) {
+    const m = mafiaEnsure();
+    m.status = 'lobby';
+    m.lobbyOpen = true;
+    m.game = null;
+    mafiaTouchVersion();
+    emitMafiaState();
+    if (reason) {
+        for (const sid of adminSockets) {
+            io.to(sid).emit('mafia:error', { message: reason });
+        }
+    }
+}
 function mafiaPublicPayload(forSocketId) {
     const m = mafiaEnsure();
     const uid = socketUserMap.get(forSocketId) || null;
@@ -1574,6 +1764,11 @@ setInterval(() => {
             mafiaTouchVersion();
             emitMafiaState();
             mafiaBroadcastTimerEnd();
+            // Time is up — close the deal and return everyone to the waiting room
+            const m = mafiaEnsure();
+            if (m.status === 'playing') {
+                mafiaForceLobby('Время обсуждения вышло — партия завершена.');
+            }
         }
     } catch (e) { /* timer watchdog must never crash the server */ }
 }, 500);
@@ -1582,6 +1777,29 @@ setInterval(() => {
 
 io.on('connection', (socket) => {
     console.log(`Socket connected: ${socket.id}`);
+
+    // Flood protection: limit events per socket window
+    const _flood = { start: Date.now(), count: 0, warned: false };
+    const _floodExempt = new Set(['mafia:finish', 'mafia:reset', 'admin:login', 'admin:resume', 'user:login_password', 'user:login_with_pin']);
+    socket.use((packet, next) => {
+        const now = Date.now();
+        if (now - _flood.start > 10000) {
+            _flood.start = now;
+            _flood.count = 0;
+            _flood.warned = false;
+        }
+        _flood.count++;
+        const evName = packet && packet[0];
+        if (_flood.count > 120 && !_floodExempt.has(evName)) {
+            if (!_flood.warned) {
+                _flood.warned = true;
+                logSecurityEvent('socket_flood', socket.id, 'Превышен лимит событий socket.io');
+                notifyAdminsThreat('🌊 Флуд-запросы', 'Socket ' + String(socket.id).slice(0, 8) + ': превышен лимит событий');
+            }
+            return; // drop event
+        }
+        next();
+    });
 
     // Send initial data (no user-specific data yet)
     socket.emit('init', {
@@ -1648,8 +1866,16 @@ io.on('connection', (socket) => {
         if (!user) { socket.emit('error', { message: 'Пользователь не найден.', code: 'USER_NOT_FOUND' }); return; }
         if (!user.pinHash) { socket.emit('error', { message: 'PIN не установлен.' }); return; }
         if (!/^\d{4}$/.test(pin)) { socket.emit('error', { message: 'PIN должен состоять из 4 цифр.' }); return; }
+        const rlKey = clientKey(socket, user.id);
+        const lockedMs = loginLockRemaining(rlKey);
+        if (lockedMs > 0) {
+            socket.emit('error', { message: 'Слишком много попыток. Повторите через ' + Math.ceil(lockedMs / 60000) + ' мин.' });
+            return;
+        }
         try {
             if (!verifyPin(pin, user.pinHash, user.salt)) {
+                registerLoginFail(rlKey, user.name);
+                logSecurityEvent('failed_login_pin', user.name, 'Неверный PIN');
                 socket.emit('error', { message: 'Неверный PIN-код.' });
                 return;
             }
@@ -1657,6 +1883,7 @@ io.on('connection', (socket) => {
             socket.emit('error', { message: 'Ошибка проверки PIN.' });
             return;
         }
+        clearLoginFails(rlKey);
         const block2 = isUserBlocked(user.id);
         if (block2) { socket.emit('user:blocked_login', { mode: block2.mode, reason: block2.mode === 'standard' ? block2.reason : null, expiresAt: block2.expiresAt }); return; }
         touchUser(user); markUserSeen(user.id);
@@ -1686,7 +1913,18 @@ io.on('connection', (socket) => {
             return;
         }
         const user = findUserByName(name);
+        const rlKey = clientKey(socket, name || 'unknown');
+        const lockedMs = loginLockRemaining(rlKey);
+        if (lockedMs > 0) {
+            socket.emit('user:login_result', {
+                success: false,
+                message: 'Слишком много попыток входа. Повторите через ' + Math.ceil(lockedMs / 60000) + ' мин.'
+            });
+            return;
+        }
         if (!user) {
+            registerLoginFail(rlKey, name);
+            logSecurityEvent('failed_login_password', name, 'Неизвестное имя');
             socket.emit('user:login_result', { success: false, message: 'Неверное имя пользователя или пароль' });
             return;
         }
@@ -1725,9 +1963,13 @@ io.on('connection', (socket) => {
         let valid = false;
         try { valid = verifyPassword(password, user.passwordHash, user.passwordSalt || user.salt); } catch { valid = false; }
         if (!valid) {
+            registerLoginFail(rlKey, user.name);
+            logSecurityEvent('failed_login_password', user.name, 'Неверный пароль');
             socket.emit('user:login_result', { success: false, message: 'Неверное имя пользователя или пароль' });
             return;
         }
+        clearLoginFails(rlKey);
+        appendAudit({ actorId: user.id, actorName: user.name, actorRole: 'student', action: 'login_success', target: user.name, result: 'success', source: 'socket' });
         touchUser(user); markUserSeen(user.id);
         saveDB();
         addSocketUser(socket.id, user.id);
@@ -1880,6 +2122,12 @@ io.on('connection', (socket) => {
             socket.emit('error', { message: 'Неверный формат PIN.' });
             return;
         }
+        const adminRlKey = clientKey(socket, 'admin');
+        const adminLockedMs = loginLockRemaining(adminRlKey);
+        if (adminLockedMs > 0) {
+            socket.emit('error', { message: 'Слишком много попыток входа администратора. Повторите через ' + Math.ceil(adminLockedMs / 60000) + ' мин.' });
+            return;
+        }
         // If admin PIN not set yet, set it
         if (!db.adminPinHash) {
             const { hash, salt } = hashPin(pin);
@@ -1895,6 +2143,9 @@ io.on('connection', (socket) => {
         }
         try {
             if (!verifyPin(pin, db.adminPinHash, db.adminSalt)) {
+                registerLoginFail(adminRlKey, 'admin');
+                logSecurityEvent('failed_login_admin', 'admin', 'Неверный PIN администратора');
+                notifyAdminsThreat('⚠️ Подозрительный вход', 'Неудачная попытка входа в админ-панель');
                 socket.emit('error', { message: 'Неверный PIN администратора.' });
                 return;
             }
@@ -1902,6 +2153,7 @@ io.on('connection', (socket) => {
             socket.emit('error', { message: 'Ошибка проверки PIN.' });
             return;
         }
+        clearLoginFails(adminRlKey);
         adminSockets.add(socket.id);
         const adminToken = createAdminSessionToken();
         socket.emit('admin:authenticated', { success: true, firstTime: false, adminToken, expiresAt: Date.now() + ADMIN_SESSION_TTL });
@@ -2255,7 +2507,13 @@ io.on('connection', (socket) => {
 
         const recipientId = data?.recipientId;
         const amount = Number(data?.amount);
-        const message = (data?.message || '').trim();
+        const messageClean = sanitizeTextNoUrl(data?.message, 300);
+        if (data?.message && messageClean === null) {
+            appendAudit({ actorId: sender.id, actorName: sender.name, actorRole: 'student', action: 'transfer_blocked', target: recipientId, result: 'error', source: 'socket', reason: 'URL в сообщении перевода' });
+            socket.emit('error', { message: 'Ссылки в сообщении перевода запрещены.' });
+            return;
+        }
+        const message = messageClean || '';
 
         if (!recipientId) { socket.emit('error', { message: 'Выберите получателя.' }); return; }
         if (recipientId === sender.id) { socket.emit('error', { message: 'Нельзя перевести самому себе.' }); return; }
@@ -2311,7 +2569,17 @@ io.on('connection', (socket) => {
         if (block) { socket.emit('error', { message: 'Ваш аккаунт заблокирован. ' + (block.reason || ''), code: 'USER_BLOCKED' }); return; }
         const recipient = findUser(data?.toId);
         if (!recipient) { socket.emit('error', { message: 'Получатель не найден.' }); return; }
-        const text = (data?.text || '').trim();
+        if (payloadHasAttachment(data)) {
+            appendAudit({ actorId: sender.id, actorName: sender.name, actorRole: 'student', action: 'message_send_blocked', target: recipient.name, result: 'error', source: 'socket', reason: 'Вложение запрещено' });
+            socket.emit('error', { message: 'Вложения и файлы запрещены. Отправьте только текст без ссылок.' });
+            return;
+        }
+        const text = sanitizeTextNoUrl(data?.text, 500);
+        if (text == null) {
+            appendAudit({ actorId: sender.id, actorName: sender.name, actorRole: 'student', action: 'message_send_blocked', target: recipient.name, result: 'error', source: 'socket', reason: 'URL в тексте запрещён' });
+            socket.emit('error', { message: 'Ссылки запрещены. Уберите URL из сообщения и отправьте обычный текст.' });
+            return;
+        }
         if (!text || text.length > 500) { socket.emit('error', { message: 'Сообщение 1-500 символов.' }); return; }
         if (sender.balance < 10) { socket.emit('error', { message: 'Недостаточно средств. Отправка сообщения стоит 10 分.' }); return; }
 
@@ -2691,8 +2959,13 @@ io.on('connection', (socket) => {
     socket.on('admin:sendNotification', (data) => {
         if (!isAdmin(socket.id)) { socket.emit('error', { message: 'Требуется доступ администратора.' }); return; }
         const targetIds = Array.isArray(data?.targetIds) ? data.targetIds : [];
-        const title = (data?.title || '').trim();
-        const text = (data?.text || '').trim();
+        const title = sanitizeTextNoUrl(data?.title, 80) || '';
+        const text = sanitizeTextNoUrl(data?.text, 500);
+        if (payloadHasAttachment(data) || text === null) {
+            appendAudit({ actorRole: 'admin', action: 'notification_blocked', target: 'users', result: 'error', source: 'admin_ui', reason: 'URL или вложение в уведомлении' });
+            socket.emit('error', { message: 'Ссылки и вложения в уведомлениях запрещены. Отправьте обычный текст.' });
+            return;
+        }
         if (!targetIds.length) { socket.emit('error', { message: 'Выберите получателей.' }); return; }
         if (!text) { socket.emit('error', { message: 'Введите текст уведомления.' }); return; }
 
@@ -2727,6 +3000,97 @@ io.on('connection', (socket) => {
     socket.on('admin:getAdminHistory', () => {
         if (!isAdmin(socket.id)) { socket.emit('error', { message: 'Требуется доступ администратора.' }); return; }
         socket.emit('admin:history', { adminHistory: db.adminHistory.sort((a, b) => b.timestamp - a.timestamp) });
+    });
+
+    // --- Audit log (read-only; append-only on server, no delete/edit API) ---
+    socket.on('audit:query', (data) => {
+        const token = data && data.adminToken ? String(data.adminToken) : '';
+        const ok = isAdmin(socket.id) || validateAdminSessionToken(token);
+        if (!ok) {
+            appendAudit({ actorRole: 'system', action: 'audit_denied', result: 'error', source: 'socket', reason: 'Попытка доступа к журналу без прав' });
+            socket.emit('audit:result', { ok: false, error: 'Доступ запрещён' });
+            return;
+        }
+        adminSockets.add(socket.id);
+        ensureAuditLog();
+        const tab = String(data?.tab || 'all');
+        const q = String(data?.q || '').toLowerCase().slice(0, 80);
+        const from = Number(data?.from) || 0;
+        const to = Number(data?.to) || 0;
+        const userFilter = String(data?.userFilter || '');
+        const page = Math.max(1, Number(data?.page) || 1);
+        const pageSize = Math.min(50, Math.max(10, Number(data?.pageSize) || 25));
+
+        // Unified feed: audit + adminHistory + securityLog + financial ops
+        let items = db.auditLog.map(r => ({
+            id: r.id, ts: r.ts, actorId: r.actorId, actorName: r.actorName, actorRole: r.actorRole,
+            action: r.action, target: r.target, oldValue: r.oldValue, newValue: r.newValue,
+            result: r.result, source: r.source, reason: r.reason, hash: r.hash, prevHash: r.prevHash,
+            kind: 'audit'
+        }));
+        (db.adminHistory || []).forEach(h => {
+            items.push({
+                id: h.id, ts: h.timestamp || h.ts, actorId: null, actorName: 'Администратор', actorRole: 'admin',
+                action: h.action || 'admin_action', target: h.targetUserName || h.targetUserId || h.details || null,
+                oldValue: null, newValue: h.amount ? String(h.amount) : (h.details || ''),
+                result: 'success', source: 'admin_ui', reason: h.reason || null, hash: null, prevHash: null, kind: 'admin'
+            });
+        });
+        (db.securityLog || []).forEach(s => {
+            items.push({
+                id: s.id, ts: s.timestamp || s.ts, actorId: null, actorName: s.target || '—', actorRole: 'system',
+                action: 'security_' + (s.type || 'event'), target: s.target || null,
+                oldValue: null, newValue: null, result: 'error', source: 'security',
+                reason: s.details || null, hash: null, prevHash: null, kind: 'security'
+            });
+        });
+        (db.history || []).slice(-400).forEach(tx => {
+            items.push({
+                id: tx.id, ts: tx.timestamp || Date.now(), actorId: tx.userId || tx.fromId || null,
+                actorName: tx.userName || tx.from || tx.to || null,
+                actorRole: (tx.fromId === 'admin' || tx.type === 'journal_reward') ? 'student' : 'student',
+                action: 'tx_' + (tx.type || 'op'), target: tx.description || tx.to || null,
+                oldValue: tx.oldBalance == null ? null : String(tx.oldBalance),
+                newValue: tx.newBalance == null ? (tx.amount != null ? String(tx.amount) : null) : String(tx.newBalance),
+                result: 'success', source: 'bank', reason: tx.reason || null, hash: null, prevHash: null, kind: 'change'
+            });
+        });
+
+        items.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+
+        if (tab === 'admin') items = items.filter(r => r.actorRole === 'admin' || r.kind === 'admin');
+        else if (tab === 'student') items = items.filter(r => r.actorRole === 'student');
+        else if (tab === 'security') items = items.filter(r => r.actorRole === 'system' || r.kind === 'security' || r.result === 'error' || String(r.action).indexOf('security_') === 0);
+        else if (tab === 'changes') items = items.filter(r => r.kind === 'change' || r.oldValue != null || r.newValue != null);
+
+        if (q) {
+            items = items.filter(r => {
+                const hay = ((r.action || '') + ' ' + (r.actorName || '') + ' ' + (r.target || '') + ' ' + (r.reason || '') + ' ' + (r.newValue || '') + ' ' + (r.oldValue || '')).toLowerCase();
+                return hay.indexOf(q) >= 0;
+            });
+        }
+        if (userFilter) {
+            const uf = userFilter.toLowerCase();
+            items = items.filter(r => (r.actorId && String(r.actorId).toLowerCase().indexOf(uf) >= 0) ||
+                (r.actorName && String(r.actorName).toLowerCase().indexOf(uf) >= 0));
+        }
+        if (from) items = items.filter(r => (r.ts || 0) >= from);
+        if (to) items = items.filter(r => (r.ts || 0) <= to);
+
+        const total = items.length;
+        const start = (page - 1) * pageSize;
+        const pageItems = items.slice(start, start + pageSize);
+        socket.emit('audit:result', {
+            ok: true,
+            total,
+            page,
+            pageSize,
+            items: pageItems,
+            integrity: {
+                mode: 'append-only-hash-chain',
+                note: 'Все действия программы. Удаление/редактирование через API недоступно.'
+            }
+        });
     });
 
     // --- Admin: Backup ---
@@ -3576,9 +3940,7 @@ io.on('connection', (socket) => {
         const category = data?.category || 'easy';
         const icon = data?.icon || '🎟️';
         const durationDays = Number(data?.durationDays) || 7;
-        let image = data?.image || null;
-        if (image && typeof image === 'string' && !image.startsWith('data:image/')) image = null;
-        if (image && typeof image === 'string' && image.length > 3000000) image = null; // ~2MB limit
+        let image = sanitizeImageSrc(data?.image);
         if (!name) { socket.emit('error', { message: 'Введите название купона.' }); return; }
         if (!Number.isInteger(price) || price < 0) { socket.emit('error', { message: 'Некорректная цена.' }); return; }
         const coupon = {
@@ -3606,7 +3968,7 @@ io.on('connection', (socket) => {
         if (data?.active !== undefined) coupon.active = !!data.active;
         if (data?.image !== undefined) {
             let img = data.image;
-            if (img && typeof img === 'string' && img.startsWith('data:image/') && img.length <= 3000000) coupon.image = img;
+            if (img !== undefined) coupon.image = sanitizeImageSrc(img);
             else if (img === null) coupon.image = null;
         }
         logAdminAction('coupon_edit', null, coupon.name, coupon.price, null, null);
@@ -5011,10 +5373,12 @@ io.on('connection', (socket) => {
         const photo = data?.photo;
         if (photo === null || photo === '') {
             user.profilePhoto = null;
-        } else if (typeof photo === 'string' && photo.startsWith('data:image/') && photo.length < 700000) {
-            user.profilePhoto = photo;
         } else {
-            socket.emit('error', { message: 'Фото: JPG/PNG/WEBP, макс 2 МБ.' }); return;
+            const cleanPhoto = sanitizeImageSrc(photo);
+            if (!cleanPhoto || cleanPhoto.length >= 700000) {
+                socket.emit('error', { message: 'Фото: JPG/PNG/WEBP, макс 2 МБ.' }); return;
+            }
+            user.profilePhoto = cleanPhoto;
         }
         saveDB();
         const onlineIds = getOnlineUserIds();
@@ -6621,14 +6985,19 @@ io.on('connection', (socket) => {
         });
     });
 
-    socket.on('mafia:finish', () => {
+    socket.on('mafia:finish', (data) => {
         const uid = socketUserMap.get(socket.id);
         const m = mafiaEnsure();
-        if (!m.game) return;
-        const isHost = m.game.hostId === uid;
-        const isAdm = isAdmin(socket.id);
-        if (!isAdm && !(isHost && m.config.allowHostFinish)) return;
+        const token = data && data.adminToken ? String(data.adminToken) : '';
+        const isAdm = isAdmin(socket.id) || validateAdminSessionToken(token);
+        if (isAdm) adminSockets.add(socket.id);
+        const isHost = !!(m.game && m.game.hostId === uid && m.config && m.config.allowHostFinish);
+        if (!isAdm && !isHost) {
+            socket.emit('mafia:error', { message: 'Нет прав на завершение партии.' });
+            return;
+        }
         // Keep lobby members so a new round can start; drop the finished deal.
+        // Admin can finish even if game is already missing (stuck / phantom state).
         m.status = 'lobby';
         m.lobbyOpen = true;
         m.game = null;
@@ -6636,8 +7005,14 @@ io.on('connection', (socket) => {
         emitMafiaState();
     });
 
-    socket.on('mafia:reset', () => {
-        if (!isAdmin(socket.id)) return;
+    socket.on('mafia:reset', (data) => {
+        const token = data && data.adminToken ? String(data.adminToken) : '';
+        const isAdm = isAdmin(socket.id) || validateAdminSessionToken(token);
+        if (!isAdm) {
+            socket.emit('mafia:error', { message: 'Требуется доступ администратора.' });
+            return;
+        }
+        adminSockets.add(socket.id);
         const m = mafiaEnsure();
         m.status = 'idle';
         m.lobbyOpen = false;
