@@ -88,6 +88,25 @@ app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(__dirname));
 
+// --- Parent personal link (public, token-only) ---
+app.get('/parent-view', (req, res) => {
+    res.sendFile(path.join(__dirname, 'parent-view.html'));
+});
+
+app.get('/api/parent-view/:token', (req, res) => {
+    try {
+        const payload = parentViewPayload(String(req.params.token || ''));
+        if (!payload.ok) {
+            res.status(404).json(payload);
+            return;
+        }
+        res.json(payload);
+    } catch (err) {
+        console.error('[parent-view]', err.message);
+        res.status(500).json({ ok: false, error: 'Внутренняя ошибка' });
+    }
+});
+
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: { origin: '*' },
@@ -174,6 +193,13 @@ function verifyPin(pin, hash, salt) {
     return crypto.timingSafeEqual(Buffer.from(result, 'hex'), Buffer.from(hash, 'hex'));
 }
 
+function hashPassword(password, salt) {
+    return hashPin(password, salt);
+}
+function verifyPassword(password, hash, salt) {
+    return verifyPin(password, hash, salt);
+}
+
 // --- Data Layer ---
 
 const INVESTMENT_TYPES = [
@@ -184,7 +210,7 @@ const INVESTMENT_TYPES = [
     { id: 'certificates', name: 'Сертификаты', icon: 'award', emoji: '🏅' }
 ];
 
-let db = { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [] };
+let db = { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [], journal: { groups: [], students: [], records: [], settings: { reward: 300 } }, accountRequests: [] };
 
 // True only after loadDB() successfully populated `db` from the real store.
 // Prevents empty in-memory defaults from being flushed over real data on startup.
@@ -276,7 +302,18 @@ async function loadDB() {
 }
 
 function getDefaultDB() {
-    return { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], virtualBanks: null, userBankDeposits: [], userBankInvestments: [], bankHistory: [], couponPricesHalved: false, qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [] };
+    return { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], virtualBanks: null, userBankDeposits: [], userBankInvestments: [], bankHistory: [], couponPricesHalved: false, qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [], journal: { groups: [], students: [], records: [], settings: { reward: 300 } }, mafia: null, accountRequests: [] };
+}
+
+function getDefaultMafia() {
+    return {
+        status: 'idle', // idle | lobby | playing
+        config: { doctor: true, commissar: true, mafiaMode: 'auto', duration: 90, allowHostFinish: true },
+        lobbyOpen: false,
+        joined: [],
+        game: null,
+        version: 0
+    };
 }
 
 function _assignDB(parsed) {
@@ -310,7 +347,10 @@ function _runMigrations() {
         if (u.profilePhoto === undefined) u.profilePhoto = null;
         if (u.neonColor === undefined) u.neonColor = null;
         if (u.nickColor === undefined) u.nickColor = null;
+        if (u.archived === undefined) u.archived = false;
+        if (u.passwordHash === undefined) { u.passwordHash = null; u.passwordSalt = null; }
     });
+    if (!Array.isArray(db.accountRequests)) db.accountRequests = [];
     // Migration: ensure all coupons have image field
     db.coupons.forEach(c => {
         if (c.image === undefined) c.image = null;
@@ -349,6 +389,14 @@ function _runMigrations() {
             { id:'asia', name:'Mandarin Pro Asia', icon:'🌏', color:'#22c55e', description:'Виртуальный азиатский банк Mandarin Pro. Быстрый рост.', rate:120.50, prevRate:115.00, depositPercent:6, terms:[7,14,30,60,90], minDeposit:2000, maxDeposit:2000000, enabled:true, rateHistory:[{rate:110,ts:now-86400000*3},{rate:115,ts:now-86400000},{rate:120.50,ts:now}] },
             { id:'capital', name:'Mandarin Pro Capital', icon:'🏛️', color:'#a855f7', description:'Виртуальный инвестиционный банк Mandarin Pro. Максимальная доходность.', rate:95.00, prevRate:92.00, depositPercent:3.5, terms:[14,30,60,90], minDeposit:5000, maxDeposit:5000000, enabled:true, rateHistory:[{rate:90,ts:now-86400000*3},{rate:92,ts:now-86400000},{rate:95,ts:now}] }
         ];
+    }
+    // Migration: mafia module state
+    if (!db.mafia || typeof db.mafia !== 'object') {
+        db.mafia = getDefaultMafia();
+    } else {
+        if (!db.mafia.config || typeof db.mafia.config !== 'object') db.mafia.config = getDefaultMafia().config;
+        if (!Array.isArray(db.mafia.joined)) db.mafia.joined = [];
+        if (db.mafia.version === undefined) db.mafia.version = 0;
     }
 }
 
@@ -490,6 +538,8 @@ function saveDB() {
             }
         })();
     }
+    // Добиваем баллы за уже сохранённые оценки журнала
+    try { backfillJournalAwards(); } catch (e) { console.error('[journal] startup backfill', e.message); }
     startHttpServer();
 })();
 
@@ -750,6 +800,7 @@ function publicUserFull(u, onlineIds) {
         lastActive: u.lastActive || u.createdAt,
         online: onlineIds ? onlineIds.has(u.id) : false,
         hasPin: !!(u.pinHash),
+        hasPassword: !!(u.passwordHash),
         groupId: u.groupId || null,
         xp: ux.xp,
         level: u.adminLevel || ux.level,
@@ -779,6 +830,7 @@ function publicUserAdmin(u, onlineIds) {
         lastActive: u.lastActive || u.createdAt,
         online: onlineIds ? onlineIds.has(u.id) : false,
         hasPin: !!(u.pinHash),
+        hasPassword: !!(u.passwordHash),
         groupId: u.groupId || null,
         xp: ux.xp,
         level: u.adminLevel || ux.level,
@@ -792,7 +844,8 @@ function publicUserAdmin(u, onlineIds) {
         currentIcon: bp ? bp.currentIcon : null,
         profilePhoto: u.profilePhoto || null,
         neonColor: u.neonColor || null,
-        nickColor: u.nickColor || null
+        nickColor: u.nickColor || null,
+        archived: !!u.archived
     };
 }
 
@@ -800,9 +853,30 @@ function publicUserAdmin(u, onlineIds) {
 
 const socketUserMap = new Map(); // socketId -> userId
 const adminSockets = new Set();
+const adminSessions = new Map(); // token -> expiresAt (ms)
+const ADMIN_SESSION_TTL = 12 * 60 * 60 * 1000; // 12 hours
 const socketIdMap = new Map(); // userId -> Set<socketId>
 const lastSeenMap = new Map(); // userId -> timestamp of last activity
 const ONLINE_TIMEOUT_MS = 60 * 1000; // 1 minute — grace period after last socket closes
+
+function createAdminSessionToken() {
+    const token = crypto.randomBytes(24).toString('hex');
+    adminSessions.set(token, Date.now() + ADMIN_SESSION_TTL);
+    return token;
+}
+function validateAdminSessionToken(token) {
+    if (!token || typeof token !== 'string') return false;
+    const exp = adminSessions.get(token);
+    if (!exp) return false;
+    if (Date.now() > exp) { adminSessions.delete(token); return false; }
+    return true;
+}
+function pruneAdminSessions() {
+    const now = Date.now();
+    for (const [t, exp] of adminSessions) {
+        if (now > exp) adminSessions.delete(t);
+    }
+}
 
 // A user is online ONLY if they have at least one active socket connection
 function getOnlineUserIds() {
@@ -858,7 +932,7 @@ function emitBankUpdate() {
         const user = findUser(userId);
         if (!user) continue;
         const isAdm = isAdmin(socketId);
-        const usersList = db.users.map(u => {
+        const usersList = db.users.filter(u => isAdm || !u.archived).map(u => {
             if (u.id === userId) return publicUserFull(u, onlineIds);
             if (isAdm) return publicUserAdmin(u, onlineIds);
             return publicUserLight(u, onlineIds);
@@ -1210,6 +1284,300 @@ function checkAllMaturedDeposits() {
 }
 setInterval(checkAllMaturedDeposits, 60000);
 
+// --- Journal helpers (module-level: used by socket handlers AND startup backfill) ---
+function getJournalData() {
+    if (!db.journal || typeof db.journal !== 'object') {
+        db.journal = { groups: [], students: [], records: [], attendance: [], settings: { reward: 300 } };
+    }
+    if (!Array.isArray(db.journal.groups)) db.journal.groups = [];
+    if (!Array.isArray(db.journal.students)) db.journal.students = [];
+    if (!Array.isArray(db.journal.records)) db.journal.records = [];
+    if (!Array.isArray(db.journal.attendance)) db.journal.attendance = [];
+    if (!db.journal.settings || typeof db.journal.settings !== 'object') db.journal.settings = { reward: 300 };
+    if (typeof db.journal.settings.reward !== 'number') db.journal.settings.reward = 300;
+    if (!db.journal.awards || typeof db.journal.awards !== 'object') db.journal.awards = {};
+    return db.journal;
+}
+
+// --- Parent token / attendance helpers ---
+function generateParentToken() {
+    return crypto.randomBytes(24).toString('hex');
+}
+
+function ensureParentToken(student) {
+    if (!student) return null;
+    if (!student.parentToken) student.parentToken = generateParentToken();
+    return student.parentToken;
+}
+
+function findStudentByParentToken(token) {
+    if (!token || typeof token !== 'string') return null;
+    const j = getJournalData();
+    return j.students.find(s => s && s.parentToken === token) || null;
+}
+
+function studentAttendanceStats(list) {
+    const stats = { present: 0, absent: 0, late: 0, excused: 0, total: list.length };
+    for (const a of list) {
+        const st = a && a.status;
+        if (st === 'present') stats.present++;
+        else if (st === 'absent') stats.absent++;
+        else if (st === 'late') stats.late++;
+        else if (st === 'excused') stats.excused++;
+    }
+    return stats;
+}
+
+function parentViewPayload(token) {
+    const st = findStudentByParentToken(token);
+    if (!st) return { ok: false, error: 'Ссылка недействительна' };
+    const j = getJournalData();
+    const group = (j.groups || []).find(g => g.id === st.groupId) || null;
+    const records = (j.records || [])
+        .filter(r => r && r.studentId === st.id)
+        .slice()
+        .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+    const attendance = (j.attendance || [])
+        .filter(a => a && a.studentId === st.id)
+        .slice()
+        .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+    let user = null;
+    if (st.userId) user = findUser(st.userId);
+    if (!user && st.name) user = findUserByName(st.name) || null;
+    const avgPercent = records.length
+        ? Math.round(records.reduce((s, r) => s + (Number(r.percent) || 0), 0) / records.length)
+        : null;
+    return {
+        ok: true,
+        student: { name: st.name, groupName: group ? group.name : 'Без группы' },
+        balance: user ? Number(user.balance) || 0 : null,
+        attendance: attendance.map(a => ({ date: a.date, status: a.status, note: a.note || '' })),
+        attendanceStats: studentAttendanceStats(attendance),
+        records: records.map(r => ({
+            date: r.date,
+            subject: r.subject || '',
+            percent: r.percent,
+            letter: r.letter,
+            traditional: r.traditional,
+            points: r.points,
+            bonus: r.bonus || 0,
+            note: r.note || ''
+        })),
+        avgPercent
+    };
+}
+
+// Зачисляет деньги за оценки на счета учеников.
+// awards[key] = сколько уже начислено за запись (studentId|date|subject).
+// Новая оценка — полное начисление, изменение — только разница. Без двойных зачислений.
+function syncJournalAwards() {
+    const j = getJournalData();
+    const awarded = [];
+    for (const rec of j.records) {
+        const key = rec.studentId + '|' + rec.date + '|' + rec.subject;
+        const already = Number(j.awards[key]) || 0;
+        const target = Number(rec.points) || 0;
+        const delta = target - already;
+        if (!delta) continue;
+        const st = (j.students || []).find(s => s.id === rec.studentId);
+        if (!st) continue;
+        let user = null;
+        if (st.userId) user = findUser(st.userId);
+        if (!user && st.name) {
+            user = db.users.find(u => u.name === st.name) || null;
+            if (user && !st.userId) st.userId = user.id;
+        }
+        if (!user) continue;
+        const oldBal = user.balance;
+        user.balance += delta;
+        touchUser(user);
+        j.awards[key] = target;
+        const tx = {
+            id: genId(),
+            type: 'journal_reward',
+            userId: user.id,
+            userName: user.name,
+            amount: delta,
+            timestamp: Date.now(),
+            description: '📖 Оценка за занятие: ' + rec.percent + '%' +
+                (rec.subject ? ' · ' + rec.subject : '') +
+                (rec.date ? ' · ' + rec.date : ''),
+            oldBalance: oldBal,
+            newBalance: user.balance
+        };
+        db.history.push(tx);
+        try { emitToUser(user.id, 'transaction:new', tx); } catch (e) { }
+        awarded.push({ userId: user.id, name: user.name, points: delta });
+    }
+    return awarded;
+}
+
+// Стартовая сверка: добивает баллы за уже сохранённые оценки
+function backfillJournalAwards() {
+    try {
+        const awarded = syncJournalAwards();
+        if (awarded.length) {
+            saveDB();
+            for (const a of awarded) {
+                console.log('[journal] credited', a.points, '→', a.name, '(', a.userId, ')');
+            }
+        }
+        return awarded;
+    } catch (e) {
+        console.error('[journal] backfill error', e);
+        return [];
+    }
+}
+
+// ==================== MAFIA MODULE (shared helpers) ====================
+function mafiaEnsure() {
+    if (!db.mafia || typeof db.mafia !== 'object') db.mafia = getDefaultMafia();
+    // Drop orphaned participants that no longer exist as users
+    let dirty = false;
+    if (Array.isArray(db.mafia.joined)) {
+        const before = db.mafia.joined.length;
+        db.mafia.joined = db.mafia.joined.filter(p => p && findUser(p.userId));
+        if (db.mafia.joined.length !== before) dirty = true;
+    }
+    if (db.mafia.game && Array.isArray(db.mafia.game.players)) {
+        const before = db.mafia.game.players.length;
+        db.mafia.game.players = db.mafia.game.players.filter(p => p && findUser(p.userId));
+        if (db.mafia.game.players.length !== before) {
+            if (db.mafia.game.hostId && !db.mafia.game.players.some(p => p.userId === db.mafia.game.hostId)) {
+                db.mafia.game.hostId = db.mafia.game.players.length ? db.mafia.game.players[0].userId : null;
+            }
+            if (!db.mafia.game.players.length) {
+                db.mafia.game = null;
+                db.mafia.status = 'lobby';
+                db.mafia.lobbyOpen = true;
+            }
+            dirty = true;
+        }
+    }
+    if (dirty) {
+        db.mafia.version = (db.mafia.version || 0) + 1;
+        saveDB();
+    }
+    return db.mafia;
+}
+function mafiaUserBrief(userId) {
+    const u = findUser(userId);
+    const online = getUserSockets(userId).size > 0;
+    return {
+        userId,
+        name: u ? (u.nickname || u.name) : 'Игрок',
+        photo: u && u.profilePhoto ? u.profilePhoto : null,
+        online
+    };
+}
+function mafiaTimerPublic(timer) {
+    if (!timer) return { duration: 90, left: 90, running: false, endAt: 0 };
+    const t = { duration: timer.duration, left: timer.left, running: !!timer.running, endAt: timer.endAt || 0 };
+    if (t.running) {
+        const left = Math.max(0, Math.ceil((t.endAt - Date.now()) / 1000));
+        t.left = left;
+        if (left <= 0) {
+            t.running = false;
+            t.left = 0;
+        }
+    }
+    return t;
+}
+function mafiaMaybeFinishTimer() {
+    const m = mafiaEnsure();
+    const t = m.game && m.game.timer;
+    if (!t || !t.running) return false;
+    const left = Math.max(0, Math.ceil((t.endAt - Date.now()) / 1000));
+    if (left > 0) return false;
+    t.running = false;
+    t.left = 0;
+    t.endAt = 0;
+    return true;
+}
+function mafiaPublicPayload(forSocketId) {
+    const m = mafiaEnsure();
+    const uid = socketUserMap.get(forSocketId) || null;
+    const adm = isAdmin(forSocketId);
+    const game = m.game ? {
+        players: m.game.players.map(p => ({
+            userId: p.userId,
+            name: p.name,
+            photo: p.photo || null,
+            out: !!p.out,
+            online: getUserSockets(p.userId).size > 0
+        })),
+        hostId: m.game.hostId,
+        hostName: (m.game.players.find(p => p.userId === m.game.hostId) || {}).name || null,
+        timer: mafiaTimerPublic(m.game.timer),
+        startedAt: m.game.startedAt || 0
+    } : null;
+    const me = uid ? {
+        userId: uid,
+        isAdmin: adm,
+        inLobby: m.joined.some(p => p.userId === uid),
+        isPlayer: !!(m.game && m.game.players.some(p => p.userId === uid)),
+        isHost: !!(m.game && m.game.hostId === uid),
+        myRole: null,
+        myOut: false
+    } : { userId: null, isAdmin: adm, inLobby: false, isPlayer: false, isHost: false, myRole: null, myOut: false };
+    if (uid && m.game) {
+        const mp = m.game.players.find(p => p.userId === uid);
+        if (mp) {
+            me.myRole = mp.role;
+            me.myOut = !!mp.out;
+        }
+    }
+    return {
+        status: m.status,
+        lobbyOpen: !!m.lobbyOpen,
+        joined: m.joined.map(p => ({ userId: p.userId, name: p.name, photo: p.photo || null, joinedAt: p.joinedAt || 0, online: getUserSockets(p.userId).size > 0 })),
+        game,
+        config: adm ? m.config : undefined,
+        canManage: adm,
+        canFinish: adm || !!(m.game && m.game.hostId === uid && m.config.allowHostFinish),
+        version: m.version,
+        me
+    };
+}
+function emitMafiaState() {
+    mafiaEnsure();
+    const seen = new Set();
+    for (const socketId of socketUserMap.keys()) {
+        seen.add(socketId);
+        io.to(socketId).emit('mafia:state', mafiaPublicPayload(socketId));
+    }
+    for (const sid of adminSockets) {
+        if (!seen.has(sid)) io.to(sid).emit('mafia:state', mafiaPublicPayload(sid));
+    }
+}
+function mafiaSendMyRole(userId) {
+    const m = mafiaEnsure();
+    if (!m.game) return;
+    const p = m.game.players.find(x => x.userId === userId);
+    if (!p) return;
+    emitToUser(userId, 'mafia:myRole', { role: p.role, out: !!p.out, hostId: m.game.hostId, name: p.name });
+}
+function mafiaTouchVersion() {
+    const m = mafiaEnsure();
+    m.version = (m.version || 0) + 1;
+    saveDB();
+}
+function mafiaBroadcastTimerEnd() {
+    const payload = { at: Date.now() };
+    for (const socketId of socketUserMap.keys()) io.to(socketId).emit('mafia:timerEnd', payload);
+    for (const sid of adminSockets) io.to(sid).emit('mafia:timerEnd', payload);
+}
+// Single watchdog: finalize discussion timer and notify all clients
+setInterval(() => {
+    try {
+        if (mafiaMaybeFinishTimer()) {
+            mafiaTouchVersion();
+            emitMafiaState();
+            mafiaBroadcastTimerEnd();
+        }
+    } catch (e) { /* timer watchdog must never crash the server */ }
+}, 500);
+
 // --- Socket.io ---
 
 io.on('connection', (socket) => {
@@ -1218,7 +1586,7 @@ io.on('connection', (socket) => {
     // Send initial data (no user-specific data yet)
     socket.emit('init', {
         history: [],
-        users: db.users.map(u => publicUserLight(u, getOnlineUserIds())),
+        users: db.users.filter(u => !u.archived).map(u => publicUserLight(u, getOnlineUserIds())),
         messages: [],
         onlineCount: getOnlineCount(),
         notifications: [],
@@ -1234,15 +1602,20 @@ io.on('connection', (socket) => {
             socket.emit('user:pin_status', { exists: false, name, userId: null });
             return;
         }
-        socket.emit('user:pin_status', { exists: true, hasPin: !!user.pinHash, name, userId: user.id });
+        socket.emit('user:pin_status', { exists: true, hasPin: !!user.pinHash, hasPassword: !!user.passwordHash, name, userId: user.id });
     });
 
-    // --- Set PIN (first time) ---
+    // --- Set PIN (first time) — only for accounts created without credentials ---
     socket.on('user:set_pin', (data) => {
         const userId = data?.userId;
         const pin = String(data?.pin || '');
         const user = findUser(userId);
         if (!user) { socket.emit('error', { message: 'Пользователь не найден.' }); return; }
+        // Security: never allow setting PIN if account already has password or PIN
+        if (user.passwordHash || user.pinHash) {
+            socket.emit('error', { message: 'Учётная запись уже защищена. Обратитесь к администратору.' });
+            return;
+        }
         const blockP = isUserBlocked(user.id);
         if (blockP) { socket.emit('user:blocked_login', { mode: blockP.mode, reason: blockP.mode === 'standard' ? blockP.reason : null, expiresAt: blockP.expiresAt }); return; }
         if (!/^\d{4}$/.test(pin)) { socket.emit('error', { message: 'PIN должен состоять ровно из 4 цифр.' }); return; }
@@ -1304,30 +1677,133 @@ io.on('connection', (socket) => {
         emitBankUpdate();
     });
 
-    // --- Register new user ---
-    socket.on('user:register', (data) => {
+    // --- Login with password (primary) ---
+    socket.on('user:login_password', (data) => {
         const name = sanitizeName(data?.name);
-        if (!name || name.length < 1 || name.length > 20) {
-            socket.emit('error', { message: 'Имя должно содержать от 1 до 20 символов.' });
+        const password = String(data?.password || '');
+        if (!name || !password) {
+            socket.emit('user:login_result', { success: false, message: 'Неверное имя пользователя или пароль' });
             return;
         }
-        const existing = findUserByName(name);
-        if (existing) {
-            // User exists — need PIN to login
-            socket.emit('user:pin_status', { exists: true, hasPin: !!existing.pinHash, name, userId: existing.id });
+        const user = findUserByName(name);
+        if (!user) {
+            socket.emit('user:login_result', { success: false, message: 'Неверное имя пользователя или пароль' });
             return;
         }
-        // New user — create and ask for PIN
-        const user = { id: genId(), name, balance: 0, createdAt: Date.now(), lastActive: Date.now(), pinHash: null, salt: null };
-        db.users.push(user);
-        db.favorites[user.id] = [];
-        markUserSeen(user.id);
+        if (user.archived) {
+            socket.emit('user:login_result', { success: false, message: 'Аккаунт недоступен. Обратитесь к администратору.' });
+            return;
+        }
+        const block = isUserBlocked(user.id);
+        if (block) {
+            socket.emit('user:login_result', {
+                success: false, blocked: true,
+                message: block.mode === 'standard' && block.reason
+                    ? 'Аккаунт заблокирован: ' + block.reason
+                    : 'Аккаунт заблокирован. Обратитесь к администратору.'
+            });
+            return;
+        }
+        if (!user.passwordHash) {
+            // Legacy account with PIN — allow PIN login as fallback
+            if (user.pinHash) {
+                socket.emit('user:login_result', {
+                    success: false,
+                    needPin: true,
+                    userId: user.id,
+                    name: user.name,
+                    message: 'Введите PIN-код'
+                });
+                return;
+            }
+            socket.emit('user:login_result', {
+                success: false,
+                message: 'Для входа нужен пароль. Обратитесь к администратору для получения данных доступа.'
+            });
+            return;
+        }
+        let valid = false;
+        try { valid = verifyPassword(password, user.passwordHash, user.passwordSalt || user.salt); } catch { valid = false; }
+        if (!valid) {
+            socket.emit('user:login_result', { success: false, message: 'Неверное имя пользователя или пароль' });
+            return;
+        }
+        touchUser(user); markUserSeen(user.id);
         saveDB();
-        socket.emit('user:need_pin', { user: publicUserFull(user, getOnlineUserIds()), favorites: [] });
+        addSocketUser(socket.id, user.id);
+        checkMaturedDeposits(user.id);
+        const session = createSession(user.id);
+        const onlineIds = getOnlineUserIds();
+        const uxData = getXP(user.id);
+        socket.emit('user:logged_in', {
+            user: publicUserFull(user, onlineIds),
+            favorites: db.favorites[user.id] || [],
+            history: db.history.filter(t => t.userId === user.id || t.toId === user.id || t.fromId === user.id),
+            messages: db.messages.filter(m => m.fromId === user.id || m.toId === user.id),
+            notifications: db.notifications.filter(n => n.targetUserId === user.id),
+            xp: uxData,
+            sessionToken: session.token
+        });
+        socket.emit('user:login_result', { success: true, name: user.name });
         emitBankUpdate();
     });
 
-    // --- Legacy login (by userId from localStorage) ---
+    // --- Self-registration DISABLED: only admin creates accounts ---
+    socket.on('user:register', (data) => {
+        socket.emit('user:register_disabled', {
+            message: 'У вас ещё нет аккаунта. Пожалуйста, обратитесь к администратору для получения данных доступа.'
+        });
+    });
+
+    // --- Account access request (from «Нет аккаунта?») ---
+    socket.on('account:request', (data) => {
+        const name = sanitizeName(data?.name) || '';
+        const comment = String(data?.comment || '').trim().slice(0, 300);
+        if (name.length > 20) {
+            socket.emit('account:request_result', { success: false, message: 'Имя слишком длинное (макс. 20 символов).' });
+            return;
+        }
+        // Avoid duplicate spam within 2 minutes for same name/ip
+        const now = Date.now();
+        const key = (name || 'anon') + '|' + (socket.handshake && socket.handshake.address || '');
+        if (!db.accountRequests) db.accountRequests = [];
+        const recent = db.accountRequests.find(r => r._key === key && now - r.timestamp < 120000);
+        if (recent) {
+            socket.emit('account:request_result', {
+                success: true,
+                message: 'Запрос уже отправлен. Ожидайте ответа администратора.',
+                requestId: recent.id
+            });
+            return;
+        }
+        const req = {
+            id: genId(),
+            name: name || null,
+            comment,
+            timestamp: now,
+            status: 'new', // 'new' | 'read'
+            _key: key
+        };
+        db.accountRequests.push(req);
+        saveDB();
+        // Notify all admin sockets
+        for (const sid of adminSockets) {
+            io.to(sid).emit('admin:accountRequest', {
+                id: req.id,
+                name: req.name,
+                comment: req.comment,
+                timestamp: req.timestamp,
+                status: req.status
+            });
+        }
+        socket.emit('account:request_result', {
+            success: true,
+            message: 'Запрос отправлен администратору. Ожидайте получения доступа.',
+            requestId: req.id
+        });
+    });
+
+    // --- Legacy login (by userId from localStorage) — requires PIN/password verification ---
     socket.on('user:login', (data) => {
         const user = findUser(data?.userId);
         if (!user) {
@@ -1336,12 +1812,16 @@ io.on('connection', (socket) => {
         }
         const blockL = isUserBlocked(user.id);
         if (blockL) { socket.emit('user:blocked_login', { mode: blockL.mode, reason: blockL.mode === 'standard' ? blockL.reason : null, expiresAt: blockL.expiresAt }); return; }
-        if (user.pinHash && !data?.pinCached) {
-            // Has PIN — need to verify
-            socket.emit('user:pin_status', { exists: true, hasPin: true, name: user.name, userId: user.id });
+        // Never auto-login without verification when credentials are set
+        if (user.passwordHash || user.pinHash) {
+            if (user.passwordHash) {
+                socket.emit('user:login_result', { success: false, message: 'Введите имя пользователя и пароль.' });
+            } else {
+                socket.emit('user:pin_status', { exists: true, hasPin: true, name: user.name, userId: user.id });
+            }
             return;
         }
-        // No PIN or PIN cached — login directly
+        // Account without credentials (admin-created, awaiting setup)
         addSocketUser(socket.id, user.id);
         touchUser(user); markUserSeen(user.id); saveDB();
         checkMaturedDeposits(user.id);
@@ -1407,7 +1887,8 @@ io.on('connection', (socket) => {
             db.adminSalt = salt;
             saveDB();
             adminSockets.add(socket.id);
-            socket.emit('admin:authenticated', { success: true, firstTime: true });
+            const adminToken = createAdminSessionToken();
+            socket.emit('admin:authenticated', { success: true, firstTime: true, adminToken, expiresAt: Date.now() + ADMIN_SESSION_TTL });
             logAdminAction('admin_login', null, null, null, null, 'Первый вход, PIN установлен');
             saveDB();
             return;
@@ -1422,7 +1903,8 @@ io.on('connection', (socket) => {
             return;
         }
         adminSockets.add(socket.id);
-        socket.emit('admin:authenticated', { success: true, firstTime: false });
+        const adminToken = createAdminSessionToken();
+        socket.emit('admin:authenticated', { success: true, firstTime: false, adminToken, expiresAt: Date.now() + ADMIN_SESSION_TTL });
         // Send full admin data
         const onlineIds = getOnlineUserIds();
         socket.emit('admin:full_data', {
@@ -1444,6 +1926,35 @@ io.on('connection', (socket) => {
         });
         logAdminAction('admin_login', null, null, null, null, 'Вход в админ-панель');
         saveDB();
+    });
+
+    // --- Admin session resume (reconnect without PIN) ---
+    socket.on('admin:resume', (data) => {
+        const token = String(data?.adminToken || '');
+        if (!validateAdminSessionToken(token)) {
+            socket.emit('admin:resumeResult', { success: false });
+            return;
+        }
+        adminSockets.add(socket.id);
+        socket.emit('admin:resumeResult', { success: true, expiresAt: adminSessions.get(token) });
+        const onlineIds = getOnlineUserIds();
+        socket.emit('admin:full_data', {
+            users: db.users.map(u => publicUserAdmin(u, onlineIds)),
+            history: db.history,
+            adminHistory: db.adminHistory,
+            onlineCount: getOnlineCount(),
+            groups: db.groups,
+            groupPermissions: db.groupPermissions,
+            coupons: db.coupons,
+            userCoupons: db.userCoupons,
+            couponNotifications: db.couponNotifications,
+            purchaseRequests: db.purchaseRequests,
+            quests: db.quests,
+            tasks: db.taskAssignments,
+            duels: db.duels,
+            userXP: db.userXP,
+            approvalRequests: db.approvalRequests
+        });
     });
 
     // --- Admin Change Password ---
@@ -1614,6 +2125,124 @@ io.on('connection', (socket) => {
         saveDB();
         logAdminAction('reset_user_pin', userId, user.name, null, null, 'PIN сброшен');
         socket.emit('admin:pinResetSuccess', { userId, userName: user.name });
+    });
+
+    // --- Admin: Create user (login + password) ---
+    socket.on('admin:createUser', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('admin:createUserResult', { success: false, message: 'Требуется доступ администратора.' }); return; }
+        const login = sanitizeName(data?.login);
+        const password = String(data?.password || '');
+        const pin = String(data?.pin || '');
+        const displayName = String(data?.displayName || '').trim().slice(0, 40);
+        if (!login || login.length < 2 || login.length > 20) {
+            socket.emit('admin:createUserResult', { success: false, message: 'Логин: от 2 до 20 символов.' });
+            return;
+        }
+        if (!password || password.length < 4 || password.length > 72) {
+            socket.emit('admin:createUserResult', { success: false, message: 'Пароль: от 4 до 72 символов.' });
+            return;
+        }
+        if (pin && !/^\d{4}$/.test(pin)) {
+            socket.emit('admin:createUserResult', { success: false, message: 'PIN: ровно 4 цифры (или оставьте пустым).' });
+            return;
+        }
+        if (findUserByName(login)) {
+            socket.emit('admin:createUserResult', { success: false, message: 'Пользователь с таким логином уже существует.' });
+            return;
+        }
+        const pw = hashPassword(password);
+        const user = {
+            id: genId(),
+            name: login,
+            displayName: displayName || null,
+            balance: 0,
+            createdAt: Date.now(),
+            lastActive: Date.now(),
+            pinHash: null,
+            salt: null,
+            passwordHash: pw.hash,
+            passwordSalt: pw.salt,
+            archived: false
+        };
+        if (pin) {
+            const p = hashPin(pin);
+            user.pinHash = p.hash;
+            user.salt = p.salt;
+        }
+        db.users.push(user);
+        db.favorites[user.id] = [];
+        saveDB();
+        logAdminAction('create_user', user.id, user.name, null, null, 'Создан аккаунт: ' + user.name);
+        socket.emit('admin:createUserResult', {
+            success: true,
+            message: 'Аккаунт создан',
+            user: { id: user.id, login: user.name, displayName: displayName || null }
+        });
+        emitBankUpdate();
+    });
+
+    // --- Admin: Reset user password ---
+    socket.on('admin:resetUserPassword', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('admin:resetPasswordResult', { success: false, message: 'Требуется доступ администратора.' }); return; }
+        const user = findUser(data?.userId);
+        if (!user) { socket.emit('admin:resetPasswordResult', { success: false, message: 'Пользователь не найден.' }); return; }
+        const password = String(data?.password || '');
+        if (!password || password.length < 4 || password.length > 72) {
+            socket.emit('admin:resetPasswordResult', { success: false, message: 'Пароль: от 4 до 72 символов.' });
+            return;
+        }
+        const pw = hashPassword(password);
+        user.passwordHash = pw.hash;
+        user.passwordSalt = pw.salt;
+        saveDB();
+        logAdminAction('reset_user_password', user.id, user.name, null, null, 'Пароль сброшен');
+        socket.emit('admin:resetPasswordResult', { success: true, message: 'Пароль обновлён', userId: user.id, userName: user.name });
+    });
+
+    // --- Admin: Change user login ---
+    socket.on('admin:changeUserLogin', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('admin:changeLoginResult', { success: false, message: 'Требуется доступ администратора.' }); return; }
+        const user = findUser(data?.userId);
+        if (!user) { socket.emit('admin:changeLoginResult', { success: false, message: 'Пользователь не найден.' }); return; }
+        const login = sanitizeName(data?.login);
+        if (!login || login.length < 2 || login.length > 20) {
+            socket.emit('admin:changeLoginResult', { success: false, message: 'Логин: от 2 до 20 символов.' });
+            return;
+        }
+        const existing = findUserByName(login);
+        if (existing && existing.id !== user.id) {
+            socket.emit('admin:changeLoginResult', { success: false, message: 'Логин уже занят.' });
+            return;
+        }
+        const old = user.name;
+        user.name = login;
+        if (data && data.displayName !== undefined) user.displayName = String(data.displayName || '').trim().slice(0, 40) || null;
+        saveDB();
+        logAdminAction('change_user_login', user.id, login, null, null, old + ' → ' + login);
+        socket.emit('admin:changeLoginResult', { success: true, message: 'Логин обновлён', userId: user.id, userName: login });
+        emitBankUpdate();
+    });
+
+    // --- Admin: Account requests ---
+    socket.on('admin:getAccountRequests', () => {
+        if (!isAdmin(socket.id)) { socket.emit('error', { message: 'Требуется доступ администратора.' }); return; }
+        if (!Array.isArray(db.accountRequests)) db.accountRequests = [];
+        const list = db.accountRequests
+            .slice()
+            .sort((a, b) => b.timestamp - a.timestamp)
+            .slice(0, 100)
+            .map(r => ({ id: r.id, name: r.name, comment: r.comment, timestamp: r.timestamp, status: r.status }));
+        socket.emit('admin:accountRequests', { requests: list });
+    });
+
+    socket.on('admin:markAccountRequest', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('error', { message: 'Требуется доступ администратора.' }); return; }
+        const id = data?.id;
+        const req = (db.accountRequests || []).find(r => r.id === id);
+        if (!req) { socket.emit('error', { message: 'Запрос не найден.' }); return; }
+        req.status = 'read';
+        saveDB();
+        socket.emit('admin:accountRequestMarked', { id: req.id, status: req.status });
     });
 
     // --- User Transfer ---
@@ -1811,7 +2440,7 @@ io.on('connection', (socket) => {
         }
         logAdminAction(data?.isStartCapital ? 'mass_start_capital' : 'mass_add', null, null, amount, reason, `${results.length} пользователей`);
         saveDB();
-        io.emit('bank:update', { users: db.users.map(u => publicUserLight(u, getOnlineUserIds())), onlineCount: getOnlineCount() });
+        io.emit('bank:update', { users: db.users.filter(u => !u.archived).map(u => publicUserLight(u, getOnlineUserIds())), onlineCount: getOnlineCount() });
         emitBankUpdate();
         socket.emit('admin:massResult', { results });
     });
@@ -1928,6 +2557,13 @@ io.on('connection', (socket) => {
         if (db.userBankDeposits) db.userBankDeposits = db.userBankDeposits.filter(d => d.userId !== uid);
         if (db.userBankInvestments) db.userBankInvestments = db.userBankInvestments.filter(i => i.userId !== uid);
         if (db.bankHistory) db.bankHistory = db.bankHistory.filter(h => h.userId !== uid);
+        if (db.journal && Array.isArray(db.journal.students)) {
+            const jIds = db.journal.students.filter(s => s && s.userId === uid).map(s => s.id);
+            db.journal.students = db.journal.students.filter(s => s && s.userId !== uid);
+            if (jIds.length && Array.isArray(db.journal.records)) {
+                db.journal.records = db.journal.records.filter(r => r && !jIds.includes(r.studentId));
+            }
+        }
 
         // Delete user's keyed data
         delete db.favorites[uid];
@@ -1956,6 +2592,34 @@ io.on('connection', (socket) => {
         }
         emitBankUpdate();
         socket.emit('admin:userDeleted', { userId: targetId, userName: targetName });
+    });
+
+    // --- Admin: Archive User (hide from active lists, keep all history) ---
+    socket.on('admin:archiveUser', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('error', { message: 'Требуется доступ администратора.' }); return; }
+        const target = findUser(data?.userId);
+        if (!target) { socket.emit('error', { message: 'Пользователь не найден.' }); return; }
+        if (target.archived) { socket.emit('error', { message: 'Ученик уже в архиве.' }); return; }
+        target.archived = true;
+        touchUser(target);
+        saveDB();
+        logAdminAction('archive_user', target.id, target.name, null, null, 'Ученик отправлен в архив');
+        emitBankUpdate();
+        socket.emit('admin:userArchived', { userId: target.id, userName: target.name, archived: true });
+    });
+
+    // --- Admin: Restore User from archive ---
+    socket.on('admin:restoreUser', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('error', { message: 'Требуется доступ администратора.' }); return; }
+        const target = findUser(data?.userId);
+        if (!target) { socket.emit('error', { message: 'Пользователь не найден.' }); return; }
+        if (!target.archived) { socket.emit('error', { message: 'Ученик не в архиве.' }); return; }
+        target.archived = false;
+        touchUser(target);
+        saveDB();
+        logAdminAction('restore_user', target.id, target.name, null, null, 'Ученик восстановлен из архива');
+        emitBankUpdate();
+        socket.emit('admin:userArchived', { userId: target.id, userName: target.name, archived: false });
     });
 
     // --- Admin: Withdraw ---
@@ -5430,6 +6094,558 @@ io.on('connection', (socket) => {
         const userInvestments = db.investments.filter(i => i.userId === target.id && i.status === 'active');
         const userDeposits = (db.userBankDeposits || []).filter(d => d.userId === target.id && d.status === 'active');
         socket.emit('admin:qrFullUserResult', { success: true, user: { id: target.id, name: target.name, avatar: target.avatar, balance: target.balance, level: ux.level, xp: ux.xp, customTitle: target.customTitle || '', points: ux.xp, investmentCount: userInvestments.length, depositCount: userDeposits.length } });
+    });
+
+    // --- Journal / Diary (Журнал преподавателя и дневник ученика) ---
+    function findJournalStudentForUser(user) {
+        if (!user) return null;
+        const j = getJournalData();
+        return j.students.find(s => s.userId === user.id || s.id === user.id || s.name === user.name) || null;
+    }
+
+    function publicJournalFor(socketId) {
+        const j = getJournalData();
+        const admin = isAdmin(socketId);
+        if (admin) {
+            return { groups: j.groups, students: j.students, records: j.records, settings: j.settings, isAdmin: true };
+        }
+        const userId = socketUserMap.get(socketId);
+        const user = findUser(userId);
+        const st = findJournalStudentForUser(user);
+        const myId = st ? st.id : null;
+        return {
+            groups: j.groups,
+            students: st ? [st] : [],
+            records: myId ? j.records.filter(r => r.studentId === myId) : [],
+            settings: j.settings,
+            isAdmin: false
+        };
+    }
+
+    function emitJournalUpdate() {
+        for (const socketId of socketUserMap.keys()) {
+            io.to(socketId).emit('journal:updated', publicJournalFor(socketId));
+        }
+    }
+
+    socket.on('journal:get', () => {
+        const userId = socketUserMap.get(socket.id);
+        if (!userId && !isAdmin(socket.id)) {
+            socket.emit('journal:updated', { groups: [], students: [], records: [], settings: { reward: 300 }, isAdmin: false });
+            return;
+        }
+        // Администратору — заодно сверить начисления (добивает баллы за ранее
+        // сохранённые оценки, по которым начисление ещё не проходило).
+        if (isAdmin(socket.id)) {
+            const awarded = syncJournalAwards();
+            if (awarded.length) {
+                saveDB();
+                emitBankUpdate();
+            }
+        }
+        socket.emit('journal:updated', publicJournalFor(socket.id));
+    });
+
+    socket.on('journal:save', (data) => {
+        if (!isAdmin(socket.id)) {
+            socket.emit('error', { message: 'Журнал доступен только администратору.' });
+            return;
+        }
+        if (!data || typeof data !== 'object') return;
+        const j = getJournalData();
+
+        if (Array.isArray(data.groups)) j.groups = data.groups;
+        if (Array.isArray(data.students)) {
+            const prevTokens = new Map(j.students.map(s => [s.id, s.parentToken]));
+            j.students = data.students.map(s => {
+                const token = (s && s.parentToken) || prevTokens.get(s.id) || null;
+                return token ? Object.assign({}, s, { parentToken: token }) : s;
+            });
+        }
+        if (Array.isArray(data.records)) j.records = data.records;
+        if (Array.isArray(data.attendance)) j.attendance = data.attendance;
+        if (data.settings && typeof data.settings === 'object') {
+            j.settings = { reward: Number(data.settings.reward) || 0 };
+        }
+
+        // Явные ссылки на аккаунты Bank Mandarin Pro, пришедшие с клиента
+        if (Array.isArray(data.links)) {
+            for (const link of data.links) {
+                if (!link || !link.studentId || !link.userId) continue;
+                const st = j.students.find(s => s.id === link.studentId);
+                if (st && !st.userId) st.userId = link.userId;
+            }
+        }
+
+        const awarded = syncJournalAwards();
+
+        saveDB();
+        emitJournalUpdate();
+        if (awarded.length) {
+            for (const a of awarded) {
+                logAdminAction('journal_award', a.userId, a.name, a.points, 'Оценка в журнале', null);
+            }
+        }
+        // Всегда обновляем балансы — чтобы вкладка «Офлайн» сразу показала новые суммы
+        emitBankUpdate();
+        socket.emit('journal:saved', { ok: true, awarded, total: awarded.reduce((s, a) => s + a.points, 0) });
+    });
+
+    // Прямое зачисление денег за оценку (клиент передаёт userId аккаунта явно)
+    socket.on('journal:credit', (data) => {
+        if (!isAdmin(socket.id)) {
+            socket.emit('error', { message: 'Журнал доступен только администратору.' });
+            return;
+        }
+        const userId = data?.userId;
+        const amount = Number(data?.amount) || 0;
+        const key = String(data?.key || '');
+        const reason = String(data?.reason || 'Оценка в журнале');
+        if (!userId || !amount) {
+            socket.emit('journal:creditResult', { ok: false, error: 'Нет userId или суммы' });
+            return;
+        }
+        const user = findUser(userId);
+        if (!user) {
+            socket.emit('journal:creditResult', { ok: false, error: 'Пользователь не найден' });
+            return;
+        }
+        const j = getJournalData();
+        if (key) {
+            const already = Number(j.awards[key]) || 0;
+            // awards[key] хранит фактически начисленную сумму
+            const delta = amount - already;
+            if (!delta) {
+                socket.emit('journal:creditResult', { ok: true, skipped: true, already });
+                return;
+            }
+            const oldBal = user.balance;
+            user.balance += delta;
+            touchUser(user);
+            j.awards[key] = amount;
+            const tx = {
+                id: genId(), type: 'journal_reward', userId: user.id, userName: user.name,
+                amount: delta, timestamp: Date.now(),
+                description: '📖 ' + reason + (delta !== amount ? ' (корректировка)' : ''),
+                oldBalance: oldBal, newBalance: user.balance
+            };
+            db.history.push(tx);
+            emitToUser(user.id, 'transaction:new', tx);
+            saveDB();
+            emitBankUpdate();
+            socket.emit('journal:creditResult', { ok: true, userId: user.id, name: user.name, points: delta, balance: user.balance });
+            return;
+        }
+        const oldBal = user.balance;
+        user.balance += amount;
+        touchUser(user);
+        const tx = {
+            id: genId(), type: 'journal_reward', userId: user.id, userName: user.name,
+            amount, timestamp: Date.now(),
+            description: '📖 ' + reason,
+            oldBalance: oldBal, newBalance: user.balance
+        };
+        db.history.push(tx);
+        emitToUser(user.id, 'transaction:new', tx);
+        saveDB();
+        emitBankUpdate();
+        socket.emit('journal:creditResult', { ok: true, userId: user.id, name: user.name, points: amount, balance: user.balance });
+    });
+
+    // --- Журнал учеников: список, посещаемость, ссылка для родителей ---
+    socket.on('admin:studentJournal:list', () => {
+        if (!isAdmin(socket.id)) {
+            socket.emit('admin:studentJournal:listResult', { ok: false, error: 'Требуется доступ администратора.' });
+            return;
+        }
+        const j = getJournalData();
+        const items = j.students.map(s => {
+            const group = (j.groups || []).find(g => g.id === s.groupId) || null;
+            const att = (j.attendance || []).filter(a => a && a.studentId === s.id);
+            const recs = (j.records || []).filter(r => r && r.studentId === s.id);
+            let user = null;
+            if (s.userId) user = findUser(s.userId);
+            if (!user && s.name) user = findUserByName(s.name) || null;
+            return {
+                id: s.id,
+                name: s.name,
+                groupId: s.groupId || null,
+                groupName: group ? group.name : 'Без группы',
+                userId: user ? user.id : (s.userId || null),
+                balance: user ? Number(user.balance) || 0 : null,
+                hasParentToken: !!s.parentToken,
+                attendanceCount: att.length,
+                recordCount: recs.length
+            };
+        });
+        socket.emit('admin:studentJournal:listResult', {
+            ok: true,
+            students: items,
+            groups: j.groups || [],
+            attendance: j.attendance || []
+        });
+    });
+
+    socket.on('admin:studentJournal:detail', (data) => {
+        if (!isAdmin(socket.id)) {
+            socket.emit('admin:studentJournal:detailResult', { ok: false, error: 'Требуется доступ администратора.' });
+            return;
+        }
+        const j = getJournalData();
+        const st = j.students.find(s => s.id === data?.studentId);
+        if (!st) {
+            socket.emit('admin:studentJournal:detailResult', { ok: false, error: 'Ученик не найден' });
+            return;
+        }
+        const group = (j.groups || []).find(g => g.id === st.groupId) || null;
+        const records = (j.records || [])
+            .filter(r => r && r.studentId === st.id)
+            .slice()
+            .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+        const attendance = (j.attendance || [])
+            .filter(a => a && a.studentId === st.id)
+            .slice()
+            .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+        let user = null;
+        if (st.userId) user = findUser(st.userId);
+        if (!user && st.name) user = findUserByName(st.name) || null;
+        socket.emit('admin:studentJournal:detailResult', {
+            ok: true,
+            student: {
+                id: st.id,
+                name: st.name,
+                groupId: st.groupId || null,
+                groupName: group ? group.name : 'Без группы',
+                userId: user ? user.id : (st.userId || null),
+                balance: user ? Number(user.balance) || 0 : null,
+                parentToken: st.parentToken || null
+            },
+            records,
+            attendance,
+            attendanceStats: studentAttendanceStats(attendance)
+        });
+    });
+
+    socket.on('admin:studentJournal:setAttendance', (data) => {
+        if (!isAdmin(socket.id)) {
+            socket.emit('admin:studentJournal:attendanceResult', { ok: false, error: 'Требуется доступ администратора.' });
+            return;
+        }
+        const studentId = String(data?.studentId || '');
+        const date = String(data?.date || '');
+        const status = String(data?.status || '');
+        const note = String(data?.note || '').slice(0, 250);
+        const allowed = ['present', 'absent', 'late', 'excused'];
+        if (!studentId || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !allowed.includes(status)) {
+            socket.emit('admin:studentJournal:attendanceResult', { ok: false, error: 'Некорректные данные посещаемости' });
+            return;
+        }
+        const j = getJournalData();
+        const st = j.students.find(s => s.id === studentId);
+        if (!st) {
+            socket.emit('admin:studentJournal:attendanceResult', { ok: false, error: 'Ученик не найден' });
+            return;
+        }
+        const existing = j.attendance.find(a => a && a.studentId === studentId && a.date === date);
+        if (existing) {
+            existing.status = status;
+            existing.note = note;
+            existing.updatedAt = Date.now();
+        } else {
+            j.attendance.push({
+                id: genId(),
+                studentId,
+                date,
+                status,
+                note,
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+            });
+        }
+        saveDB();
+        const list = j.attendance.filter(a => a && a.studentId === studentId)
+            .slice()
+            .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+        socket.emit('admin:studentJournal:attendanceResult', {
+            ok: true,
+            studentId,
+            attendance: list,
+            attendanceStats: studentAttendanceStats(list)
+        });
+    });
+
+    socket.on('admin:studentJournal:parentToken', (data) => {
+        if (!isAdmin(socket.id)) {
+            socket.emit('admin:studentJournal:parentTokenResult', { ok: false, error: 'Требуется доступ администратора.' });
+            return;
+        }
+        const j = getJournalData();
+        const st = j.students.find(s => s.id === data?.studentId);
+        if (!st) {
+            socket.emit('admin:studentJournal:parentTokenResult', { ok: false, error: 'Ученик не найден' });
+            return;
+        }
+        const regenerate = !!(data && data.regenerate);
+        if (regenerate || !st.parentToken) {
+            st.parentToken = generateParentToken();
+            saveDB();
+        }
+        logAdminAction('parent_token', st.userId || st.id, st.name, null, null, regenerate ? 'Перевыпуск ссылки для родителей' : 'Создана ссылка для родителей');
+        socket.emit('admin:studentJournal:parentTokenResult', {
+            ok: true,
+            studentId: st.id,
+            parentToken: st.parentToken
+        });
+    });
+
+    // ==================== MAFIA MODULE (socket handlers) ====================
+    socket.on('mafia:getState', () => {
+        const m = mafiaEnsure();
+        const uid = socketUserMap.get(socket.id);
+        socket.emit('mafia:state', mafiaPublicPayload(socket.id));
+        if (uid && m.game) mafiaSendMyRole(uid);
+    });
+
+    socket.on('mafia:createRoom', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('error', { message: 'Требуется доступ администратора.' }); return; }
+        const m = mafiaEnsure();
+        const cfg = data?.config || {};
+        m.status = 'lobby';
+        m.lobbyOpen = true;
+        m.joined = [];
+        m.game = null;
+        m.config = {
+            doctor: cfg.doctor !== false,
+            commissar: cfg.commissar !== false,
+            mafiaMode: cfg.mafiaMode === 'fixed' ? 'fixed' : 'auto',
+            mafiaCount: Math.max(1, Math.min(10, Number(cfg.mafiaCount) || 1)),
+            duration: [60, 90, 120].includes(Number(cfg.duration)) ? Number(cfg.duration) : 90,
+            allowHostFinish: cfg.allowHostFinish !== false
+        };
+        mafiaTouchVersion();
+        emitMafiaState();
+    });
+
+    socket.on('mafia:updateConfig', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('error', { message: 'Требуется доступ администратора.' }); return; }
+        const m = mafiaEnsure();
+        if (m.status === 'playing') { socket.emit('error', { message: 'Настройки зафиксированы после начала партии.' }); return; }
+        const cfg = data?.config || {};
+        if (cfg.doctor !== undefined) m.config.doctor = !!cfg.doctor;
+        if (cfg.commissar !== undefined) m.config.commissar = !!cfg.commissar;
+        if (cfg.mafiaMode !== undefined) m.config.mafiaMode = cfg.mafiaMode === 'fixed' ? 'fixed' : 'auto';
+        if (cfg.mafiaCount !== undefined) m.config.mafiaCount = Math.max(1, Math.min(10, Number(cfg.mafiaCount) || 1));
+        if (cfg.duration !== undefined && [60, 90, 120].includes(Number(cfg.duration))) m.config.duration = Number(cfg.duration);
+        if (cfg.allowHostFinish !== undefined) m.config.allowHostFinish = !!cfg.allowHostFinish;
+        mafiaTouchVersion();
+        emitMafiaState();
+    });
+
+    socket.on('mafia:openRoom', () => {
+        if (!isAdmin(socket.id)) { socket.emit('error', { message: 'Требуется доступ администратора.' }); return; }
+        const m = mafiaEnsure();
+        if (m.status === 'playing') { socket.emit('error', { message: 'Партия уже идёт.' }); return; }
+        m.status = 'lobby';
+        m.lobbyOpen = true;
+        mafiaTouchVersion();
+        emitMafiaState();
+    });
+
+    socket.on('mafia:join', () => {
+        const uid = socketUserMap.get(socket.id);
+        if (!uid) { socket.emit('error', { message: 'Войдите в BANK MANDARIN PRO.' }); return; }
+        const m = mafiaEnsure();
+        const realDeal = m.status === 'playing' && m.game && Array.isArray(m.game.players) && m.game.players.some(p => p && p.userId);
+        if (realDeal) { socket.emit('error', { message: 'Партия уже началась.' }); return; }
+        if (m.status === 'playing') {
+            // Stale/phantom game with no real players — reset to lobby so people can join
+            m.status = 'lobby';
+            m.game = null;
+            m.lobbyOpen = true;
+            mafiaTouchVersion();
+        }
+        if (!m.lobbyOpen) { socket.emit('error', { message: 'Комната ещё не открыта.' }); return; }
+        if (m.joined.some(p => p.userId === uid)) {
+            socket.emit('mafia:state', mafiaPublicPayload(socket.id));
+            return;
+        }
+        const brief = mafiaUserBrief(uid);
+        m.joined.push({ ...brief, joinedAt: Date.now() });
+        mafiaTouchVersion();
+        emitMafiaState();
+    });
+
+    socket.on('mafia:leave', () => {
+        const uid = socketUserMap.get(socket.id);
+        if (!uid) return;
+        const m = mafiaEnsure();
+        if (m.status === 'playing') { socket.emit('error', { message: 'Нельзя выйти во время партии.' }); return; }
+        const before = m.joined.length;
+        m.joined = m.joined.filter(p => p.userId !== uid);
+        if (m.joined.length !== before) {
+            mafiaTouchVersion();
+            emitMafiaState();
+        } else {
+            socket.emit('mafia:state', mafiaPublicPayload(socket.id));
+        }
+    });
+
+    socket.on('mafia:start', () => {
+        if (!isAdmin(socket.id)) { socket.emit('error', { message: 'Требуется доступ администратора.' }); return; }
+        const m = mafiaEnsure();
+        if (m.status === 'playing') { socket.emit('error', { message: 'Партия уже идёт.' }); return; }
+        if (!m.lobbyOpen) { socket.emit('error', { message: 'Сначала откройте комнату.' }); return; }
+        const n = m.joined.length;
+        if (n < 4) {
+            socket.emit('mafia:error', { message: 'Для партии нужно минимум 4 участника. Сейчас: ' + n + '.' });
+            return;
+        }
+        if (n > 20) {
+            socket.emit('mafia:error', { message: 'Максимум 20 участников.' });
+            return;
+        }
+        const doctor = !!m.config.doctor;
+        const commissar = !!m.config.commissar;
+        const mafiaCount = m.config.mafiaMode === 'fixed'
+            ? Math.max(1, Math.min(n - 2, Number(m.config.mafiaCount) || 1))
+            : Math.max(1, Math.floor(n / 3));
+        const extra = (doctor ? 1 : 0) + (commissar ? 1 : 0);
+        const civilians = n - mafiaCount - extra;
+        if (civilians < 1) {
+            socket.emit('mafia:error', { message: 'Недостаточно участников для выбранных ролей. Уменьшите число мафиози или отключите спецроли.' });
+            return;
+        }
+        const deck = [];
+        for (let i = 0; i < mafiaCount; i++) deck.push('mafia');
+        if (doctor) deck.push('doctor');
+        if (commissar) deck.push('commissar');
+        for (let i = 0; i < civilians; i++) deck.push('civilian');
+        // Fisher–Yates with crypto when available
+        for (let i = deck.length - 1; i > 0; i--) {
+            let j;
+            if (crypto?.randomInt) j = crypto.randomInt(0, i + 1);
+            else j = Math.floor(Math.random() * (i + 1));
+            [deck[i], deck[j]] = [deck[j], deck[i]];
+        }
+        const players = m.joined.map((p, i) => ({
+            userId: p.userId,
+            name: p.name,
+            photo: p.photo || null,
+            role: deck[i],
+            out: false
+        }));
+        let hostIdx;
+        if (crypto?.randomInt) hostIdx = crypto.randomInt(0, players.length);
+        else hostIdx = Math.floor(Math.random() * players.length);
+        const hostId = players[hostIdx].userId;
+        const duration = [60, 90, 120].includes(Number(m.config.duration)) ? Number(m.config.duration) : 90;
+        m.status = 'playing';
+        m.game = {
+            players,
+            hostId,
+            timer: { duration, left: duration, running: false, endAt: 0 },
+            startedAt: Date.now()
+        };
+        mafiaTouchVersion();
+        emitMafiaState();
+        for (const p of players) mafiaSendMyRole(p.userId);
+    });
+
+    socket.on('mafia:timer', (data) => {
+        const uid = socketUserMap.get(socket.id);
+        const m = mafiaEnsure();
+        if (!m.game) return;
+        const isHost = m.game.hostId === uid;
+        if (!isHost && !isAdmin(socket.id)) return;
+        const action = data?.action;
+        const t = m.game.timer;
+        if (action === 'set') {
+            const d = Number(data.duration);
+            if (![60, 90, 120].includes(d)) return;
+            t.duration = d;
+            t.left = d;
+            t.running = false;
+            t.endAt = 0;
+        } else if (action === 'reset') {
+            t.left = t.duration;
+            t.running = false;
+            t.endAt = 0;
+        } else if (action === 'toggle') {
+            if (t.running) {
+                t.left = Math.max(0, Math.ceil((t.endAt - Date.now()) / 1000));
+                t.running = false;
+                t.endAt = 0;
+            } else {
+                if (t.left <= 0) t.left = t.duration;
+                t.endAt = Date.now() + t.left * 1000;
+                t.running = true;
+            }
+        } else {
+            return;
+        }
+        mafiaTouchVersion();
+        emitMafiaState();
+    });
+
+    socket.on('mafia:exclude', (data) => {
+        const uid = socketUserMap.get(socket.id);
+        const m = mafiaEnsure();
+        if (!m.game) return;
+        const isHost = m.game.hostId === uid;
+        if (!isHost && !isAdmin(socket.id)) return;
+        const targetId = data?.userId;
+        const p = m.game.players.find(x => x.userId === targetId);
+        if (!p) return;
+        p.out = data?.out === undefined ? !p.out : !!data.out;
+        mafiaTouchVersion();
+        emitMafiaState();
+    });
+
+    socket.on('mafia:requestRoles', () => {
+        const uid = socketUserMap.get(socket.id);
+        const m = mafiaEnsure();
+        if (!m.game) { socket.emit('mafia:roles', { roles: [] }); return; }
+        const isHost = m.game.hostId === uid;
+        const isAdm = isAdmin(socket.id);
+        if (!isHost && !isAdm) {
+            socket.emit('mafia:roles', { roles: [], denied: true });
+            return;
+        }
+        socket.emit('mafia:roles', {
+            roles: m.game.players.map(p => ({
+                userId: p.userId,
+                name: p.name,
+                role: p.role,
+                out: !!p.out
+            }))
+        });
+    });
+
+    socket.on('mafia:finish', () => {
+        const uid = socketUserMap.get(socket.id);
+        const m = mafiaEnsure();
+        if (!m.game) return;
+        const isHost = m.game.hostId === uid;
+        const isAdm = isAdmin(socket.id);
+        if (!isAdm && !(isHost && m.config.allowHostFinish)) return;
+        // Keep lobby members so a new round can start; drop the finished deal.
+        m.status = 'lobby';
+        m.lobbyOpen = true;
+        m.game = null;
+        mafiaTouchVersion();
+        emitMafiaState();
+    });
+
+    socket.on('mafia:reset', () => {
+        if (!isAdmin(socket.id)) return;
+        const m = mafiaEnsure();
+        m.status = 'idle';
+        m.lobbyOpen = false;
+        m.joined = [];
+        m.game = null;
+        m.config = getDefaultMafia().config;
+        mafiaTouchVersion();
+        emitMafiaState();
     });
 
     // --- Disconnect ---

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Дневник ученика · Mandarin Pro</title>
+<style>
+:root{font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#252923;background:#f7f8f5}
+*{box-sizing:border-box}
+body{margin:0}
+.shell{max-width:720px;margin:0 auto;padding:22px 16px 40px}
+.brand{font-size:20px;font-weight:850;letter-spacing:-.6px;margin-bottom:4px}
+.brand span{color:#c79b4c}
+.sub{color:#879087;font-size:12px;margin-bottom:22px}
+.panel{background:#fff;border:1px solid #e9ebe6;border-radius:18px;padding:20px;box-shadow:0 8px 30px #1e302307;margin-bottom:14px}
+h1{font-size:22px;letter-spacing:-.5px;margin:0 0 6px}
+h2{font-size:15px;margin:0 0 12px;letter-spacing:-.2px}
+.muted{color:#879087;font-size:13px}
+.hero{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;background:linear-gradient(135deg,rgba(201,168,76,.12),rgba(251,146,60,.06));border:1px solid rgba(201,168,76,.25);border-radius:16px;padding:16px;margin:14px 0}
+.money{font-size:28px;font-weight:850;color:#c79b4c;margin-top:4px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+.stat{background:#f7f8f5;border:1px solid #e9ebe6;border-radius:12px;padding:10px;text-align:center}
+.stat b{display:block;font-size:18px}
+.stat small{color:#879087;font-size:11px}
+.row{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #eef0ea;font-size:13px}
+.row:last-child{border-bottom:0}
+.pill{display:inline-flex;align-items:center;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700}
+.pill.present{background:rgba(34,197,94,.14);color:#22c55e}
+.pill.absent{background:rgba(239,68,68,.12);color:#ef4444}
+.pill.late{background:rgba(234,179,8,.16);color:#b48a26}
+.pill.excused{background:rgba(99,102,241,.12);color:#6366f1}
+.score{display:inline-flex;border-radius:8px;padding:2px 8px;font-size:11px;font-weight:800}
+.score.green{background:rgba(34,197,94,.12);color:#22c55e}
+.score.yellow{background:rgba(234,179,8,.14);color:#b48a26}
+.score.red{background:rgba(239,68,68,.12);color:#ef4444}
+.empty{color:#879087;font-size:13px;padding:12px 0}
+.err{text-align:center;padding:40px 16px}
+.err h1{font-size:18px;margin-bottom:8px}
+@media(max-width:520px){
+.stats{grid-template-columns:repeat(2,1fr)}
+.hero{flex-direction:column}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="brand">Bank <span>Mandarin</span> Pro</div>
+  <div class="sub">Персональная страница для родителей</div>
+  <div id="app"><div class="panel"><div class="empty">Загрузка…</div></div></div>
+</div>
+<script>
+(function () {
+  var statusLabel = { present: 'Присутств', absent: 'Отсутств', late: 'Опоздал', excused: 'Уважительная' };
+  var statusClass = { present: 'present', absent: 'absent', late: 'late', excused: 'excused' };
+  var app = document.getElementById('app');
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+    });
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso + 'T12:00:00');
+    if (isNaN(d.getTime())) return esc(iso);
+    return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+  }
+
+  function fmtMoney(n) {
+    if (n == null) return '—';
+    return Number(n).toLocaleString('ru-RU') + ' 分';
+  }
+
+  function render(data) {
+    var st = data.student || {};
+    var stats = data.attendanceStats || {};
+    var att = data.attendance || [];
+    var recs = data.records || [];
+    var html = '';
+
+    html += '<div class="panel">' +
+      '<h1>' + esc(st.name || 'Ученик') + '</h1>' +
+      '<div class="muted">' + esc(st.groupName || '') + '</div>' +
+      '<div class="hero"><div>' +
+      '<div class="muted">Баланс в банке</div>' +
+      '<div class="money">' + fmtMoney(data.balance) + '</div>' +
+      '</div><div style="text-align:right">' +
+      '<div class="muted">Средний результат</div>' +
+      '<div class="money" style="font-size:22px">' + (data.avgPercent != null ? data.avgPercent + '%' : '—') + '</div>' +
+      '</div></div>' +
+      '<div class="stats">' +
+      '<div class="stat"><b>' + (stats.present || 0) + '</b><small>Присутств</small></div>' +
+      '<div class="stat"><b>' + (stats.absent || 0) + '</b><small>Отсутств</small></div>' +
+      '<div class="stat"><b>' + (stats.late || 0) + '</b><small>Опоздал</small></div>' +
+      '<div class="stat"><b>' + (stats.excused || 0) + '</b><small>Уважительная</small></div>' +
+      '</div></div>';
+
+    html += '<div class="panel"><h2>Посещаемость</h2>';
+    if (att.length) {
+      att.forEach(function (a) {
+        html += '<div class="row">' +
+          '<div><div>' + fmtDate(a.date) + '</div>' +
+          (a.note ? '<div class="muted">' + esc(a.note) + '</div>' : '') +
+          '</div>' +
+          '<span class="pill ' + (statusClass[a.status] || '') + '">' + esc(statusLabel[a.status] || a.status) + '</span>' +
+          '</div>';
+      });
+    } else {
+      html += '<div class="empty">Записей о посещаемости пока нет.</div>';
+    }
+    html += '</div>';
+
+    html += '<div class="panel"><h2>Успеваемость</h2>';
+    if (recs.length) {
+      recs.forEach(function (r) {
+        var cls = r.color === 'green' ? 'green' : r.color === 'yellow' ? 'yellow' : 'red';
+        html += '<div class="row">' +
+          '<div><div><b>' + esc(r.subject || 'Занятие') + '</b> · ' + fmtDate(r.date) + '</div>' +
+          '<div class="muted">' + r.percent + '% · ' + esc(r.traditional || '') + (r.note ? ' · ' + esc(r.note) : '') + '</div></div>' +
+          '<div style="text-align:right"><span class="score ' + cls + '">' + esc(r.letter || '') + '</span>' +
+          '<div class="muted" style="margin-top:4px">+' + (r.points || 0) + ' ◈</div></div>' +
+          '</div>';
+      });
+    } else {
+      html += '<div class="empty">Оценок пока нет.</div>';
+    }
+    html += '</div>';
+
+    html += '<div class="muted" style="text-align:center;font-size:11px">Данные только по этому ученику · Bank Mandarin Pro</div>';
+    app.innerHTML = html;
+  }
+
+  function renderError(msg) {
+    app.innerHTML = '<div class="panel err"><h1>Ссылка недействительна</h1>' +
+      '<div class="muted">' + esc(msg || 'Попросите преподавателя выдать новую ссылку.') + '</div></div>';
+  }
+
+  var token = new URLSearchParams(window.location.search).get('token') || '';
+  if (!token) {
+    renderError('В адресе нет токена доступа.');
+    return;
+  }
+
+  fetch('/api/parent-view/' + encodeURIComponent(token))
+    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+    .then(function (res) {
+      if (!res.ok || !res.d || !res.d.ok) {
+        renderError(res.d && res.d.error);
+        return;
+      }
+      render(res.d);
+    })
+    .catch(function () {
+      renderError('Не удалось загрузить данные. Попробуйте позже.');
+    });
+})();
+</script>
+</body>
+</html>
