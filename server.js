@@ -93,6 +93,11 @@ app.get('/parent-view', (req, res) => {
     res.sendFile(path.join(__dirname, 'parent-view.html'));
 });
 
+// --- Встроенный словарь (существующий HTML) ---
+app.get('/dictionary', (req, res) => {
+    res.sendFile(path.join(__dirname, '12 версия FINALL', 'DLK AI V1 3 хск 2026 словарь кит.html'));
+});
+
 app.get('/api/parent-view/:token', (req, res) => {
     try {
         const payload = parentViewPayload(String(req.params.token || ''));
@@ -210,7 +215,7 @@ const INVESTMENT_TYPES = [
     { id: 'certificates', name: 'Сертификаты', icon: 'award', emoji: '🏅' }
 ];
 
-let db = { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [], journal: { groups: [], students: [], records: [], settings: { reward: 300 } }, accountRequests: [], securityLog: [], auditLog: [] };
+let db = { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [], journal: { groups: [], students: [], records: [], settings: { reward: 300 } }, accountRequests: [], securityLog: [], auditLog: [], globalMode: { enabled: false, section: null, updatedAt: null }, party: null };
 
 // True only after loadDB() successfully populated `db` from the real store.
 // Prevents empty in-memory defaults from being flushed over real data on startup.
@@ -302,7 +307,7 @@ async function loadDB() {
 }
 
 function getDefaultDB() {
-    return { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], virtualBanks: null, userBankDeposits: [], userBankInvestments: [], bankHistory: [], couponPricesHalved: false, qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [], journal: { groups: [], students: [], records: [], settings: { reward: 300 } }, mafia: null, accountRequests: [], securityLog: [], auditLog: [] };
+    return { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], virtualBanks: null, userBankDeposits: [], userBankInvestments: [], bankHistory: [], couponPricesHalved: false, qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [], journal: { groups: [], students: [], records: [], settings: { reward: 300 } }, mafia: null, accountRequests: [], securityLog: [], auditLog: [], globalMode: { enabled: false, section: null, updatedAt: null }, party: null };
 }
 
 function getDefaultMafia() {
@@ -331,6 +336,9 @@ function _assignDB(parsed) {
         db.battlePass = { seasonEnd: null, userProgress: {} };
     }
     if (!db.battlePass.userProgress) db.battlePass.userProgress = {};
+    if (!db.globalMode || typeof db.globalMode !== 'object') {
+        db.globalMode = { enabled: false, section: null, updatedAt: null };
+    }
 }
 
 function _runMigrations() {
@@ -978,6 +986,20 @@ function getOnlineUserIds() {
 }
 function getOnlineCount() { return getOnlineUserIds().size; }
 function isAdmin(socketId) { return adminSockets.has(socketId); }
+
+function getGlobalMode() {
+    if (!db.globalMode || typeof db.globalMode !== 'object') {
+        db.globalMode = { enabled: false, section: null, updatedAt: null };
+    }
+    return db.globalMode;
+}
+function publicGlobalMode() {
+    const g = getGlobalMode();
+    return { enabled: !!g.enabled, section: g.section || null, updatedAt: g.updatedAt || null };
+}
+function broadcastGlobalMode() {
+    io.emit('globalMode:changed', publicGlobalMode());
+}
 function touchUser(user) { user.lastActive = Date.now(); }
 function markUserSeen(userId) { if (userId) lastSeenMap.set(userId, Date.now()); }
 
@@ -1036,7 +1058,8 @@ function emitBankUpdate() {
             onlineCount: getOnlineCount(),
             me: publicUserFull(user, onlineIds),
             groups: db.groups,
-            groupPermissions: db.groupPermissions
+            groupPermissions: db.groupPermissions,
+            globalMode: publicGlobalMode()
         });
     }
     // Also emit to admin sockets that don't have a user mapped
@@ -1048,7 +1071,8 @@ function emitBankUpdate() {
                 onlineCount: getOnlineCount(),
                 me: null,
                 groups: db.groups,
-                groupPermissions: db.groupPermissions
+                groupPermissions: db.groupPermissions,
+                globalMode: publicGlobalMode()
             });
         }
     }
@@ -1473,6 +1497,8 @@ function getJournalData() {
     if (!db.journal.settings || typeof db.journal.settings !== 'object') db.journal.settings = { reward: 300 };
     if (typeof db.journal.settings.reward !== 'number') db.journal.settings.reward = 300;
     if (!db.journal.awards || typeof db.journal.awards !== 'object') db.journal.awards = {};
+    if (!Array.isArray(db.journal.homework)) db.journal.homework = [];
+    if (!Array.isArray(db.journal.homeworkSubmissions)) db.journal.homeworkSubmissions = [];
     return db.journal;
 }
 
@@ -1772,6 +1798,160 @@ setInterval(() => {
         }
     } catch (e) { /* timer watchdog must never crash the server */ }
 }, 500);
+
+// ==================== PARTY GAMES (Крокодил / Бункер) ====================
+const PARTY_DECKS = require('./party-decks.json');
+
+function partyDefaultGame(mode) {
+    const deck = Array.isArray(PARTY_DECKS[mode]) ? PARTY_DECKS[mode].slice() : [];
+    return {
+        mode,
+        status: 'idle',
+        lobbyOpen: false,
+        config: { allowNext: true, distribution: 'all' },
+        deck,
+        pool: [],
+        used: [],
+        players: [],
+        version: 0
+    };
+}
+
+function partyEnsure() {
+    if (!db.party || typeof db.party !== 'object') db.party = {};
+    for (const mode of ['croc', 'bunker']) {
+        if (!db.party[mode] || typeof db.party[mode] !== 'object') {
+            db.party[mode] = partyDefaultGame(mode);
+            continue;
+        }
+        const g = db.party[mode];
+        if (!Array.isArray(g.deck) || !g.deck.length) g.deck = (PARTY_DECKS[mode] || []).slice();
+        if (!Array.isArray(g.pool)) g.pool = [];
+        if (!Array.isArray(g.used)) g.used = [];
+        if (!Array.isArray(g.players)) g.players = [];
+        if (!g.config || typeof g.config !== 'object') g.config = { allowNext: true, distribution: 'all' };
+        if (g.config.allowNext === undefined) g.config.allowNext = true;
+        if (g.config.distribution !== 'turn') g.config.distribution = 'all';
+        const before = g.players.length;
+        g.players = g.players.filter(p => p && findUser(p.userId));
+        if (g.players.length !== before) {
+            g.version = (g.version || 0) + 1;
+            saveDB();
+        }
+    }
+    return db.party;
+}
+
+function partyGet(mode) {
+    partyEnsure();
+    if (mode !== 'croc' && mode !== 'bunker') return null;
+    return db.party[mode];
+}
+
+function partyShuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+}
+
+function partyTouch(mode) {
+    const g = partyGet(mode);
+    if (g) g.version = (g.version || 0) + 1;
+}
+
+function partyUserBrief(userId) {
+    const u = findUser(userId);
+    return {
+        userId,
+        name: u ? (u.nickname || u.name) : 'Игрок',
+        photo: u && u.profilePhoto ? u.profilePhoto : null,
+        online: getUserSockets(userId).size > 0
+    };
+}
+
+function partyPublicPayload(mode, forSocketId) {
+    const g = partyGet(mode);
+    if (!g) return null;
+    const uid = socketUserMap.get(forSocketId) || null;
+    const adm = isAdmin(forSocketId);
+    const players = g.players.map(p => ({
+        userId: p.userId,
+        name: p.name,
+        photo: p.photo || null,
+        hasCard: !!p.card,
+        online: getUserSockets(p.userId).size > 0,
+        joinedAt: p.joinedAt || 0
+    }));
+    const me = uid ? {
+        userId: uid,
+        isAdmin: adm,
+        inRoom: g.players.some(p => p.userId === uid),
+        hasCard: !!(g.players.find(p => p.userId === uid) || {}).card,
+        myCard: null
+    } : { userId: null, isAdmin: adm, inRoom: false, hasCard: false, myCard: null };
+    return {
+        mode: g.mode,
+        status: g.status,
+        lobbyOpen: !!g.lobbyOpen,
+        config: { allowNext: !!g.config.allowNext, distribution: g.config.distribution },
+        players,
+        poolCount: g.pool.length,
+        usedCount: g.used.length,
+        deckCount: g.deck.length,
+        canManage: adm,
+        me,
+        version: g.version || 0
+    };
+}
+
+function partySendMyCard(mode, userId) {
+    const g = partyGet(mode);
+    if (!g || !userId) return;
+    const p = g.players.find(x => x.userId === userId);
+    if (!p) return;
+    emitToUser(userId, 'party:myCard', {
+        mode: g.mode,
+        card: p.card || null,
+        hasCard: !!p.card,
+        allowNext: !!(g.config.allowNext && g.status === 'playing'),
+        phase: g.status
+    });
+}
+
+function partyEmitState(mode) {
+    const g = partyGet(mode);
+    if (!g) return;
+    const seen = new Set();
+    for (const socketId of socketUserMap.keys()) {
+        seen.add(socketId);
+        io.to(socketId).emit('party:state', partyPublicPayload(mode, socketId));
+    }
+    for (const sid of adminSockets) {
+        if (!seen.has(sid)) io.to(sid).emit('party:state', partyPublicPayload(mode, sid));
+    }
+    for (const p of g.players) partySendMyCard(mode, p.userId);
+}
+
+function partyDraw(mode) {
+    const g = partyGet(mode);
+    if (!g) throw new Error('Игра не найдена.');
+    if (!g.pool.length) throw new Error('Все персонажи использованы. Перемешайте колоду.');
+    const card = g.pool.pop();
+    g.used.push(card);
+    return card;
+}
+
+function partyDealTo(mode, userId) {
+    const g = partyGet(mode);
+    const p = g.players.find(x => x.userId === userId);
+    if (!p) throw new Error('Участник не найден.');
+    if (p.card) return p.card;
+    p.card = partyDraw(mode);
+    return p.card;
+}
 
 // --- Socket.io ---
 
@@ -6471,17 +6651,24 @@ io.on('connection', (socket) => {
         const j = getJournalData();
         const admin = isAdmin(socketId);
         if (admin) {
-            return { groups: j.groups, students: j.students, records: j.records, settings: j.settings, isAdmin: true };
+            return { groups: j.groups, students: j.students, records: j.records, settings: j.settings, homework: j.homework, homeworkSubmissions: j.homeworkSubmissions, isAdmin: true };
         }
         const userId = socketUserMap.get(socketId);
         const user = findUser(userId);
         const st = findJournalStudentForUser(user);
         const myId = st ? st.id : null;
+        const myGroupId = st ? st.groupId : null;
         return {
             groups: j.groups,
             students: st ? [st] : [],
             records: myId ? j.records.filter(r => r.studentId === myId) : [],
             settings: j.settings,
+            homework: j.homework.filter(h => {
+                if (!h) return false;
+                if (myId && h.studentId) return h.studentId === myId;
+                return !h.studentId && myGroupId && h.groupId === myGroupId;
+            }),
+            homeworkSubmissions: myId ? j.homeworkSubmissions.filter(s => s && s.studentId === myId) : [],
             isAdmin: false
         };
     }
@@ -6760,6 +6947,401 @@ io.on('connection', (socket) => {
             studentId: st.id,
             parentToken: st.parentToken
         });
+    });
+
+    // ==================== HOMEWORK + GLOBAL MODE + PARTY ====================
+    socket.on('homework:save', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('homework:saved', { ok: false, error: 'ДЗ доступно только администратору.' }); return; }
+        if (!data || !data.groupId || !data.date) { socket.emit('homework:saved', { ok: false, error: 'Нужны groupId и date' }); return; }
+        const j = getJournalData();
+        const groupId = String(data.groupId);
+        const date = String(data.date);
+        const text = String(data.text == null ? '' : data.text).slice(0, 20000);
+        const studentId = data.studentId ? String(data.studentId) : null;
+        const nowIso = new Date().toISOString();
+        // Правка существующего: дата публикации не меняется
+        if (data.id) {
+            const existing = j.homework.find(h => h && h.id === String(data.id));
+            if (!existing) { socket.emit('homework:saved', { ok: false, error: 'Задание не найдено.' }); return; }
+            if (existing.originalText == null) existing.originalText = existing.text || '';
+            existing.text = text;
+            existing.studentId = studentId;
+            existing.updatedAt = nowIso;
+            existing.editedAt = nowIso;
+            saveDB();
+            emitJournalUpdate();
+            socket.emit('homework:saved', { ok: true, groupId, date, id: existing.id, edited: true });
+            return;
+        }
+        // Новая публикация — всегда новая запись (старое уходит в историю)
+        const entry = { id: genId(), groupId, studentId, date, text, createdAt: nowIso, updatedAt: nowIso };
+        j.homework.push(entry);
+        saveDB();
+        emitJournalUpdate();
+        socket.emit('homework:saved', { ok: true, groupId, date, id: entry.id });
+    });
+
+    socket.on('homework:delete', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('homework:deleted', { ok: false, error: 'Удаление доступно только администратору.' }); return; }
+        if (!data || !data.id) { socket.emit('homework:deleted', { ok: false, error: 'Нужен id задания' }); return; }
+        const j = getJournalData();
+        const idx = j.homework.findIndex(h => h && h.id === String(data.id));
+        if (idx < 0) { socket.emit('homework:deleted', { ok: false, error: 'Задание не найдено.' }); return; }
+        j.homework.splice(idx, 1);
+        saveDB();
+        emitJournalUpdate();
+        socket.emit('homework:deleted', { ok: true, id: String(data.id) });
+    });
+
+    socket.on('homework:submit', (data) => {
+        const userId = socketUserMap.get(socket.id);
+        const user = findUser(userId);
+        if (!user) { socket.emit('homework:submitted', { ok: false, error: 'Не авторизован.' }); return; }
+        if (!data || !data.homeworkId) { socket.emit('homework:submitted', { ok: false, error: 'Нужен homeworkId' }); return; }
+        const j = getJournalData();
+        const hw = j.homework.find(h => h && h.id === data.homeworkId);
+        if (!hw) { socket.emit('homework:submitted', { ok: false, error: 'Задание не найдено.' }); return; }
+        const st = (j.students || []).find(s => s && (s.userId === user.id || s.id === user.id || s.name === user.name));
+        const allowed = hw.studentId
+            ? (st && st.id === hw.studentId)
+            : (st && st.groupId === hw.groupId);
+        if (!st || !allowed) { socket.emit('homework:submitted', { ok: false, error: 'Задание не для вас.' }); return; }
+        const answer = String(data.answer == null ? '' : data.answer).slice(0, 20000);
+        if (!answer.trim()) { socket.emit('homework:submitted', { ok: false, error: 'Введите ответ.' }); return; }
+        const nowIso = new Date().toISOString();
+        let sub = j.homeworkSubmissions.find(s => s && s.homeworkId === hw.id && s.studentId === st.id);
+        if (sub) {
+            if (sub.status && sub.status !== 'pending') { socket.emit('homework:submitted', { ok: false, error: 'Задание уже проверено.' }); return; }
+            if (!Array.isArray(sub.answers)) sub.answers = sub.answer ? [{ text: String(sub.answer), at: sub.createdAt || nowIso }] : [];
+            sub.answers.push({ text: answer, at: nowIso });
+            sub.answer = answer;
+            sub.updatedAt = nowIso;
+        } else {
+            sub = {
+                id: genId(), homeworkId: hw.id, studentId: st.id, userId: user.id,
+                studentName: st.name || user.name, groupId: hw.groupId,
+                groupName: (j.groups.find(g => g && g.id === hw.groupId) || {}).name || '',
+                hwDate: hw.date, hwText: hw.text || '', answer,
+                answers: [{ text: answer, at: nowIso }],
+                status: 'pending', adminComment: '',
+                createdAt: nowIso, updatedAt: nowIso, reviewedAt: null
+            };
+            j.homeworkSubmissions.push(sub);
+        }
+        saveDB();
+        emitJournalUpdate();
+        socket.emit('homework:submitted', { ok: true, submission: sub });
+    });
+
+    socket.on('homework:review', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('homework:reviewed', { ok: false, error: 'Требуется администратор.' }); return; }
+        if (!data || !data.submissionId || !data.status) { socket.emit('homework:reviewed', { ok: false, error: 'Нужны submissionId и status' }); return; }
+        const status = data.status === 'approved' ? 'approved' : 'rejected';
+        const j = getJournalData();
+        const sub = j.homeworkSubmissions.find(s => s && s.id === data.submissionId);
+        if (!sub) { socket.emit('homework:reviewed', { ok: false, error: 'Ответ не найден.' }); return; }
+        sub.status = status;
+        sub.adminComment = String(data.comment == null ? '' : data.comment).slice(0, 1000);
+        sub.reviewedAt = new Date().toISOString();
+        sub.updatedAt = sub.reviewedAt;
+        saveDB();
+        emitJournalUpdate();
+        socket.emit('homework:reviewed', { ok: true, submission: sub });
+    });
+
+    socket.on('globalMode:get', () => {
+        socket.emit('globalMode:state', publicGlobalMode());
+    });
+
+    socket.on('admin:globalMode:set', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('globalMode:setResult', { ok: false, error: 'Требуется администратор.' }); return; }
+        const enabled = !!(data && data.enabled);
+        const section = data && data.section ? String(data.section) : null;
+        const allowed = ['home', 'history', 'purchases', 'messages', 'notifications', 'coupons', 'quests', 'tasks', 'duels', 'mafia', 'mybanks', 'battlepass', 'myqr', 'qrterminal', 'journal', 'homework', 'users', 'profile', 'diary', 'croc', 'bunker'];
+        if (enabled && (!section || !allowed.includes(section))) {
+            socket.emit('globalMode:setResult', { ok: false, error: 'Неизвестный модуль.' });
+            return;
+        }
+        const g = getGlobalMode();
+        g.enabled = enabled;
+        g.section = enabled ? section : null;
+        g.updatedAt = Date.now();
+        saveDB();
+        broadcastGlobalMode();
+        socket.emit('globalMode:setResult', { ok: true, globalMode: publicGlobalMode() });
+    });
+
+    // --- Party games: Крокодил / Бункер ---
+    function partyModeFrom(data) {
+        const mode = data && data.mode === 'bunker' ? 'bunker' : (data && data.mode === 'croc' ? 'croc' : null);
+        return mode;
+    }
+
+    socket.on('party:getState', (data) => {
+        const mode = partyModeFrom(data) || 'croc';
+        socket.emit('party:state', partyPublicPayload(mode, socket.id));
+        const uid = socketUserMap.get(socket.id);
+        if (uid) partySendMyCard(mode, uid);
+    });
+
+    socket.on('party:createRoom', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('party:error', { message: 'Требуется администратор.' }); return; }
+        const mode = partyModeFrom(data);
+        if (!mode) { socket.emit('party:error', { message: 'Неизвестная игра.' }); return; }
+        const g = partyGet(mode);
+        const cfg = (data && data.config) || {};
+        g.status = 'lobby';
+        g.lobbyOpen = true;
+        g.players = [];
+        g.pool = partyShuffle(g.deck);
+        g.used = [];
+        g.config = {
+            allowNext: cfg.allowNext !== false,
+            distribution: cfg.distribution === 'turn' ? 'turn' : 'all'
+        };
+        partyTouch(mode);
+        saveDB();
+        partyEmitState(mode);
+    });
+
+    socket.on('party:updateConfig', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('party:error', { message: 'Требуется администратор.' }); return; }
+        const mode = partyModeFrom(data);
+        const g = partyGet(mode);
+        if (!g) return;
+        const cfg = (data && data.config) || {};
+        if (cfg.allowNext !== undefined) g.config.allowNext = !!cfg.allowNext;
+        if (cfg.distribution !== undefined) g.config.distribution = cfg.distribution === 'turn' ? 'turn' : 'all';
+        partyTouch(mode);
+        saveDB();
+        partyEmitState(mode);
+    });
+
+    socket.on('party:openRoom', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('party:error', { message: 'Требуется администратор.' }); return; }
+        const mode = partyModeFrom(data);
+        const g = partyGet(mode);
+        if (!g) return;
+        if (g.status === 'playing') { socket.emit('party:error', { message: 'Игра уже идёт.' }); return; }
+        g.status = 'lobby';
+        g.lobbyOpen = true;
+        if (!g.pool.length && !g.used.length) g.pool = partyShuffle(g.deck);
+        partyTouch(mode);
+        saveDB();
+        partyEmitState(mode);
+    });
+
+    socket.on('party:join', (data) => {
+        const uid = socketUserMap.get(socket.id);
+        if (!uid) { socket.emit('party:error', { message: 'Войдите в BANK MANDARIN PRO.' }); return; }
+        const mode = partyModeFrom(data);
+        const g = partyGet(mode);
+        if (!g) return;
+        if (!g.lobbyOpen && g.status !== 'playing') { socket.emit('party:error', { message: 'Комната ещё не открыта.' }); return; }
+        if (g.status === 'finished') { socket.emit('party:error', { message: 'Игра завершена.' }); return; }
+        if (g.players.some(p => p.userId === uid)) {
+            partyEmitState(mode);
+            return;
+        }
+        const brief = partyUserBrief(uid);
+        g.players.push({ ...brief, card: null, joinedAt: Date.now() });
+        partyTouch(mode);
+        saveDB();
+        partyEmitState(mode);
+    });
+
+    socket.on('party:leave', (data) => {
+        const uid = socketUserMap.get(socket.id);
+        if (!uid) return;
+        const mode = partyModeFrom(data);
+        const g = partyGet(mode);
+        if (!g) return;
+        if (g.status === 'playing') {
+            const p = g.players.find(x => x.userId === uid);
+            if (p && p.card) { socket.emit('party:error', { message: 'Нельзя выйти во время игры с карточкой.' }); return; }
+        }
+        g.players = g.players.filter(p => p.userId !== uid);
+        partyTouch(mode);
+        saveDB();
+        partyEmitState(mode);
+    });
+
+    socket.on('party:removePlayer', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('party:error', { message: 'Требуется администратор.' }); return; }
+        const mode = partyModeFrom(data);
+        const g = partyGet(mode);
+        if (!g) return;
+        const target = data && data.userId;
+        g.players = g.players.filter(p => p.userId !== target);
+        partyTouch(mode);
+        saveDB();
+        partyEmitState(mode);
+    });
+
+    socket.on('party:start', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('party:error', { message: 'Требуется администратор.' }); return; }
+        const mode = partyModeFrom(data);
+        const g = partyGet(mode);
+        if (!g) return;
+        if (g.status === 'playing') { socket.emit('party:error', { message: 'Игра уже идёт.' }); return; }
+        if (!g.players.length) { socket.emit('party:error', { message: 'Добавьте участников.' }); return; }
+        if (!g.pool.length) g.pool = partyShuffle(g.deck);
+        if (g.config.distribution === 'all' && g.pool.length < g.players.length) {
+            socket.emit('party:error', { message: 'В колоде недостаточно персонажей.' });
+            return;
+        }
+        g.status = 'playing';
+        g.lobbyOpen = false;
+        if (g.config.distribution === 'all') {
+            for (const p of g.players) {
+                if (!p.card) {
+                    try { p.card = partyDraw(mode); } catch (e) { break; }
+                }
+            }
+        }
+        partyTouch(mode);
+        saveDB();
+        partyEmitState(mode);
+    });
+
+    socket.on('party:deal', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('party:error', { message: 'Требуется администратор.' }); return; }
+        const mode = partyModeFrom(data);
+        const g = partyGet(mode);
+        if (!g) return;
+        try {
+            partyDealTo(mode, data && data.userId);
+            partyTouch(mode);
+            saveDB();
+            partyEmitState(mode);
+        } catch (e) {
+            socket.emit('party:error', { message: e.message });
+        }
+    });
+
+    socket.on('party:dealPending', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('party:error', { message: 'Требуется администратор.' }); return; }
+        const mode = partyModeFrom(data);
+        const g = partyGet(mode);
+        if (!g) return;
+        try {
+            for (const p of g.players) {
+                if (!p.card) partyDealTo(mode, p.userId);
+            }
+            partyTouch(mode);
+            saveDB();
+            partyEmitState(mode);
+        } catch (e) {
+            socket.emit('party:error', { message: e.message });
+        }
+    });
+
+    socket.on('party:next', (data) => {
+        const uid = socketUserMap.get(socket.id);
+        if (!uid) return;
+        const mode = partyModeFrom(data);
+        const g = partyGet(mode);
+        if (!g) return;
+        if (!g.config.allowNext) { socket.emit('party:error', { message: 'Смена персонажа запрещена ведущим.' }); return; }
+        if (g.status !== 'playing') { socket.emit('party:error', { message: 'Игра не идёт.' }); return; }
+        const p = g.players.find(x => x.userId === uid);
+        if (!p) { socket.emit('party:error', { message: 'Вы не в комнате.' }); return; }
+        try {
+            p.card = partyDraw(mode);
+            partyTouch(mode);
+            saveDB();
+            partySendMyCard(mode, uid);
+            partyEmitState(mode);
+        } catch (e) {
+            socket.emit('party:error', { message: e.message });
+        }
+    });
+
+    socket.on('party:reshuffle', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('party:error', { message: 'Требуется администратор.' }); return; }
+        const mode = partyModeFrom(data);
+        const g = partyGet(mode);
+        if (!g) return;
+        const held = new Set(g.players.map(p => p.card).filter(Boolean));
+        g.pool = partyShuffle(g.deck.filter(x => !held.has(x)));
+        g.used = [];
+        partyTouch(mode);
+        saveDB();
+        partyEmitState(mode);
+    });
+
+    socket.on('party:finish', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('party:error', { message: 'Требуется администратор.' }); return; }
+        const mode = partyModeFrom(data);
+        const g = partyGet(mode);
+        if (!g) return;
+        g.status = 'finished';
+        g.players.forEach(p => { p.card = null; });
+        g.pool = [];
+        g.used = [];
+        partyTouch(mode);
+        saveDB();
+        partyEmitState(mode);
+    });
+
+    socket.on('party:restart', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('party:error', { message: 'Требуется администратор.' }); return; }
+        const mode = partyModeFrom(data);
+        const g = partyGet(mode);
+        if (!g) return;
+        g.status = 'lobby';
+        g.lobbyOpen = true;
+        g.pool = partyShuffle(g.deck);
+        g.used = [];
+        g.players.forEach(p => { p.card = null; });
+        partyTouch(mode);
+        saveDB();
+        partyEmitState(mode);
+    });
+
+    socket.on('party:closeRoom', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('party:error', { message: 'Требуется администратор.' }); return; }
+        const mode = partyModeFrom(data);
+        const g = partyGet(mode);
+        if (!g) return;
+        const fresh = partyDefaultGame(mode);
+        db.party[mode] = fresh;
+        saveDB();
+        partyEmitState(mode);
+    });
+
+    socket.on('party:deckGet', (data) => {
+        const mode = partyModeFrom(data) || 'croc';
+        const g = partyGet(mode);
+        if (!g) return;
+        const adm = isAdmin(socket.id);
+        socket.emit('party:deck', { mode, cards: adm ? g.deck.slice() : g.deck.length, canEdit: adm });
+    });
+
+    socket.on('party:deckSave', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('party:error', { message: 'Требуется администратор.' }); return; }
+        const mode = partyModeFrom(data);
+        const g = partyGet(mode);
+        if (!g) return;
+        const cards = Array.isArray(data && data.cards) ? data.cards.map(x => String(x).slice(0, 100)).filter(x => x.trim()) : [];
+        if (!cards.length) { socket.emit('party:error', { message: 'Колода не может быть пустой.' }); return; }
+        g.deck = [...new Set(cards)];
+        partyTouch(mode);
+        saveDB();
+        socket.emit('party:deck', { mode, cards: g.deck.slice(), canEdit: true });
+        partyEmitState(mode);
+    });
+
+    socket.on('party:deckRestore', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('party:error', { message: 'Требуется администратор.' }); return; }
+        const mode = partyModeFrom(data);
+        const g = partyGet(mode);
+        if (!g) return;
+        g.deck = (PARTY_DECKS[mode] || []).slice();
+        partyTouch(mode);
+        saveDB();
+        socket.emit('party:deck', { mode, cards: g.deck.slice(), canEdit: true });
+        partyEmitState(mode);
     });
 
     // ==================== MAFIA MODULE (socket handlers) ====================

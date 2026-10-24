@@ -1,0 +1,1255 @@
+// ===== DIALOGUE DATA =====
+const DIALOGUES = {
+  1: [
+    { title: "Диалог 1", type: "dialogue", lines: [
+      { speaker: "小丽", text: "周末你有什么打算？" },
+    ]},
+    { title: "Диалог 2", type: "dialogue", lines: [
+      { speaker: "小刚", text: "我早就想好了，请你吃饭、看电影、喝咖啡。" },
+    ]},
+    { title: "Диалог 3", type: "dialogue", lines: [
+      { speaker: "小丽", text: "请我？" },
+    ]},
+    { title: "Диалог 4", type: "dialogue", lines: [
+      { speaker: "小刚", text: "是啊，我已经找好饭馆了，电影票也买好了。" },
+    ]},
+    { title: "Диалог 5", type: "dialogue", lines: [
+      { speaker: "小丽", text: "我还没想好要不要跟你去呢。" },
+    ]},
+    { title: "Диалог 6", type: "dialogue", lines: [
+      { speaker: "妈妈", text: "你一直玩儿电脑游戏，作业写完了吗？" },
+    ]},
+    { title: "Диалог 7", type: "dialogue", lines: [
+      { speaker: "儿子", text: "都写完了。" },
+    ]},
+    { title: "Диалог 8", type: "dialogue", lines: [
+      { speaker: "妈妈", text: "明天不是有考试吗？你怎么一点儿也不着急？" },
+    ]},
+    { title: "Диалог 9", type: "dialogue", lines: [
+      { speaker: "儿子", text: "我早就复习好了。" },
+    ]},
+    { title: "Диалог 10", type: "dialogue", lines: [
+      { speaker: "妈妈", text: "那也不能一直玩儿啊。" },
+    ]},
+    { title: "Диалог 11", type: "dialogue", lines: [
+      { speaker: "小丽", text: "下个月我去旅游，你能跟我一起去吗？" },
+    ]},
+    { title: "Диалог 12", type: "dialogue", lines: [
+      { speaker: "小刚", text: "我还没想好呢。你觉得哪儿最好玩儿？" },
+    ]},
+    { title: "Диалог 13", type: "dialogue", lines: [
+      { speaker: "小丽", text: "南方啊，我们去年就是这个时候去的。" },
+    ]},
+    { title: "Диалог 14", type: "dialogue", lines: [
+      { speaker: "小刚", text: "南方太热了，北方好一些，不冷也不热。" },
+    ]},
+    { title: "Диалог 15", type: "dialogue", lines: [
+      { speaker: "小刚", text: "水果、面包、茶都准备好了，我们还带什么？" },
+    ]},
+    { title: "Диалог 16", type: "dialogue", lines: [
+      { speaker: "小丽", text: "手机、电脑、地图，一个也不能少。" },
+    ]},
+    { title: "Диалог 17", type: "dialogue", lines: [
+      { speaker: "小刚", text: "这些我昨天下午就准备好了。" },
+    ]},
+    { title: "Диалог 18", type: "dialogue", lines: [
+      { speaker: "小丽", text: "再多带几件衣服吧。" },
+    ]},
+    { title: "Диалог 19", type: "dialogue", lines: [
+      { speaker: "小刚", text: "我们是去旅游，不是搬家，还是少带一些吧。" },
+    ]},
+  ],
+  2: [
+    { title: "Диалог 1", type: "dialogue", lines: [
+      { speaker: "小丽", text: "休息一下吧。" },
+    ]},
+    { title: "Диалог 2", type: "dialogue", lines: [
+      { speaker: "小刚", text: "怎么了？" },
+    ]},
+    { title: "Диалог 3", type: "dialogue", lines: [
+      { speaker: "小丽", text: "我现在腿也疼，脚也疼。" },
+    ]},
+    { title: "Диалог 4", type: "dialogue", lines: [
+      { speaker: "小刚", text: "好，那边树多，我们过去坐一下吧。" },
+    ]},
+    { title: "Диалог 5", type: "dialogue", lines: [
+      { speaker: "小丽", text: "上来的时候我怎么没觉得这么累？" },
+    ]},
+    { title: "Диалог 6", type: "dialogue", lines: [
+      { speaker: "小刚", text: "上山容易下山难，你不知道？" },
+    ]},
+    { title: "Диалог 7", type: "dialogue", lines: [
+      { speaker: "周太太", text: "喂，你好，请问周明在吗？" },
+    ]},
+    { title: "Диалог 8", type: "dialogue", lines: [
+      { speaker: "秘书", text: "周经理出去了，不在办公室。" },
+    ]},
+    { title: "Диалог 9", type: "dialogue", lines: [
+      { speaker: "周太太", text: "他去哪儿了？什么时候回来？" },
+    ]},
+    { title: "Диалог 10", type: "dialogue", lines: [
+      { speaker: "秘书", text: "他出去办事了，下午回来。" },
+    ]},
+    { title: "Диалог 11", type: "dialogue", lines: [
+      { speaker: "周太太", text: "回来了就让他给我打个电话。" },
+    ]},
+    { title: "Диалог 12", type: "dialogue", lines: [
+      { speaker: "秘书", text: "好的，他到了办公室我就告诉他。" },
+    ]},
+    { title: "Диалог 13", type: "dialogue", lines: [
+      { speaker: "小刚", text: "雨下得真大。你怎么回去？我送你吧。" },
+    ]},
+    { title: "Диалог 14", type: "dialogue", lines: [
+      { speaker: "小丽", text: "没事，我出去叫辆出租车就行了。" },
+    ]},
+    { title: "Диалог 15", type: "dialogue", lines: [
+      { speaker: "小刚", text: "那你等等，我上楼去给你拿把伞。" },
+    ]},
+    { title: "Диалог 16", type: "dialogue", lines: [
+      { speaker: "小丽", text: "好的。我跟你一起上去吧。" },
+    ]},
+    { title: "Диалог 17", type: "dialogue", lines: [
+      { speaker: "小刚", text: "你在这儿等吧，我拿了伞就下来。" },
+    ]},
+    { title: "Диалог 18", type: "dialogue", lines: [
+      { speaker: "周太太", text: "你看，我这么胖，怎么办呢？" },
+    ]},
+    { title: "Диалог 19", type: "dialogue", lines: [
+      { speaker: "周明", text: "你每天晚上吃了饭就睡觉，也不出去走走，能不胖吗？" },
+    ]},
+    { title: "Диалог 20", type: "dialogue", lines: [
+      { speaker: "周太太", text: "其实我每天都运动。" },
+    ]},
+    { title: "Диалог 21", type: "dialogue", lines: [
+      { speaker: "周明", text: "但是你一点儿也没瘦！你做什么运动了？" },
+    ]},
+    { title: "Диалог 22", type: "dialogue", lines: [
+      { speaker: "周太太", text: "做饭啊。" },
+    ]},
+  ],
+  3: [
+    { title: "Диалог 1", type: "dialogue", lines: [
+      { speaker: "小刚", text: "明天是晴天还是阴天？" },
+    ]},
+    { title: "Диалог 2", type: "dialogue", lines: [
+      { speaker: "小丽", text: "阴天，电视上说多云。怎么了？有事？" },
+    ]},
+    { title: "Диалог 3", type: "dialogue", lines: [
+      { speaker: "小刚", text: "没事，我们明天要去爬山。" },
+    ]},
+    { title: "Диалог 4", type: "dialogue", lines: [
+      { speaker: "小丽", text: "爬山的时候要小心点儿。" },
+    ]},
+    { title: "Диалог 5", type: "dialogue", lines: [
+      { speaker: "小刚", text: "好，你也去吗？" },
+    ]},
+    { title: "Диалог 6", type: "dialogue", lines: [
+      { speaker: "小丽", text: "我不去，我有事。" },
+    ]},
+    { title: "Диалог 7", type: "dialogue", lines: [
+      { speaker: "周太太", text: "你觉得这条裤子怎么样？" },
+    ]},
+    { title: "Диалог 8", type: "dialogue", lines: [
+      { speaker: "周明", text: "我记得你已经有两条这样的裤子了。" },
+    ]},
+    { title: "Диалог 9", type: "dialogue", lines: [
+      { speaker: "周太太", text: "那我们再看看别的。" },
+    ]},
+    { title: "Диалог 10", type: "dialogue", lines: [
+      { speaker: "周明", text: "这件衬衫怎么样？" },
+    ]},
+    { title: "Диалог 11", type: "dialogue", lines: [
+      { speaker: "周太太", text: "还不错，多少钱？" },
+    ]},
+    { title: "Диалог 12", type: "dialogue", lines: [
+      { speaker: "周明", text: "这上面写着320元。" },
+    ]},
+    { title: "Диалог 13", type: "dialogue", lines: [
+      { speaker: "周太太", text: "买一件。" },
+    ]},
+    { title: "Диалог 14", type: "dialogue", lines: [
+      { speaker: "周太太", text: "这些水果真新鲜，我们买西瓜还是苹果？" },
+    ]},
+    { title: "Диалог 15", type: "dialogue", lines: [
+      { speaker: "周明", text: "西瓜吧。你看，这上面写着“西瓜不甜不要钱”。" },
+    ]},
+    { title: "Диалог 16", type: "dialogue", lines: [
+      { speaker: "周太太", text: "那我们买一个大点儿的吧。" },
+    ]},
+    { title: "Диалог 17", type: "dialogue", lines: [
+      { speaker: "周明", text: "再买几个苹果。" },
+    ]},
+    { title: "Диалог 18", type: "dialogue", lines: [
+      { speaker: "周太太", text: "好啊，今天晚上只吃水果不吃饭！" },
+    ]},
+    { title: "Диалог 19", type: "dialogue", lines: [
+      { speaker: "小丽", text: "桌子上放着很多饮料，你喝什么？" },
+    ]},
+    { title: "Диалог 20", type: "dialogue", lines: [
+      { speaker: "小刚", text: "茶或者咖啡都可以。你呢？你喝什么？" },
+    ]},
+    { title: "Диалог 21", type: "dialogue", lines: [
+      { speaker: "小丽", text: "我喝茶，茶是我的最爱。天冷了或者工作累了的时候，喝杯热茶会很舒服。" },
+    ]},
+    { title: "Диалог 22", type: "dialogue", lines: [
+      { speaker: "小刚", text: "你喜欢喝什么茶？" },
+    ]},
+    { title: "Диалог 23", type: "dialogue", lines: [
+      { speaker: "小丽", text: "花茶、绿茶、红茶，我都喜欢。" },
+    ]},
+  ],
+  4: [
+    { title: "Диалог 1", type: "dialogue", lines: [
+      { speaker: "小明", text: "这是你们比赛的照片吗？" },
+    ]},
+    { title: "Диалог 2", type: "dialogue", lines: [
+      { speaker: "马可", text: "是，这是我们比赛后照的。" },
+    ]},
+    { title: "Диалог 3", type: "dialogue", lines: [
+      { speaker: "小明", text: "照得不错，你们都是一个年级的吗？" },
+    ]},
+    { title: "Диалог 4", type: "dialogue", lines: [
+      { speaker: "马可", text: "不是。那个又高又漂亮的女孩儿是二年级的。" },
+    ]},
+    { title: "Диалог 5", type: "dialogue", lines: [
+      { speaker: "小明", text: "旁边那个拿着书笑的人是谁？" },
+    ]},
+    { title: "Диалог 6", type: "dialogue", lines: [
+      { speaker: "马可", text: "那是我！" },
+    ]},
+    { title: "Диалог 7", type: "dialogue", lines: [
+      { speaker: "小丽", text: "你觉得小红怎么样？" },
+    ]},
+    { title: "Диалог 8", type: "dialogue", lines: [
+      { speaker: "同学", text: "她又聪明又热情，也很努力。" },
+    ]},
+    { title: "Диалог 9", type: "dialogue", lines: [
+      { speaker: "小丽", text: "我看她总是笑着回答老师的问题。" },
+    ]},
+    { title: "Диалог 10", type: "dialogue", lines: [
+      { speaker: "同学", text: "她对每个人都笑，也常常对我笑。" },
+    ]},
+    { title: "Диалог 11", type: "dialogue", lines: [
+      { speaker: "小丽", text: "你是不是喜欢她啊？" },
+    ]},
+    { title: "Диалог 12", type: "dialogue", lines: [
+      { speaker: "同学", text: "喜欢她的人太多了，你看那些拿着鲜花站在门口的，都是等她的。" },
+    ]},
+    { title: "Диалог 13", type: "dialogue", lines: [
+      { speaker: "小刚", text: "我有点儿饿了，我们进超市买点儿东西吧。" },
+    ]},
+    { title: "Диалог 14", type: "dialogue", lines: [
+      { speaker: "小丽", text: "好啊，这家超市的蛋糕又便宜又好吃，一块只要2.99元。" },
+    ]},
+    { title: "Диалог 15", type: "dialogue", lines: [
+      { speaker: "小刚", text: "我们买两块，回家吃着蛋糕看电视，怎么样？" },
+    ]},
+    { title: "Диалог 16", type: "dialogue", lines: [
+      { speaker: "小丽", text: "好啊，我再去买一些喝的。" },
+    ]},
+    { title: "Диалог 17", type: "dialogue", lines: [
+      { speaker: "小刚", text: "喝着咖啡吃蛋糕，太好了！" },
+    ]},
+    { title: "Диалог 18", type: "dialogue", lines: [
+      { speaker: "经理", text: "您好！您找谁？" },
+    ]},
+    { title: "Диалог 19", type: "dialogue", lines: [
+      { speaker: "客人", text: "你们这儿是不是有一个又年轻又漂亮的服务员？" },
+    ]},
+    { title: "Диалог 20", type: "dialogue", lines: [
+      { speaker: "经理", text: "我们这儿年轻、漂亮的服务员有很多。" },
+    ]},
+    { title: "Диалог 21", type: "dialogue", lines: [
+      { speaker: "客人", text: "她工作又认真又热情。" },
+    ]},
+    { title: "Диалог 22", type: "dialogue", lines: [
+      { speaker: "经理", text: "您能再说说吗？" },
+    ]},
+    { title: "Диалог 23", type: "dialogue", lines: [
+      { speaker: "客人", text: "她总是笑着跟客人说话。" },
+    ]},
+    { title: "Диалог 24", type: "dialogue", lines: [
+      { speaker: "经理", text: "啊，我知道了，你说的是李小美吧？" },
+    ]},
+    { title: "📖 Чтение", type: "reading", text: "Менеджер: Здравствуйте! Кого вы ищете?Гость: У вас здесь есть одна молодая и красивая официантка?Менеджер: У нас много молодых и красивых официанток.Гость: Она работает и внимательно, и с энтузиазмом.Менеджер: Можете описать подробнее?Гость: Она всегда улыбается, когда разговаривает с гостями.Менеджер: А, я понял. Вы говорите о Ли Сяомэй, верно?" },
+  ],
+  5: [
+    { title: "Диалог 1", type: "dialogue", lines: [
+      { speaker: "朋友", text: "我听说你身体不舒服，怎么了？" },
+    ]},
+    { title: "Диалог 2", type: "dialogue", lines: [
+      { speaker: "小丽", text: "前几天有点儿发烧，现在好多了。" },
+    ]},
+    { title: "Диалог 3", type: "dialogue", lines: [
+      { speaker: "朋友", text: "喝杯茶吧，这是我为你买的绿茶，很不错。" },
+    ]},
+    { title: "Диалог 4", type: "dialogue", lines: [
+      { speaker: "小丽", text: "谢谢，我要吃药，不喝茶了。" },
+    ]},
+    { title: "Диалог 5", type: "dialogue", lines: [
+      { speaker: "朋友", text: "那喝杯水吧。" },
+    ]},
+    { title: "Диалог 6", type: "dialogue", lines: [
+      { speaker: "小丽", text: "好的。" },
+    ]},
+    { title: "Диалог 7", type: "dialogue", lines: [
+      { speaker: "周太太", text: "对不起，我明天不能和你们出去玩儿了。" },
+    ]},
+    { title: "Диалог 8", type: "dialogue", lines: [
+      { speaker: "张太太", text: "为什么？怎么了？" },
+    ]},
+    { title: "Диалог 9", type: "dialogue", lines: [
+      { speaker: "周太太", text: "我儿子生病了，我要在家照顾他。" },
+    ]},
+    { title: "Диалог 10", type: "dialogue", lines: [
+      { speaker: "张太太", text: "他吃药了吗？要不要去医院？" },
+    ]},
+    { title: "Диалог 11", type: "dialogue", lines: [
+      { speaker: "周太太", text: "不用去医院，昨天吃了感冒药，现在好一些了。" },
+    ]},
+    { title: "Диалог 12", type: "dialogue", lines: [
+      { speaker: "张太太", text: "那我们下次再一起出去玩儿吧。" },
+    ]},
+    { title: "Диалог 13", type: "dialogue", lines: [
+      { speaker: "小丽", text: "你最喜欢哪个季节？" },
+    ]},
+    { title: "Диалог 14", type: "dialogue", lines: [
+      { speaker: "小刚", text: "当然是春天，天气不那么冷了，草和树都绿了，花也开了。" },
+    ]},
+    { title: "Диалог 15", type: "dialogue", lines: [
+      { speaker: "小丽", text: "我最喜欢夏天，因为我可以穿漂亮的裙子了。" },
+    ]},
+    { title: "Диалог 16", type: "dialogue", lines: [
+      { speaker: "小刚", text: "那我也喜欢夏天了。" },
+    ]},
+    { title: "Диалог 17", type: "dialogue", lines: [
+      { speaker: "小丽", text: "怎么？你也有漂亮的裙子？" },
+    ]},
+    { title: "Диалог 18", type: "dialogue", lines: [
+      { speaker: "小刚", text: "不，我喜欢看你穿漂亮的裙子。" },
+    ]},
+    { title: "Диалог 19", type: "dialogue", lines: [
+      { speaker: "小丽", text: "我最近越来越胖了。" },
+    ]},
+    { title: "Диалог 20", type: "dialogue", lines: [
+      { speaker: "小刚", text: "谁说的？我觉得你越来越漂亮了。" },
+    ]},
+    { title: "Диалог 21", type: "dialogue", lines: [
+      { speaker: "小丽", text: "你看，这条裙子是去年买的，今年就不能穿了。" },
+    ]},
+    { title: "Диалог 22", type: "dialogue", lines: [
+      { speaker: "小刚", text: "那是因为你吃得太多了，少吃点儿吧。" },
+    ]},
+    { title: "Диалог 23", type: "dialogue", lines: [
+      { speaker: "小丽", text: "我做的饭越来越好吃，我能少吃吗？" },
+    ]},
+  ],
+  6: [
+    { title: "Диалог 1", type: "dialogue", lines: [
+      { speaker: "周明", text: "我的眼镜呢？怎么突然找不到了？你看见了吗？" },
+    ]},
+    { title: "Диалог 2", type: "dialogue", lines: [
+      { speaker: "周太太", text: "我没看见啊。" },
+    ]},
+    { title: "Диалог 3", type: "dialogue", lines: [
+      { speaker: "周明", text: "我离不开眼镜，没有眼镜，我一个字也看不清楚。" },
+    ]},
+    { title: "Диалог 4", type: "dialogue", lines: [
+      { speaker: "周太太", text: "你去房间找找，是不是刚才放在桌子上了？" },
+    ]},
+    { title: "Диалог 5", type: "dialogue", lines: [
+      { speaker: "周明", text: "我怎么看得到啊？你快过来帮忙啊。" },
+    ]},
+    { title: "Диалог 6", type: "dialogue", lines: [
+      { speaker: "周太太", text: "好吧，我帮你去找找。" },
+    ]},
+    { title: "Диалог 7", type: "dialogue", lines: [
+      { speaker: "同学", text: "今天的作业你做完了吗？" },
+    ]},
+    { title: "Диалог 8", type: "dialogue", lines: [
+      { speaker: "儿子", text: "刚做完，你呢？" },
+    ]},
+    { title: "Диалог 9", type: "dialogue", lines: [
+      { speaker: "同学", text: "今天这些题特别难，我看不懂，不会做，你能帮我吗？" },
+    ]},
+    { title: "Диалог 10", type: "dialogue", lines: [
+      { speaker: "儿子", text: "电话里讲不明白，你来我家吧，我给你讲讲。" },
+    ]},
+    { title: "Диалог 11", type: "dialogue", lines: [
+      { speaker: "同学", text: "好啊，我锻炼完了就过去。" },
+    ]},
+    { title: "Диалог 12", type: "dialogue", lines: [
+      { speaker: "同事", text: "你怎么有点儿不高兴？" },
+    ]},
+    { title: "Диалог 13", type: "dialogue", lines: [
+      { speaker: "小刚", text: "我想请小丽吃饭，但是找不到好饭馆。" },
+    ]},
+    { title: "Диалог 14", type: "dialogue", lines: [
+      { speaker: "同事", text: "那你请她听音乐会吧，她喜欢听音乐。" },
+    ]},
+    { title: "Диалог 15", type: "dialogue", lines: [
+      { speaker: "小刚", text: "音乐会人太多，买不到票。" },
+    ]},
+    { title: "Диалог 16", type: "dialogue", lines: [
+      { speaker: "同事", text: "那去公园走走，聊聊天儿吧。" },
+    ]},
+    { title: "Диалог 17", type: "dialogue", lines: [
+      { speaker: "小刚", text: "公园太大，多累啊。" },
+    ]},
+    { title: "Диалог 18", type: "dialogue", lines: [
+      { speaker: "周太太", text: "你怎么还喝咖啡？" },
+    ]},
+    { title: "Диалог 19", type: "dialogue", lines: [
+      { speaker: "周明", text: "怎么了？" },
+    ]},
+    { title: "Диалог 20", type: "dialogue", lines: [
+      { speaker: "周太太", text: "你不是说晚上睡不着觉吗？" },
+    ]},
+    { title: "Диалог 21", type: "dialogue", lines: [
+      { speaker: "周明", text: "没事，我只喝一杯。" },
+    ]},
+    { title: "Диалог 22", type: "dialogue", lines: [
+      { speaker: "周太太", text: "你还是喝杯牛奶吧，可以睡得更好些。" },
+    ]},
+    { title: "Диалог 23", type: "dialogue", lines: [
+      { speaker: "周明", text: "好吧，牛奶呢？" },
+    ]},
+    { title: "Диалог 24", type: "dialogue", lines: [
+      { speaker: "周太太", text: "还没买呢。" },
+    ]},
+  ],
+  7: [
+    { title: "Диалог 1", type: "dialogue", lines: [
+      { speaker: "同事", text: "那个漂亮的新同事是谁？" },
+    ]},
+    { title: "Диалог 2", type: "dialogue", lines: [
+      { speaker: "小刚", text: "那是小丽。" },
+    ]},
+    { title: "Диалог 3", type: "dialogue", lines: [
+      { speaker: "同事", text: "她刚来北京吗？" },
+    ]},
+    { title: "Диалог 4", type: "dialogue", lines: [
+      { speaker: "小刚", text: "不，她在北京工作三年了。" },
+    ]},
+    { title: "Диалог 5", type: "dialogue", lines: [
+      { speaker: "同事", text: "以前她在哪儿工作？" },
+    ]},
+    { title: "Диалог 6", type: "dialogue", lines: [
+      { speaker: "小刚", text: "她在银行工作了两年以后来的我们公司。" },
+    ]},
+    { title: "Диалог 7", type: "dialogue", lines: [
+      { speaker: "同事", text: "周末你跟小丽去哪儿玩儿了？" },
+    ]},
+    { title: "Диалог 8", type: "dialogue", lines: [
+      { speaker: "小刚", text: "我们去唱歌了。" },
+    ]},
+    { title: "Диалог 9", type: "dialogue", lines: [
+      { speaker: "同事", text: "你们唱了多久？" },
+    ]},
+    { title: "Диалог 10", type: "dialogue", lines: [
+      { speaker: "小刚", text: "我们唱了两个小时歌，晚上还去听音乐会了。" },
+    ]},
+    { title: "Диалог 11", type: "dialogue", lines: [
+      { speaker: "同事", text: "你们都对音乐感兴趣吗？" },
+    ]},
+    { title: "Диалог 12", type: "dialogue", lines: [
+      { speaker: "小刚", text: "她对音乐感兴趣，我对她更感兴趣。" },
+    ]},
+    { title: "Диалог 13", type: "dialogue", lines: [
+      { speaker: "小刚", text: "我跟小丽下个月结婚，到时候欢迎你来。" },
+    ]},
+    { title: "Диалог 14", type: "dialogue", lines: [
+      { speaker: "同事", text: "什么？结婚？" },
+    ]},
+    { title: "Диалог 15", type: "dialogue", lines: [
+      { speaker: "小刚", text: "对啊，突然吗？" },
+    ]},
+    { title: "Диалог 16", type: "dialogue", lines: [
+      { speaker: "同事", text: "你们不是刚认识吗？" },
+    ]},
+    { title: "Диалог 17", type: "dialogue", lines: [
+      { speaker: "小刚", text: "我跟她都认识五年了。" },
+    ]},
+    { title: "Диалог 18", type: "dialogue", lines: [
+      { speaker: "同事", text: "你跟她结婚，那我怎么办啊？" },
+    ]},
+    { title: "Диалог 19", type: "dialogue", lines: [
+      { speaker: "小丽", text: "你看看手表，怎么迟到了？" },
+    ]},
+    { title: "Диалог 20", type: "dialogue", lines: [
+      { speaker: "小刚", text: "没迟到啊。" },
+    ]},
+    { title: "Диалог 21", type: "dialogue", lines: [
+      { speaker: "小丽", text: "你不是说七点半来接我吗？你迟到了一刻钟。" },
+    ]},
+    { title: "Диалог 22", type: "dialogue", lines: [
+      { speaker: "小刚", text: "现在不是七点半吗？" },
+    ]},
+    { title: "Диалог 23", type: "dialogue", lines: [
+      { speaker: "小丽", text: "已经差一刻八点了！我都在这儿坐了半个小时了。" },
+    ]},
+    { title: "Диалог 24", type: "dialogue", lines: [
+      { speaker: "小刚", text: "不是我迟到了，是你的表快了一刻钟。" },
+    ]},
+  ],
+  8: [
+    { title: "Диалог 1", type: "dialogue", lines: [
+      { speaker: "同事", text: "听说你最近打算买房子？" },
+    ]},
+    { title: "Диалог 2", type: "dialogue", lines: [
+      { speaker: "小丽", text: "是，昨天去看了看，今天又去看了看，明天还要再去看看。" },
+    ]},
+    { title: "Диалог 3", type: "dialogue", lines: [
+      { speaker: "同事", text: "都不满意吗？" },
+    ]},
+    { title: "Диалог 4", type: "dialogue", lines: [
+      { speaker: "小丽", text: "一个没有电梯，不方便。一个有电梯，但是在二十层。" },
+    ]},
+    { title: "Диалог 5", type: "dialogue", lines: [
+      { speaker: "同事", text: "二十层怎么了？" },
+    ]},
+    { title: "Диалог 6", type: "dialogue", lines: [
+      { speaker: "小丽", text: "太高了，往下看多害怕啊！" },
+    ]},
+    { title: "Диалог 7", type: "dialogue", lines: [
+      { speaker: "小明", text: "听说你下个星期就要回国了？" },
+    ]},
+    { title: "Диалог 8", type: "dialogue", lines: [
+      { speaker: "马可", text: "是啊，真不想离开北京。" },
+    ]},
+    { title: "Диалог 9", type: "dialogue", lines: [
+      { speaker: "小明", text: "我下星期不在北京，不能去机场送你了。" },
+    ]},
+    { title: "Диалог 10", type: "dialogue", lines: [
+      { speaker: "马可", text: "没关系，你忙吧。" },
+    ]},
+    { title: "Диалог 11", type: "dialogue", lines: [
+      { speaker: "小明", text: "这个小熊猫送给你，欢迎你以后再到中国来。" },
+    ]},
+    { title: "Диалог 12", type: "dialogue", lines: [
+      { speaker: "马可", text: "谢谢。希望以后能再见面。" },
+    ]},
+    { title: "Диалог 13", type: "dialogue", lines: [
+      { speaker: "小丽", text: "小刚，我们坐哪儿？" },
+    ]},
+    { title: "Диалог 14", type: "dialogue", lines: [
+      { speaker: "小刚", text: "你坐哪儿我就坐哪儿。" },
+    ]},
+    { title: "Диалог 15", type: "dialogue", lines: [
+      { speaker: "小丽", text: "坐这儿吧，这儿安静。你想喝什么饮料？" },
+    ]},
+    { title: "Диалог 16", type: "dialogue", lines: [
+      { speaker: "小刚", text: "你喝什么我就喝什么。" },
+    ]},
+    { title: "Диалог 17", type: "dialogue", lines: [
+      { speaker: "小丽", text: "喝可乐吧。你等我一会儿，我马上回来。" },
+    ]},
+    { title: "Диалог 18", type: "dialogue", lines: [
+      { speaker: "小刚", text: "小丽，你去哪儿？你去哪儿我就去哪儿。" },
+    ]},
+    { title: "Диалог 19", type: "dialogue", lines: [
+      { speaker: "小丽", text: "我去洗手间。" },
+    ]},
+    { title: "Диалог 20", type: "dialogue", lines: [
+      { speaker: "老同学", text: "快五年了，你几乎没变化。" },
+    ]},
+    { title: "Диалог 21", type: "dialogue", lines: [
+      { speaker: "周太太", text: "谁说的？我胖了，以前的衣服都不能穿了。" },
+    ]},
+    { title: "Диалог 22", type: "dialogue", lines: [
+      { speaker: "老同学", text: "健康最重要，胖瘦没关系。" },
+    ]},
+    { title: "Диалог 23", type: "dialogue", lines: [
+      { speaker: "周太太", text: "是呀，想吃什么就吃什么。" },
+    ]},
+    { title: "Диалог 24", type: "dialogue", lines: [
+      { speaker: "老同学", text: "你做饭还是周明做饭？" },
+    ]},
+    { title: "Диалог 25", type: "dialogue", lines: [
+      { speaker: "周太太", text: "我做，我想吃什么就做什么，想吃多少就做多少。" },
+    ]},
+  ],
+  9: [
+    { title: "Диалог 1", type: "dialogue", lines: [
+      { speaker: "大山", text: "马可，你的中文越说越好了！" },
+    ]},
+    { title: "Диалог 2", type: "dialogue", lines: [
+      { speaker: "马可", text: "哪里哪里，我们班王静说得更好。" },
+    ]},
+    { title: "Диалог 3", type: "dialogue", lines: [
+      { speaker: "大山", text: "怎么好？" },
+    ]},
+    { title: "Диалог 4", type: "dialogue", lines: [
+      { speaker: "马可", text: "她的汉语说得跟中国人一样好。" },
+    ]},
+    { title: "Диалог 5", type: "dialogue", lines: [
+      { speaker: "大山", text: "王静？我怎么没听说过这个名字？" },
+    ]},
+    { title: "Диалог 6", type: "dialogue", lines: [
+      { speaker: "马可", text: "她是我们的汉语老师。" },
+    ]},
+    { title: "Диалог 7", type: "dialogue", lines: [
+      { speaker: "小丽", text: "我有点儿害怕。" },
+    ]},
+    { title: "Диалог 8", type: "dialogue", lines: [
+      { speaker: "小刚", text: "怎么了？" },
+    ]},
+    { title: "Диалог 9", type: "dialogue", lines: [
+      { speaker: "小丽", text: "山越高，路越难走。我也越爬越冷。" },
+    ]},
+    { title: "Диалог 10", type: "dialogue", lines: [
+      { speaker: "小刚", text: "不用担心，有我呢，我对这儿比较了解。" },
+    ]},
+    { title: "Диалог 11", type: "dialogue", lines: [
+      { speaker: "小丽", text: "那我们先休息一下，一会儿再爬。" },
+    ]},
+    { title: "Диалог 12", type: "dialogue", lines: [
+      { speaker: "小刚", text: "好，一会儿我们可以从中间这条路上去。" },
+    ]},
+    { title: "Диалог 13", type: "dialogue", lines: [
+      { speaker: "小丽", text: "别吃了，你已经吃了三块蛋糕了。" },
+    ]},
+    { title: "Диалог 14", type: "dialogue", lines: [
+      { speaker: "小刚", text: "这是最后一块。" },
+    ]},
+    { title: "Диалог 15", type: "dialogue", lines: [
+      { speaker: "小丽", text: "你总是吃甜的东西，会越吃越胖。" },
+    ]},
+    { title: "Диалог 16", type: "dialogue", lines: [
+      { speaker: "小刚", text: "你放心，我一定不会变胖。" },
+    ]},
+    { title: "Диалог 17", type: "dialogue", lines: [
+      { speaker: "小丽", text: "为什么？" },
+    ]},
+    { title: "Диалог 18", type: "dialogue", lines: [
+      { speaker: "小刚", text: "我们家的人都很瘦，吃不胖。" },
+    ]},
+    { title: "Диалог 19", type: "dialogue", lines: [
+      { speaker: "同学", text: "小明，你的眼睛怎么跟大熊猫一样了？" },
+    ]},
+    { title: "Диалог 20", type: "dialogue", lines: [
+      { speaker: "小明", text: "我这几天脚疼，没休息好。" },
+    ]},
+    { title: "Диалог 21", type: "dialogue", lines: [
+      { speaker: "同学", text: "去医院了吗？医生说什么？" },
+    ]},
+    { title: "Диалог 22", type: "dialogue", lines: [
+      { speaker: "小明", text: "他让我多休息。休息得越多，好得越快。" },
+    ]},
+    { title: "Диалог 23", type: "dialogue", lines: [
+      { speaker: "同学", text: "下个月的篮球比赛，你能参加吗？" },
+    ]},
+    { title: "Диалог 24", type: "dialogue", lines: [
+      { speaker: "小明", text: "一定能参加，一点儿影响也没有。" },
+    ]},
+  ],
+  10: [
+    { title: "Диалог 1", type: "dialogue", lines: [
+      { speaker: "朋友", text: "大山，你和马可谁个子高？" },
+    ]},
+    { title: "Диалог 2", type: "dialogue", lines: [
+      { speaker: "大山", text: "马可比我高，我比马可矮一点儿。" },
+    ]},
+    { title: "Диалог 3", type: "dialogue", lines: [
+      { speaker: "朋友", text: "那你们谁大？" },
+    ]},
+    { title: "Диалог 4", type: "dialogue", lines: [
+      { speaker: "大山", text: "我比马可大两岁。" },
+    ]},
+    { title: "Диалог 5", type: "dialogue", lines: [
+      { speaker: "朋友", text: "你们谁的汉语说得更好？" },
+    ]},
+    { title: "Диалог 6", type: "dialogue", lines: [
+      { speaker: "大山", text: "马可比我说得好一些，我的汉语没有他好。" },
+    ]},
+    { title: "Диалог 7", type: "dialogue", lines: [
+      { speaker: "小明", text: "我喜欢历史课、体育课，不喜欢数学课。" },
+    ]},
+    { title: "Диалог 8", type: "dialogue", lines: [
+      { speaker: "同学", text: "为什么？数学也很有意思啊。" },
+    ]},
+    { title: "Диалог 9", type: "dialogue", lines: [
+      { speaker: "小明", text: "我觉得数学比历史难多了，我听不懂。" },
+    ]},
+    { title: "Диалог 10", type: "dialogue", lines: [
+      { speaker: "同学", text: "别担心，我可以帮你。" },
+    ]},
+    { title: "Диалог 11", type: "dialogue", lines: [
+      { speaker: "小明", text: "好啊，我们每天学多长时间？" },
+    ]},
+    { title: "Диалог 12", type: "dialogue", lines: [
+      { speaker: "同学", text: "一两个小时吧。" },
+    ]},
+    { title: "Диалог 13", type: "dialogue", lines: [
+      { speaker: "同事", text: "你最近比以前来得早多了，搬家了？" },
+    ]},
+    { title: "Диалог 14", type: "dialogue", lines: [
+      { speaker: "小丽", text: "是啊，你不知道？我上个月就搬家了，走路二十分钟就到。" },
+    ]},
+    { title: "Диалог 15", type: "dialogue", lines: [
+      { speaker: "同事", text: "那很方便啊。" },
+    ]},
+    { title: "Диалог 16", type: "dialogue", lines: [
+      { speaker: "小丽", text: "我还打算买辆自行车，骑车七八分钟就能到。" },
+    ]},
+    { title: "Диалог 17", type: "dialogue", lines: [
+      { speaker: "同事", text: "你不是有一辆吗？" },
+    ]},
+    { title: "Диалог 18", type: "dialogue", lines: [
+      { speaker: "小丽", text: "那辆太旧了，要换一辆，很便宜，两三百块钱。" },
+    ]},
+    { title: "Диалог 19", type: "dialogue", lines: [
+      { speaker: "大山", text: "这两个地方的房子一样吗？" },
+    ]},
+    { title: "Диалог 20", type: "dialogue", lines: [
+      { speaker: "中介", text: "不一样。您看，学校外边的房子比学校里边的大一些。" },
+    ]},
+    { title: "Диалог 21", type: "dialogue", lines: [
+      { speaker: "大山", text: "大小没关系，主要是环境，哪个更安静？" },
+    ]},
+    { title: "Диалог 22", type: "dialogue", lines: [
+      { speaker: "中介", text: "学校里边的没有学校外边的那么安静。" },
+    ]},
+    { title: "Диалог 23", type: "dialogue", lines: [
+      { speaker: "大山", text: "哪个方便一些呢？" },
+    ]},
+    { title: "Диалог 24", type: "dialogue", lines: [
+      { speaker: "中介", text: "学校里边比学校外边方便，附近有三四个车站。" },
+    ]},
+  ],
+  11: [
+    { title: "Диалог 1", type: "dialogue", lines: [
+      { speaker: "小丽", text: "你怎么这么早就要睡觉了？" },
+    ]},
+    { title: "Диалог 2", type: "dialogue", lines: [
+      { speaker: "小刚", text: "我明天8点就要到公司。" },
+    ]},
+    { title: "Диалог 3", type: "dialogue", lines: [
+      { speaker: "小丽", text: "有事吗？" },
+    ]},
+    { title: "Диалог 4", type: "dialogue", lines: [
+      { speaker: "小刚", text: "经理生气了，他告诉我，明天8点不到，以后就别来了。" },
+    ]},
+    { title: "Диалог 5", type: "dialogue", lines: [
+      { speaker: "小丽", text: "那你要自己照顾好自己，我已经给你准备好吃的和喝的了。" },
+    ]},
+    { title: "Диалог 6", type: "dialogue", lines: [
+      { speaker: "周明", text: "你去哪儿？" },
+    ]},
+    { title: "Диалог 7", type: "dialogue", lines: [
+      { speaker: "小刚", text: "我去机场。" },
+    ]},
+    { title: "Диалог 8", type: "dialogue", lines: [
+      { speaker: "周明", text: "你怎么才来？" },
+    ]},
+    { title: "Диалог 9", type: "dialogue", lines: [
+      { speaker: "小刚", text: "来机场的路上我才发现忘带护照了。" },
+    ]},
+    { title: "Диалог 10", type: "dialogue", lines: [
+      { speaker: "周明", text: "快点吧，飞机就要起飞了。" },
+    ]},
+    { title: "Диалог 11", type: "dialogue", lines: [
+      { speaker: "小刚", text: "我才发现忘记带钱包了。" },
+    ]},
+    { title: "Диалог 12", type: "dialogue", lines: [
+      { speaker: "小明", text: "我先走了。" },
+    ]},
+    { title: "Диалог 13", type: "dialogue", lines: [
+      { speaker: "同学", text: "你去哪儿？Tóngxué: Nǐ qù nǎr?" },
+    ]},
+    { title: "Диалог 14", type: "dialogue", lines: [
+      { speaker: "小明", text: "我去图书馆借本书。" },
+    ]},
+    { title: "Диалог 15", type: "dialogue", lines: [
+      { speaker: "同学", text: "帮我把这本词典还了吧。Tóngxué: Bāng wǒ bǎ zhè běn cídiǎn huán le ba." },
+    ]},
+    { title: "Диалог 16", type: "dialogue", lines: [
+      { speaker: "小明", text: "好。等一会儿你离开教室的时候，记得把灯关了。" },
+    ]},
+    { title: "Диалог 17", type: "dialogue", lines: [
+      { speaker: "同学", text: "好的，放心吧。Tóngxué: Hǎo de, fàngxīn ba." },
+    ]},
+  ],
+  12: [
+    { title: "Диалог 1", type: "dialogue", lines: [
+      { speaker: "小丽", text: "今天太阳从西边出来了吗？" },
+    ]},
+    { title: "Диалог 2", type: "dialogue", lines: [
+      { speaker: "小刚", text: "怎么了？" },
+    ]},
+    { title: "Диалог 3", type: "dialogue", lines: [
+      { speaker: "小丽", text: "你怎么这么早就要睡觉了？以前都要12点以后才睡觉。" },
+    ]},
+    { title: "Диалог 4", type: "dialogue", lines: [
+      { speaker: "小刚", text: "我明天8点就要到公司。" },
+    ]},
+    { title: "Диалог 5", type: "dialogue", lines: [
+      { speaker: "小丽", text: "有事吗？" },
+    ]},
+    { title: "Диалог 6", type: "dialogue", lines: [
+      { speaker: "小刚", text: "经理生气了，他告诉我，明天8点不到，以后就别来了。" },
+    ]},
+    { title: "Диалог 7", type: "dialogue", lines: [
+      { speaker: "小刚", text: "我要跟周经理去外地办事，明天的飞机。" },
+    ]},
+    { title: "Диалог 8", type: "dialogue", lines: [
+      { speaker: "小丽", text: "那我帮你把衣服放到行李箱里吧。什么时候回来？" },
+    ]},
+    { title: "Диалог 9", type: "dialogue", lines: [
+      { speaker: "小刚", text: "一个星期就回来。" },
+    ]},
+    { title: "Диалог 10", type: "dialogue", lines: [
+      { speaker: "小丽", text: "啊？一个星期以后才回来？" },
+    ]},
+    { title: "Диалог 11", type: "dialogue", lines: [
+      { speaker: "小刚", text: "你要自己照顾好自己，我已经给你准备好吃的和喝的了。" },
+    ]},
+    { title: "Диалог 12", type: "dialogue", lines: [
+      { speaker: "小丽", text: "好吧。我已经把我的照片放在你的包里了。" },
+    ]},
+    { title: "Диалог 13", type: "dialogue", lines: [
+      { speaker: "周明", text: "你怎么才来？" },
+    ]},
+    { title: "Диалог 14", type: "dialogue", lines: [
+      { speaker: "小刚", text: "对不起，周经理，来机场的路上我才发现忘带护照了。" },
+    ]},
+    { title: "Диалог 15", type: "dialogue", lines: [
+      { speaker: "周明", text: "快点吧，飞机就要起飞了。" },
+    ]},
+    { title: "Диалог 16", type: "dialogue", lines: [
+      { speaker: "小刚", text: "您有钱吗？司机把我送到机场的时候，我才发现忘记带钱包了。" },
+    ]},
+    { title: "Диалог 17", type: "dialogue", lines: [
+      { speaker: "周明", text: "我看你还是把重要的东西放在我这儿吧。" },
+    ]},
+    { title: "📖 Чтение", type: "reading", text: "我是一个中学老师，教学生画画儿。每次下课前，我都会把下次学生需要带的东西写在黑板上，但是每次上课时，总会有学生忘了拿铅笔，所以我有点儿生气，不是因为他们没带铅笔，是因为他们没有好的学习习惯。" },
+  ],
+  13: [
+    { title: "Диалог 1", type: "dialogue", lines: [
+      { speaker: "小丽", text: "你终于回来了！从哪儿买回来这么多东西啊？" },
+    ]},
+    { title: "Диалог 2", type: "dialogue", lines: [
+      { speaker: "小刚", text: "都是从那边的商店买回来的。" },
+    ]},
+    { title: "Диалог 3", type: "dialogue", lines: [
+      { speaker: "小丽", text: "怎么还买红酒回来了？谁喝啊？" },
+    ]},
+    { title: "Диалог 4", type: "dialogue", lines: [
+      { speaker: "小刚", text: "这是给爷爷的礼物，明天我们一起送过去，看看爷爷奶奶。" },
+    ]},
+    { title: "Диалог 5", type: "dialogue", lines: [
+      { speaker: "小丽", text: "那我的礼物呢？快拿出来让我看看。" },
+    ]},
+    { title: "Диалог 6", type: "dialogue", lines: [
+      { speaker: "小刚", text: "我不是已经回来了吗？" },
+    ]},
+    { title: "Диалог 7", type: "dialogue", lines: [
+      { speaker: "小丽", text: "我今天看见你和一个女的进了咖啡店，她是谁啊？" },
+    ]},
+    { title: "Диалог 8", type: "dialogue", lines: [
+      { speaker: "小刚", text: "她是我今天在路上遇到的一个老同学。" },
+    ]},
+    { title: "Диалог 9", type: "dialogue", lines: [
+      { speaker: "小丽", text: "你们就一起去喝咖啡了？" },
+    ]},
+    { title: "Диалог 10", type: "dialogue", lines: [
+      { speaker: "小刚", text: "是啊，一边喝咖啡一边说了些过去的事。" },
+    ]},
+    { title: "Диалог 11", type: "dialogue", lines: [
+      { speaker: "小丽", text: "你回来得这么晚，是说了很多过去的事吗？" },
+    ]},
+    { title: "Диалог 12", type: "dialogue", lines: [
+      { speaker: "小刚", text: "不是。没有公共汽车了，我是走回来的。" },
+    ]},
+    { title: "Диалог 13", type: "dialogue", lines: [
+      { speaker: "同事", text: "小丽，周末你一般跟小刚出去看电影吗？" },
+    ]},
+    { title: "Диалог 14", type: "dialogue", lines: [
+      { speaker: "小丽", text: "我很少去电影院看电影，我更愿意在家看电视。" },
+    ]},
+    { title: "Диалог 15", type: "dialogue", lines: [
+      { speaker: "同事", text: "看电视有什么意思啊？" },
+    ]},
+    { title: "Диалог 16", type: "dialogue", lines: [
+      { speaker: "小丽", text: "可以一边吃一边看，坐久了还可以站起来休息一会儿。" },
+    ]},
+    { title: "Диалог 17", type: "dialogue", lines: [
+      { speaker: "同事", text: "你应该多出去走走，这样你们的生活会更有意思。" },
+    ]},
+    { title: "Диалог 18", type: "dialogue", lines: [
+      { speaker: "小丽", text: "有他在，我的生活已经很有意思了。" },
+    ]},
+  ],
+  14: [
+    { title: "Диалог 1", type: "dialogue", lines: [
+      { speaker: "周太太", text: "客人就要来了，你怎么还不打扫房间啊？" },
+    ]},
+    { title: "Диалог 2", type: "dialogue", lines: [
+      { speaker: "周明", text: "别着急，我让孩子们打扫呢，客人来的时候，他们会把房间打扫干净。" },
+    ]},
+    { title: "Диалог 3", type: "dialogue", lines: [
+      { speaker: "周太太", text: "那你也不能看电视啊。" },
+    ]},
+    { title: "Диалог 4", type: "dialogue", lines: [
+      { speaker: "周明", text: "你让我做什么？" },
+    ]},
+    { title: "Диалог 5", type: "dialogue", lines: [
+      { speaker: "周太太", text: "先把茶和杯子放好，然后把冰箱里的西瓜拿出来。" },
+    ]},
+    { title: "Диалог 6", type: "dialogue", lines: [
+      { speaker: "周明", text: "太热了，我还是先把空调打开吧。" },
+    ]},
+    { title: "Диалог 7", type: "dialogue", lines: [
+      { speaker: "同事", text: "你在忙什么呢？刚才打你的手机你也不接。" },
+    ]},
+    { title: "Диалог 8", type: "dialogue", lines: [
+      { speaker: "小刚", text: "对不起，我刚洗了个澡，没听见。有什么事吗？" },
+    ]},
+    { title: "Диалог 9", type: "dialogue", lines: [
+      { speaker: "同事", text: "我想问问你公司里的一些事情。" },
+    ]},
+    { title: "Диалог 10", type: "dialogue", lines: [
+      { speaker: "小刚", text: "你先等一下，我去把电视关了。" },
+    ]},
+    { title: "Диалог 11", type: "dialogue", lines: [
+      { speaker: "同事", text: "没关系，你先把电视节目看完吧，然后再给我回电话。" },
+    ]},
+    { title: "Диалог 12", type: "dialogue", lines: [
+      { speaker: "同学", text: "今晚的月亮真漂亮，像白色的盘子一样。" },
+    ]},
+    { title: "Диалог 13", type: "dialogue", lines: [
+      { speaker: "小明", text: "是啊，外边也不刮风，我们坐在外边一边看月亮一边吃东西，怎么样？" },
+    ]},
+    { title: "Диалог 14", type: "dialogue", lines: [
+      { speaker: "同学", text: "好啊，我先把桌椅搬出去，然后你把水果拿过来，我们听叔叔阿姨讲讲他们年轻时候的故事。" },
+    ]},
+    { title: "Диалог 15", type: "dialogue", lines: [
+      { speaker: "小明", text: "太好了！记得给大山打个电话，让他马上过来。" },
+    ]},
+    { title: "Диалог 16", type: "dialogue", lines: [
+      { speaker: "同学", text: "不用打了，你听外边的声音，一定是大山。" },
+    ]},
+    { title: "📖 Чтение", type: "reading", text: "你吃过水果饭吗？你在饭馆的菜单上见过水果饭吗？你想学着做水果饭吗？其实做水果饭很简单，先把米饭做好，然后再把一块块新鲜的水果放进去，水果饭就做好了。你可以做苹果饭、香蕉饭，要是你愿意，还可以做西瓜饭。多吃新鲜水果对身体好。" },
+  ],
+  15: [
+    { title: "Диалог 1", type: "dialogue", lines: [
+      { speaker: "大山", text: "老师，我来中国留学两年了，但是我的汉语水平提高得一点儿也不快啊。" },
+    ]},
+    { title: "Диалог 2", type: "dialogue", lines: [
+      { speaker: "老师", text: "你每天认真学习，做练习、完成作业，一直不错啊。" },
+    ]},
+    { title: "Диалог 3", type: "dialogue", lines: [
+      { speaker: "大山", text: "这是我昨天的作业，您帮我看看对不对。" },
+    ]},
+    { title: "Диалог 4", type: "dialogue", lines: [
+      { speaker: "老师", text: "写得不错，除了这个句子意思有些不清楚外，其他都没什么问题。" },
+    ]},
+    { title: "Диалог 5", type: "dialogue", lines: [
+      { speaker: "大山", text: "谢谢老师！" },
+    ]},
+    { title: "Диалог 6", type: "dialogue", lines: [
+      { speaker: "老师", text: "以后有什么不明白的地方，可以给我打电话或者发电子邮件。" },
+    ]},
+    { title: "Диалог 7", type: "dialogue", lines: [
+      { speaker: "学生", text: "老师，除了小云，其他人都来了。" },
+    ]},
+    { title: "Диалог 8", type: "dialogue", lines: [
+      { speaker: "老师", text: "比赛马上就要开始了，小云怎么还没来？" },
+    ]},
+    { title: "Диалог 9", type: "dialogue", lines: [
+      { speaker: "学生", text: "刚才给她打电话了，她在路上呢。" },
+    ]},
+    { title: "Диалог 10", type: "dialogue", lines: [
+      { speaker: "老师", text: "不等她了，我先给大家讲讲这次比赛的要求和一些需要注意的地方。" },
+    ]},
+    { title: "Диалог 11", type: "dialogue", lines: [
+      { speaker: "学生", text: "老师，您放心，今天的比赛我们一定能拿第一。" },
+    ]},
+    { title: "Диалог 12", type: "dialogue", lines: [
+      { speaker: "同事", text: "现在用电脑上网真方便啊！" },
+    ]},
+    { title: "Диалог 13", type: "dialogue", lines: [
+      { speaker: "小刚", text: "是啊，除了看新闻，人们还可以在网上听歌、看电影、买东西。" },
+    ]},
+    { title: "Диалог 14", type: "dialogue", lines: [
+      { speaker: "同事", text: "对了，你从网上买的那件衣服呢？怎么没见你穿？" },
+    ]},
+    { title: "Диалог 15", type: "dialogue", lines: [
+      { speaker: "小刚", text: "那件衣服我穿着有点儿小，给我弟弟了。" },
+    ]},
+    { title: "Диалог 16", type: "dialogue", lines: [
+      { speaker: "同事", text: "他满意吗？" },
+    ]},
+    { title: "Диалог 17", type: "dialogue", lines: [
+      { speaker: "小刚", text: "不用花钱，还有新衣服穿，他满意极了。" },
+    ]},
+  ],
+  16: [
+    { title: "Диалог 1", type: "dialogue", lines: [
+      { speaker: "小丽", text: "我不喜欢一直住在同一个城市，想去其他城市看一看。" },
+    ]},
+    { title: "Диалог 2", type: "dialogue", lines: [
+      { speaker: "周明", text: "我年轻的时候也这么想，但是那时候没有钱，如果有钱，就去了。" },
+    ]},
+    { title: "Диалог 3", type: "dialogue", lines: [
+      { speaker: "小丽", text: "那您现在为什么不去？" },
+    ]},
+    { title: "Диалог 4", type: "dialogue", lines: [
+      { speaker: "周明", text: "现在钱不是问题了，主要是没有时间。" },
+    ]},
+    { title: "Диалог 5", type: "dialogue", lines: [
+      { speaker: "小丽", text: "我认为现在您有时间也不会出去玩儿。" },
+    ]},
+    { title: "Диалог 6", type: "dialogue", lines: [
+      { speaker: "周明", text: "你说得对，我现在累得下了班就想睡觉。" },
+    ]},
+    { title: "Диалог 7", type: "dialogue", lines: [
+      { speaker: "同事", text: "谢谢你们来看我女儿。你送的小皮鞋和小帽子真漂亮！" },
+    ]},
+    { title: "Диалог 8", type: "dialogue", lines: [
+      { speaker: "小丽", text: "别客气，你女儿长得白白的、胖胖的，真可爱！现在多高了？" },
+    ]},
+    { title: "Диалог 9", type: "dialogue", lines: [
+      { speaker: "同事", text: "快1米了，25公斤。" },
+    ]},
+    { title: "Диалог 10", type: "dialogue", lines: [
+      { speaker: "小丽", text: "你看她鼻子小小的，头发黑黑的，长得像谁？" },
+    ]},
+    { title: "Диалог 11", type: "dialogue", lines: [
+      { speaker: "同事", text: "像她爸爸，刚出生时她爸爸高兴得一个晚上都没睡着。" },
+    ]},
+    { title: "Диалог 12", type: "dialogue", lines: [
+      { speaker: "小刚", text: "我的牙还是很疼。" },
+    ]},
+    { title: "Диалог 13", type: "dialogue", lines: [
+      { speaker: "同事", text: "如果不舒服，就去医院检查一下吧。" },
+    ]},
+    { title: "Диалог 14", type: "dialogue", lines: [
+      { speaker: "小刚", text: "检查好几次了，但是没什么用。" },
+    ]},
+    { title: "Диалог 15", type: "dialogue", lines: [
+      { speaker: "同事", text: "大夫怎么说的？" },
+    ]},
+    { title: "Диалог 16", type: "dialogue", lines: [
+      { speaker: "小刚", text: "每次医生都告诉我，回家好好儿刷牙。" },
+    ]},
+    { title: "📖 Чтение", type: "reading", text: "很多人都觉得现在人和人的关系冷冷的，这可能是因为工作太忙，忙得没时间跟别人见面，累得不愿意和别人多说话。其实，我们应该多对别人笑笑，说话时如果能多用一些“您好”“谢谢”这样的词语，和别人的关系就会变得更好。" },
+  ],
+  17: [
+    { title: "Диалог 1", type: "dialogue", lines: [
+      { speaker: "小丽", text: "周经理，下个星期我可以请几天假吗？" },
+    ]},
+    { title: "Диалог 2", type: "dialogue", lines: [
+      { speaker: "周明", text: "你有什么事？" },
+    ]},
+    { title: "Диалог 3", type: "dialogue", lines: [
+      { speaker: "小丽", text: "我的一个老朋友结婚，我跟他两年没见了。" },
+    ]},
+    { title: "Диалог 4", type: "dialogue", lines: [
+      { speaker: "周明", text: "你一共想请几天假？" },
+    ]},
+    { title: "Диалог 5", type: "dialogue", lines: [
+      { speaker: "小丽", text: "三天。" },
+    ]},
+    { title: "Диалог 6", type: "dialogue", lines: [
+      { speaker: "同事", text: "小丽，那个高高的男人是你们公司的吗？你对他了解吗？" },
+    ]},
+    { title: "Диалог 7", type: "dialogue", lines: [
+      { speaker: "小丽", text: "我们过去是邻居，后来是大学同学，关系一直很不错。" },
+    ]},
+    { title: "Диалог 8", type: "dialogue", lines: [
+      { speaker: "同事", text: "他一般喜欢做什么？" },
+    ]},
+    { title: "Диалог 9", type: "dialogue", lines: [
+      { speaker: "小丽", text: "他有很多爱好，唱歌、画画儿、踢足球，什么都会。" },
+    ]},
+    { title: "Диалог 10", type: "dialogue", lines: [
+      { speaker: "同事", text: "真的？那你介绍我们认识认识吧。" },
+    ]},
+    { title: "Диалог 11", type: "dialogue", lines: [
+      { speaker: "小丽", text: "不行，现在他是我丈夫。" },
+    ]},
+    { title: "Диалог 12", type: "dialogue", lines: [
+      { speaker: "周太太", text: "最近我觉得哪儿都不舒服，你带我去医院检查检查吧。" },
+    ]},
+    { title: "Диалог 13", type: "dialogue", lines: [
+      { speaker: "周明", text: "不用去医院，谁都有办法看好你的“病”。我问你，你多久没运动了？" },
+    ]},
+    { title: "Диалог 14", type: "dialogue", lines: [
+      { speaker: "周太太", text: "我三年没运动了。" },
+    ]},
+    { title: "Диалог 15", type: "dialogue", lines: [
+      { speaker: "周明", text: "谁都知道运动对身体好。但是你吃饱了就睡。" },
+    ]},
+    { title: "Диалог 16", type: "dialogue", lines: [
+      { speaker: "周太太", text: "为了健康，我真应该多锻炼锻炼了。从明天起，我决定每天去长跑。" },
+    ]},
+    { title: "📖 Чтение", type: "reading", text: "“运动很重要”这句话谁都懂。但是你知道怎么运动吗？第一，要选择“对”的时间。一般来说，早上9点是最好的时间，冬天要再晚一些。第二，要选择“对”的地点，公园、山上、游泳馆，这些地方都可以运动。第三，必须要根据自己的健康情况运动。如果你很久没爬山或者游泳了，运动一会儿就一定要休息休息。还要记得刚运动完口渴的时候，不要马上喝水。" },
+  ],
+  18: [
+    { title: "Диалог 1", type: "dialogue", lines: [
+      { speaker: "朋友", text: "老周，我打算买房子了，想向你借点儿钱。" },
+    ]},
+    { title: "Диалог 2", type: "dialogue", lines: [
+      { speaker: "周明", text: "没问题，只要我有，就一定会借给你的。还差多少？" },
+    ]},
+    { title: "Диалог 3", type: "dialogue", lines: [
+      { speaker: "朋友", text: "还差5万块钱。" },
+    ]},
+    { title: "Диалог 4", type: "dialogue", lines: [
+      { speaker: "周明", text: "好，钱下午打给你。你打算在哪儿买房？" },
+    ]},
+    { title: "Диалог 5", type: "dialogue", lines: [
+      { speaker: "朋友", text: "就在我们医院前面。" },
+    ]},
+    { title: "Диалог 6", type: "dialogue", lines: [
+      { speaker: "周明", text: "那你以后去医院就方便了。" },
+    ]},
+    { title: "Диалог 7", type: "dialogue", lines: [
+      { speaker: "小明", text: "妈妈，你看那只狗多可爱，眼睛大大的，嘴小小的，我们买回去吧。" },
+    ]},
+    { title: "Диалог 8", type: "dialogue", lines: [
+      { speaker: "妈妈", text: "动物和小孩儿一样，都需要人照顾。买回家去，谁照顾它啊？" },
+    ]},
+    { title: "Диалог 9", type: "dialogue", lines: [
+      { speaker: "小明", text: "我照顾啊。" },
+    ]},
+    { title: "Диалог 10", type: "dialogue", lines: [
+      { speaker: "妈妈", text: "这段时间你自己的衣服都没洗，你能照顾好它吗？" },
+    ]},
+    { title: "Диалог 11", type: "dialogue", lines: [
+      { speaker: "小明", text: "只要你给我买，我就能照顾好它。" },
+    ]},
+    { title: "Диалог 12", type: "dialogue", lines: [
+      { speaker: "经理", text: "说说你为什么选择来我们公司工作。" },
+    ]},
+    { title: "Диалог 13", type: "dialogue", lines: [
+      { speaker: "学生", text: "贵公司不但很有名，而且工作环境好。" },
+    ]},
+    { title: "Диалог 14", type: "dialogue", lines: [
+      { speaker: "经理", text: "做这个工作有点儿累，需要经常去外地。你家人同意吗？" },
+    ]},
+    { title: "Диалог 15", type: "dialogue", lines: [
+      { speaker: "学生", text: "只要我愿意，我相信他们就会同意的。" },
+    ]},
+    { title: "Диалог 16", type: "dialogue", lines: [
+      { speaker: "经理", text: "好，那你明天来上班吧。关于这个工作，还有什么问题吗？" },
+    ]},
+    { title: "Диалог 17", type: "dialogue", lines: [
+      { speaker: "学生", text: "没有了，谢谢您给我这个机会，我会努力的。" },
+    ]},
+    { title: "Диалог 18", type: "dialogue", lines: [
+      { speaker: "不同的国家有不同的文化，每种文化都有自己的特点。到了一个新环境，你会觉得什么都很新鲜，而且还会觉得有点奇怪", text: "有些国家的人名写在姓前面，有些国家的人名写在姓后面，但是只要经过一段时间，就会慢慢地习惯。" },
+    ]},
+  ],
+  19: [
+    { title: "Диалог 1", type: "dialogue", lines: [
+      { speaker: "爸爸", text: "女儿最近喜欢把头发放在耳朵后面，你知道为什么吗？" },
+    ]},
+    { title: "Диалог 2", type: "dialogue", lines: [
+      { speaker: "妈妈", text: "这样可以使她的脸看上去漂亮一些。" },
+    ]},
+    { title: "Диалог 3", type: "dialogue", lines: [
+      { speaker: "爸爸", text: "我最近觉得她和以前不太一样了。" },
+    ]},
+    { title: "Диалог 4", type: "dialogue", lines: [
+      { speaker: "妈妈", text: "女儿变化不小，她小时候喜欢短发，像男孩子一样。" },
+    ]},
+    { title: "Диалог 5", type: "dialogue", lines: [
+      { speaker: "爸爸", text: "我也想起来了。她现在慢慢地开始像个女孩子了。" },
+    ]},
+    { title: "Диалог 6", type: "dialogue", lines: [
+      { speaker: "小丽", text: "上次我们参加骑马比赛的照片，我选了几张洗出来了。" },
+    ]},
+    { title: "Диалог 7", type: "dialogue", lines: [
+      { speaker: "同事", text: "快给我看看。骑得最快的这位是谁？" },
+    ]},
+    { title: "Диалог 8", type: "dialogue", lines: [
+      { speaker: "小丽", text: "你没看出来吗？他是小刚啊。" },
+    ]},
+    { title: "Диалог 9", type: "dialogue", lines: [
+      { speaker: "同事", text: "怎么看上去跟现在不太一样？" },
+    ]},
+    { title: "Диалог 10", type: "dialogue", lines: [
+      { speaker: "小丽", text: "他上班穿西服、衬衫，比赛的时候穿的是运动服。" },
+    ]},
+    { title: "Диалог 11", type: "dialogue", lines: [
+      { speaker: "同事", text: "他今天穿蓝西服，看上去像40多岁，还是穿运动服让他更年轻。" },
+    ]},
+    { title: "Диалог 12", type: "dialogue", lines: [
+      { speaker: "朋友", text: "我们一年没见面了吧？" },
+    ]},
+    { title: "Диалог 13", type: "dialogue", lines: [
+      { speaker: "小丽", text: "听说你都有女儿了？她多大了？" },
+    ]},
+    { title: "Диалог 14", type: "dialogue", lines: [
+      { speaker: "朋友", text: "她去年秋天出生的，刚过完一岁生日。" },
+    ]},
+    { title: "Диалог 15", type: "dialogue", lines: [
+      { speaker: "小丽", text: "她喜欢什么？我送给她。" },
+    ]},
+    { title: "Диалог 16", type: "dialogue", lines: [
+      { speaker: "朋友", text: "她就喜欢听她爸爸学鸟叫。哭的时候，只要他爸爸学小鸟叫，她马上就安静下来了。" },
+    ]},
+    { title: "Диалог 17", type: "dialogue", lines: [
+      { speaker: "小丽", text: "啊？这个礼物我没办法送。" },
+    ]},
+    { title: "📖 Чтение", type: "reading", text: "这次旅游，我去了不少地方，每个地方都让我非常难忘。我先去看了黄河，黄河是中国有名的大河，我坐在船上，一边看一边照相。一路上经过了很多地方，每个地方都不一样。我想快点儿把照片发给大家，叫朋友们也高兴高兴。" },
+  ],
+  20: [
+    { title: "Диалог 1", type: "dialogue", lines: [
+      { speaker: "小丽", text: "我的照相机被谁拿走了？怎么找不到了？" },
+    ]},
+    { title: "Диалог 2", type: "dialogue", lines: [
+      { speaker: "同事", text: "你再找找。是不是没带来？" },
+    ]},
+    { title: "Диалог 3", type: "dialogue", lines: [
+      { speaker: "小丽", text: "我找了，没找到啊。" },
+    ]},
+    { title: "Диалог 4", type: "dialogue", lines: [
+      { speaker: "同事", text: "别难过，再买一个吧，公司东门外不就有一个大商场吗？" },
+    ]},
+    { title: "Диалог 5", type: "dialogue", lines: [
+      { speaker: "小丽", text: "但是我这个月信用卡里的钱已经花得差不多了。" },
+    ]},
+    { title: "Диалог 6", type: "dialogue", lines: [
+      { speaker: "小明", text: "你怎么突然关心起体育来了？" },
+    ]},
+    { title: "Диалог 7", type: "dialogue", lines: [
+      { speaker: "朋友", text: "我的男朋友喜欢看足球比赛，我被他影响的。" },
+    ]},
+    { title: "Диалог 8", type: "dialogue", lines: [
+      { speaker: "小明", text: "看来只有爱，才能让人有变化。" },
+    ]},
+    { title: "Диалог 9", type: "dialogue", lines: [
+      { speaker: "朋友", text: "是啊，为了和他的爱好一样，我天天看球赛。" },
+    ]},
+    { title: "Диалог 10", type: "dialogue", lines: [
+      { speaker: "小明", text: "除了足球，他还影响你什么了？" },
+    ]},
+    { title: "Диалог 11", type: "dialogue", lines: [
+      { speaker: "朋友", text: "我最近天天上网玩儿游戏，我的成绩差极了。" },
+    ]},
+    { title: "Диалог 12", type: "dialogue", lines: [
+      { speaker: "朋友", text: "那个拿着碗吃饭的人是你哥哥吗？他和你长得真像。" },
+    ]},
+    { title: "Диалог 13", type: "dialogue", lines: [
+      { speaker: "大卫", text: "我们经常被别人认错。" },
+    ]},
+    { title: "Диалог 14", type: "dialogue", lines: [
+      { speaker: "朋友", text: "只有你们的爸爸妈妈才能分出来哪个是哥哥，哪个是弟弟吧。" },
+    ]},
+    { title: "Диалог 15", type: "dialogue", lines: [
+      { speaker: "大卫", text: "除了父母以外，还有我们自己也能啊。" },
+    ]},
+    { title: "Диалог 16", type: "dialogue", lines: [
+      { speaker: "朋友", text: "你们两个除了长得像，还有什么相同的地方？" },
+    ]},
+    { title: "Диалог 17", type: "dialogue", lines: [
+      { speaker: "大卫", text: "我们住在同一个楼、同一个房间……" },
+    ]},
+    { title: "Диалог 18", type: "dialogue", lines: [
+      { speaker: "年轻人遇到难题，常常很着急，不知道怎么办。其实，不同的问题有不同的解决办法。有些问题看上去很难，但是做起来非常简单，所以得试着做做。有些问题看上去虽然简单，但是解决起来难极了。所以只有真正做事情的时候，才能了解有多难。不过，我们一定要相信", text: "多么难的问题，都会被解决的。" },
+    ]},
+  ],
+};

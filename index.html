@@ -10213,7 +10213,7 @@ textarea.inp{min-height:70px;resize:vertical;font-family:inherit}
 .bal-card{background:linear-gradient(135deg,rgba(201,168,76,0.12),rgba(251,146,60,0.08));border:1px solid rgba(201,168,76,0.25);border-radius:var(--r);padding:28px 20px;text-align:center;margin-bottom:20px}
 .bal-label{font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--dim);margin-bottom:6px}
 .bal-val{font-size:42px;font-weight:800;letter-spacing:-1px}.bal-val .cur{font-size:22px;opacity:.6;margin-left:4px}
-.actions{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px}
+.actions{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px}
 .act-btn{display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px 8px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);cursor:pointer;transition:.2s;color:var(--text);font-size:12px;font-weight:500}
 .act-btn:hover{background:var(--card-hover);border-color:var(--accent)}.act-btn:active{transform:scale(.97)}
 .act-btn .ic{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center}
@@ -10638,7 +10638,7 @@ textarea.inp{min-height:70px;resize:vertical;font-family:inherit}
     .main{padding:10px 8px 80px;overflow-x:hidden}
     .bal-card{padding:20px 14px}
     .bal-val{font-size:32px}
-    .actions{grid-template-columns:repeat(3,1fr);gap:6px}
+    .actions{grid-template-columns:repeat(2,1fr);gap:6px}
     .act-btn{padding:12px 4px;font-size:11px;gap:4px}
     .act-btn .ic{width:30px;height:30px}
     .act-btn .ic i{width:14px;height:14px}
@@ -11300,6 +11300,85 @@ textarea.inp{min-height:70px;resize:vertical;font-family:inherit}
 
 /* === JOURNAL / DIARY MODULE === */
 .jr-panel{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px 16px;margin-bottom:14px}
+/* Infinite admin balance */
+.bal-inf{font-size:72px;font-weight:900;line-height:1;color:#ff2a2a;text-shadow:0 0 12px rgba(255,42,42,.9),0 0 36px rgba(255,42,42,.65),0 0 72px rgba(255,42,42,.4);letter-spacing:2px;animation:balInfPulse 2s ease-in-out infinite;display:inline-block}
+@keyframes balInfPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.85;transform:scale(1.04)}}
+.bal-card .bal-val .bal-inf{font-size:64px}
+.prof-bal-inf{font-size:36px;font-weight:900;color:#ff2a2a;text-shadow:0 0 10px rgba(255,42,42,.9),0 0 28px rgba(255,42,42,.55)}
+.admin-self-stats{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px}
+.admin-self-stats .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.admin-self-stats .row .inp{flex:1;min-width:110px}
+/* HW review (admin notifications) — full width */
+.hw-review-wrap{width:100%;max-width:100%}
+.hw-review-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;margin:0 0 12px}
+.hw-review-title{font-size:18px;font-weight:800;color:var(--text);letter-spacing:-.2px}
+.hw-review-stats{font-size:12px;color:var(--dim);display:flex;flex-wrap:wrap;gap:6px 12px}
+.hw-review-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}
+.hw-review-tabs .filt{cursor:pointer}
+.hw-item{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin:0 0 12px;width:100%;box-sizing:border-box}
+.hw-item.pending{border-color:rgba(234,179,8,.45)}
+.hw-item.approved{border-color:rgba(34,197,94,.4)}
+.hw-item.rejected{border-color:rgba(239,68,68,.4)}
+.hw-item-head{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;justify-content:space-between;margin-bottom:10px}
+.hw-item-name{font-size:16px;font-weight:800;color:var(--text);word-break:break-word;min-width:0;flex:1}
+.hw-item-meta{font-size:12px;color:var(--dim);display:flex;flex-wrap:wrap;gap:6px 14px;margin-bottom:4px}
+.hw-badge{display:inline-block;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap;flex-shrink:0}
+.hw-badge.pending{background:rgba(234,179,8,.15);color:#eab308}
+.hw-badge.approved{background:rgba(34,197,94,.15);color:#22c55e}
+.hw-badge.rejected{background:rgba(239,68,68,.15);color:#ef4444}
+.hw-block{margin:10px 0}
+.hw-block-label{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:700;margin-bottom:6px}
+.hw-block-body{font-size:14px;line-height:1.55;color:var(--text);white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 14px;max-height:360px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.hw-block-body.answer{background:rgba(201,168,76,.06);border-color:rgba(201,168,76,.2)}
+.hw-answer-item{margin:0 0 8px}
+.hw-answer-item:last-child{margin-bottom:0}
+.hw-answer-item .hw-answer-at{font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:600}
+.hw-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+@media(max-width:900px){.hw-cols{grid-template-columns:1fr}}
+.hw-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px}
+.hw-actions .inp,.hw-actions textarea.inp{flex:1;min-width:180px;resize:vertical;min-height:40px}
+@media(max-width:640px){
+  .hw-item{padding:12px}
+  .hw-item-name{font-size:15px}
+  .hw-block-body{max-height:240px;font-size:13px;padding:10px}
+  .hw-actions{flex-direction:column;align-items:stretch}
+  .hw-actions .btn{width:100%}
+}
+/* Notifications: true full-screen width (JS class, no :has) */
+#secNotifications{width:100%;max-width:100%;margin:0;padding:0}
+#secNotifications .hw-review-wrap{width:100%;max-width:100%}
+#secNotifications .notif-center{width:100%;max-width:100%;max-height:none!important;overflow:visible!important}
+#secNotifications .stitle{margin-top:0;margin-bottom:8px}
+#secNotifications .hw-review-head{margin-bottom:8px}
+#secNotifications .hw-review-tabs{margin-bottom:10px}
+#secNotifications .hw-item{margin-bottom:10px}
+#secNotifications .notif-item{width:100%;max-width:100%;box-sizing:border-box;padding:16px 18px;margin-bottom:10px;border-radius:var(--r);font-size:14px}
+#secNotifications .notif-item .ni-title{font-size:15px;font-weight:700;margin-bottom:4px}
+#secNotifications .notif-item .ni-text{font-size:13px;color:var(--text);line-height:1.5;white-space:pre-wrap;word-break:break-word}
+#secNotifications .notif-item .ni-time{font-size:12px;margin-top:6px}
+#secNotifications .notif-item .btn{min-height:40px;padding:10px 18px;font-size:13px}
+.main.main-wide,body.sec-notifications .main{max-width:none!important;width:100%!important;margin:0!important;box-sizing:border-box}
+@media(min-width:769px){
+  .main.main-wide,body.sec-notifications .main{padding:16px 24px 28px!important}
+  #secNotifications .hw-item{padding:18px 22px}
+  #secNotifications .hw-block-body{max-height:420px}
+  #secNotifications .notif-item{padding:20px 24px}
+  #secNotifications .notif-item .ni-title{font-size:16px}
+  #secNotifications .notif-item .ni-text{font-size:14px}
+}
+@media(min-width:1025px){
+  .main.main-wide,body.sec-notifications .main{padding:18px 28px 32px!important}
+}
+@media(max-width:768px){
+  .main.main-wide,body.sec-notifications .main{padding:8px 10px max(88px,calc(env(safe-area-inset-bottom) + 72px))!important}
+  #secNotifications .hw-item{padding:12px 10px;margin-bottom:10px}
+  #secNotifications .hw-block-body{max-height:45vh}
+  #secNotifications .hw-actions{flex-direction:column;align-items:stretch}
+  #secNotifications .hw-actions .btn{width:100%}
+  #secNotifications .hw-cols{gap:8px}
+  #secNotifications .notif-item{padding:14px 12px}
+  #secNotifications .notif-item .btn{width:100%}
+}
 .jr-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .jr-title{font-size:20px;font-weight:800;color:var(--text);letter-spacing:-.3px;margin-top:4px}
 .jr-subtitle{font-size:15px;font-weight:700;color:var(--text)}
@@ -11342,6 +11421,70 @@ textarea.inp{min-height:70px;resize:vertical;font-family:inherit}
 .jr-done-row{opacity:.92;background:rgba(34,197,94,.06)}
 .jr-done-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(34,197,94,.14);border:1px solid rgba(34,197,94,.35);color:#22c55e;border-radius:var(--r-sm);padding:6px 10px;font-weight:800;font-size:13px}
 .jr-done-row .jr-mini{color:var(--dim)}
+/* --- Homework cards / diary --- */
+.hw-steps{display:flex;flex-direction:column;gap:8px;margin:8px 0}
+.hw-step{display:flex;gap:10px;align-items:flex-start;line-height:1.45}
+.hw-step-n{flex:0 0 22px;height:22px;border-radius:7px;background:rgba(201,168,76,.16);color:var(--accent);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.hw-step-t{flex:1;min-width:0;font-size:14px;color:var(--text);white-space:pre-wrap;word-break:break-word}
+.hw-line{font-size:14px;color:var(--text);white-space:pre-wrap;word-break:break-word;margin:4px 0;line-height:1.5}
+.hw-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin:10px 0}
+.hw-card-current{border-color:rgba(201,168,76,.45);background:linear-gradient(135deg,rgba(201,168,76,.1),rgba(251,146,60,.04));box-shadow:0 4px 18px rgba(201,168,76,.08)}
+.hw-card-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.hw-card-badge{font-size:11px;font-weight:800;letter-spacing:.02em;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.06);color:var(--muted);border:1px solid var(--border)}
+.hw-card-badge.on{background:rgba(201,168,76,.18);color:var(--accent);border-color:rgba(201,168,76,.35)}
+.hw-card-scope{font-size:11px;color:var(--dim);font-weight:600}
+.hw-card-date{font-size:12px;color:var(--dim);margin-bottom:8px}
+.hw-card-date b{color:var(--text)}
+.hw-card-body{margin-top:4px}
+.hw-card-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.hw-edited{font-size:10px;font-weight:700;color:var(--warning);margin-left:6px}
+.hw-empty-msg{text-align:center;padding:18px 12px;color:var(--muted);font-size:13px;border:1px dashed var(--border);border-radius:var(--r-sm);margin-top:8px}
+.hw-current-block{background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.28);border-radius:var(--r);padding:14px 14px 6px;margin-top:4px}
+.hw-current-title{font-size:13px;font-weight:800;color:var(--accent);letter-spacing:.02em;text-transform:uppercase;margin-bottom:8px}
+.diary-date-row{margin-top:16px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.diary-date-big{font-size:22px;font-weight:800;color:var(--text);letter-spacing:-.3px}
+.diary-date-sub{font-size:12px;color:var(--dim);font-weight:600}
+.diary-panel{overflow:hidden}
+/* --- Dictionary iframe (fullscreen) --- */
+.dict-wrap{display:flex;flex-direction:column;height:calc(100vh - 120px);min-height:420px;background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.dict-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.03);flex-shrink:0}
+.dict-title{font-size:15px;font-weight:800;color:var(--text)}
+.dict-frame{flex:1;width:100%;border:0;background:#fff;min-height:0;content-visibility:auto}
+/* Fullscreen dictionary: hide app chrome, fill viewport */
+body.dict-fullscreen{overflow:hidden;height:100%;height:100dvh}
+body.dict-fullscreen .sidebar,
+body.dict-fullscreen .mob-bottom-nav,
+body.dict-fullscreen .mob-header,
+body.dict-fullscreen .slide-menu,
+body.dict-fullscreen .slide-menu-overlay{display:none!important}
+body.dict-fullscreen .layout{display:block;min-height:100dvh}
+body.dict-fullscreen .main{
+  max-width:none!important;width:100%!important;margin:0!important;
+  padding:0!important;height:100dvh!important;overflow:hidden!important;
+}
+body.dict-fullscreen #secDictionary.on{
+  position:fixed;inset:0;z-index:500;margin:0!important;padding:0!important;
+  background:#fff;display:block!important;animation:none!important;
+}
+body.dict-fullscreen .dict-wrap{
+  height:100dvh!important;min-height:0!important;border:0!important;border-radius:0!important;
+}
+body.dict-fullscreen .dict-toolbar{
+  background:rgba(13,13,20,.92);border-bottom:1px solid rgba(255,255,255,.08);
+  padding-top:max(10px,env(safe-area-inset-top));
+}
+body.dict-fullscreen .dict-title{color:#fff}
+.dict-close{
+  min-width:44px;min-height:36px;padding:6px 12px;border-radius:10px;
+  border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.08);color:#fff;
+  font-size:13px;font-weight:700;cursor:pointer
+}
+.dict-close:hover{background:rgba(255,255,255,.16)}
+@media (max-width:768px){
+  .dict-wrap{height:calc(100vh - 140px);border-radius:0;border-left:0;border-right:0}
+  .hw-card-actions .btn{flex:1 1 auto}
+  body.dict-fullscreen .dict-wrap{height:100dvh!important}
+}
 @media(max-width:640px){
   .jr-hero{flex-direction:column}
   .jr-right{text-align:left}
@@ -11377,10 +11520,8 @@ textarea.inp{min-height:70px;resize:vertical;font-family:inherit}
     <h1>BANK MANDARIN PRO</h1><p>Игровой персональный банк</p>
     <div id="authStep1">
         <input type="text" id="authName" class="inp" placeholder="Имя пользователя (логин)" maxlength="20" autocomplete="username" style="margin-bottom:12px">
-        <input type="password" id="authPassword" class="inp" placeholder="Пароль (или оставьте пустым для PIN)" maxlength="72" autocomplete="current-password" style="margin-bottom:12px">
-        <button class="btn btn-accent btn-full" onclick="doAuth()"><i data-lucide="log-in" style="width:16px;height:16px"></i> Войти</button>
+        <button class="btn btn-accent btn-full" onclick="doAuth()"><i data-lucide="log-in" style="width:16px;height:16px"></i> Продолжить</button>
         <div style="text-align:center;margin-top:14px;display:flex;flex-direction:column;gap:8px">
-            <a href="#" onclick="tryPinLogin();return false;" style="color:var(--dim);font-size:13px;text-decoration:underline">Войти по PIN-коду</a>
             <a href="#" onclick="showNoAccount();return false;" style="color:var(--dim);font-size:13px;text-decoration:underline">Нет аккаунта?</a>
         </div>
     </div>
@@ -11414,8 +11555,8 @@ textarea.inp{min-height:70px;resize:vertical;font-family:inherit}
 <div class="modal-bg" id="mCreateUser" onclick="cm('mCreateUser')"><div class="modal" onclick="event.stopPropagation()" style="max-width:480px">
     <div class="modal-h"><h2>Создать пользователя</h2><button class="modal-x" onclick="cm('mCreateUser')">Назад</button></div>
     <div class="form-g"><label>Логин *</label><input type="text" class="inp" id="cuLogin" maxlength="20" placeholder="Уникальный логин" autocomplete="off"></div>
-    <div class="form-g"><label>Пароль *</label><input type="password" class="inp" id="cuPassword" maxlength="72" placeholder="Минимум 4 символа" autocomplete="new-password"></div>
-    <div class="form-g"><label>ПИН-код (4 цифры, необязательно)</label><input type="tel" class="inp" id="cuPin" maxlength="4" inputmode="numeric" placeholder="Для служебных функций"></div>
+    <div class="form-g"><label>PIN-код * (4 цифры)</label><input type="tel" class="inp" id="cuPin" maxlength="4" inputmode="numeric" placeholder="Обязательно для входа"></div>
+    <div class="form-g"><label>Пароль (необязательно)</label><input type="password" class="inp" id="cuPassword" maxlength="72" placeholder="Не нужен — вход по PIN" autocomplete="new-password"></div>
     <div class="form-g"><label>Отображаемое имя (необязательно)</label><input type="text" class="inp" id="cuDisplay" maxlength="40" placeholder="Как показывать в системе"></div>
     <div class="form-g"><label>Статус</label>
         <select class="inp" id="cuStatus">
@@ -11451,11 +11592,14 @@ textarea.inp{min-height:70px;resize:vertical;font-family:inherit}
             <div class="nav-i" data-s="tasks" onclick="go('tasks')"><i data-lucide="clipboard-list" style="width:16px;height:16px"></i>📋 Задания</div>
             <div class="nav-i" data-s="duels" onclick="go('duels')"><i data-lucide="swords" style="width:16px;height:16px"></i>⚔️ Дуэли</div>
             <div class="nav-i" data-s="mafia" onclick="go('mafia')"><i data-lucide="venetian-mask" style="width:16px;height:16px"></i>🎭 МАФИЯ</div>
+            <div class="nav-i" data-s="croc" onclick="go('croc')"><i data-lucide="smile" style="width:16px;height:16px"></i>🐊 Крокодил</div>
+            <div class="nav-i" data-s="bunker" onclick="go('bunker')"><i data-lucide="vault" style="width:16px;height:16px"></i>🚀 Бункер</div>
             <div class="nav-i" data-s="mybanks" onclick="go('mybanks')"><i data-lucide="landmark" style="width:16px;height:16px"></i>🏦 Мои банки</div>
             <div class="nav-i" data-s="battlepass" onclick="go('battlepass')"><i data-lucide="award" style="width:16px;height:16px"></i>🐉 Сезонный путь</div>
             <div class="nav-i" data-s="myqr" onclick="go('myqr')"><i data-lucide="qr-code" style="width:16px;height:16px"></i>📱 Мой QR</div>
             <div class="nav-i" data-s="qrterminal" onclick="go('qrterminal')"><i data-lucide="scan" style="width:16px;height:16px"></i>📷 QR-Терминал</div>
             <div class="nav-i" data-s="journal" onclick="go('journal')"><i data-lucide="book-open-check" style="width:16px;height:16px"></i>📖 Журнал</div>
+            <div class="nav-i" data-s="dictionary" onclick="go('dictionary')"><i data-lucide="book-a" style="width:16px;height:16px"></i>📖 Словарь</div>
             <div class="nav-i" data-s="profile" onclick="go('profile')"><i data-lucide="user" style="width:16px;height:16px"></i>Профиль</div>
             <div class="nav-i hidden" id="navAdmin" data-s="admin" onclick="go('admin')"><i data-lucide="shield" style="width:16px;height:16px"></i>老师 🦁 Панель</div>
             <div class="nav-i hidden" id="navAdminQr" data-s="adminqr" onclick="go('adminqr')"><i data-lucide="qr-code" style="width:16px;height:16px"></i>📊 QR-Коды</div>
@@ -11488,6 +11632,7 @@ textarea.inp{min-height:70px;resize:vertical;font-family:inherit}
                 <div class="act-btn" onclick="showTransfer()"><div class="ic" style="background:rgba(201,168,76,.12);color:var(--accent)"><i data-lucide="send" style="width:18px;height:18px"></i></div>Перевести</div>
                 <div class="act-btn" onclick="showPurchase()"><div class="ic" style="background:rgba(139,92,246,.12);color:#a78bfa"><i data-lucide="shopping-bag" style="width:18px;height:18px"></i></div>Покупка</div>
                 <div class="act-btn" onclick="showInvestments()"><div class="ic" style="background:rgba(245,158,11,.12);color:#f59e0b"><i data-lucide="trending-up" style="width:18px;height:18px"></i></div>Инвестиции</div>
+                <div class="act-btn" onclick="go('dictionary')"><div class="ic" style="background:rgba(59,130,246,.12);color:#60a5fa"><i data-lucide="book-a" style="width:18px;height:18px"></i></div>Словарь</div>
             </div>
             <div style="display:flex;justify-content:center;margin-top:24px;margin-bottom:8px">
                 <button class="btn btn-accent" onclick="toggleSlideMenu()" style="min-width:200px;min-height:48px;border-radius:24px;font-size:15px;gap:10px"><i data-lucide="menu" style="width:20px;height:20px"></i> Меню</button>
@@ -11535,6 +11680,7 @@ textarea.inp{min-height:70px;resize:vertical;font-family:inherit}
         <!-- NOTIFICATIONS -->
         <div class="sec" id="secNotifications">
             <div class="stitle">Уведомления</div>
+            <div id="hwReviewWrap" class="hw-review-wrap"></div>
             <div class="notif-center" id="notifList"><div class="empty">Уведомлений пока нет</div></div>
         </div>
 
@@ -11557,7 +11703,7 @@ textarea.inp{min-height:70px;resize:vertical;font-family:inherit}
             <div class="profile-card">
                 <div class="av" id="profAv"></div><div class="nm" id="profName"></div>
                 <div class="role" id="profRole">🌱 Новичок</div>
-                <div style="font-size:24px;font-weight:800;margin-bottom:4px"><span id="profBal">0</span> 分</div>
+                <div style="font-size:24px;font-weight:800;margin-bottom:4px"><span id="profBal">0 分</span></div>
                 <div class="profile-stats">
                     <div class="pstat"><div class="v" id="profTx">0</div><div class="l">Операций</div></div>
                     <div class="pstat"><div class="v" id="profReg">—</div><div class="l">Регистрация</div></div>
@@ -11882,6 +12028,7 @@ textarea.inp{min-height:70px;resize:vertical;font-family:inherit}
                     <button class="btn btn-accent btn-sm" onclick="showA('sendNotif')"><i data-lucide="bell" style="width:18px;height:18px"></i> Уведомление</button>
                     <button class="btn btn-ghost btn-sm" onclick="showA('backup')"><i data-lucide="database" style="width:18px;height:18px"></i> Резервная копия</button>
                     <button class="btn btn-accent btn-sm" onclick="showA('startRest')"><i data-lucide="moon" style="width:18px;height:18px"></i> 😴 Отдых (Alt+5)</button>
+                    <button class="btn btn-warning btn-sm" onclick="showA('globalMode')"><i data-lucide="globe" style="width:18px;height:18px"></i> 🌐 Глобальное управление</button>
                     <button class="btn btn-accent btn-sm" onclick="openAdminQrTerminal()" style="background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:700"><i data-lucide="scan" style="width:18px;height:18px"></i> ⚡ QR-ТЕРМИНАЛ (Shift+9)</button>
                 </div>
                 <div class="stitle mt-12">🎯 Квесты и задания</div>
@@ -11928,6 +12075,31 @@ textarea.inp{min-height:70px;resize:vertical;font-family:inherit}
                 <div class="stitle mt-12">🗑️ Очистка данных</div>
                 <div class="aactions">
                     <button class="btn btn-danger btn-sm" onclick="showClearAllModal()"><i data-lucide="trash-2" style="width:18px;height:18px"></i> Очистить все (дуэли, квесты, задания, заявки)</button>
+                </div>
+                <div class="stitle mt-12">♾️ Бесконечный баланс и уровень</div>
+                <div class="admin-self-stats" id="adminSelfStats">
+                    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:14px">
+                        <input type="checkbox" id="infBalToggle" style="accent-color:#ff2a2a;width:18px;height:18px" onchange="toggleInfiniteBalance(this.checked)">
+                        <span style="font-size:14px;font-weight:700">♾️ Бесконечный баланс</span>
+                        <span style="font-size:11px;color:var(--dim)">только для администратора</span>
+                    </label>
+                    <div class="row">
+                        <label style="font-size:11px;color:var(--dim);min-width:70px">Level</label>
+                        <input type="number" class="inp" id="selfLevel" min="1" placeholder="1" inputmode="numeric">
+                        <label style="font-size:11px;color:var(--dim);min-width:50px">XP</label>
+                        <input type="number" class="inp" id="selfXP" min="0" placeholder="0" inputmode="numeric">
+                    </div>
+                    <div class="row">
+                        <label style="font-size:11px;color:var(--dim);min-width:70px">Показ</label>
+                        <input type="text" class="inp" id="selfDisplay" maxlength="40" placeholder="отображаемое значение (необязательно)">
+                    </div>
+                    <div class="row">
+                        <label style="font-size:11px;color:var(--dim);min-width:70px">Макс. ур.</label>
+                        <input type="number" class="inp" id="selfMaxLevel" min="1" max="100000" placeholder="9999" inputmode="numeric">
+                        <label style="font-size:11px;color:var(--dim);min-width:50px">Макс. XP</label>
+                        <input type="number" class="inp" id="selfMaxXP" min="0" max="1000000000" placeholder="1000000000" inputmode="numeric">
+                    </div>
+                    <button class="btn btn-accent btn-full" onclick="saveSelfStats()"><i data-lucide="save" style="width:16px;height:16px"></i> Сохранить Level / XP</button>
                 </div>
                 <div class="stitle mt-12">🔑 Сменить PIN администратора</div>
                 <div class="bal-card" style="padding:16px">
@@ -12002,6 +12174,31 @@ textarea.inp{min-height:70px;resize:vertical;font-family:inherit}
             <div id="diaryRoot"></div>
         </div>
 
+        <!-- HOMEWORK / ДОМАШНЕЕ ЗАДАНИЕ -->
+        <div class="sec" id="secHomework">
+            <div class="coupon-chinese-title">
+                <div class="zh">📝 作业</div>
+                <div class="ru">Домашнее задание</div>
+                <div class="sub">Задания по группам и история уроков</div>
+            </div>
+            <div id="homeworkRoot"></div>
+        </div>
+
+        <!-- DICTIONARY / СЛОВАРЬ (fullscreen) -->
+        <div class="sec" id="secDictionary">
+            <div class="dict-wrap">
+                <div class="dict-toolbar">
+                    <div class="dict-title">📖 Словарь</div>
+                    <div style="display:flex;gap:8px;align-items:center">
+                        <button type="button" class="btn btn-ghost btn-sm" id="dictReload" title="Обновить" style="color:inherit" onclick="reloadDictionary()">↻</button>
+                        <button type="button" class="dict-close" id="dictClose" title="Закрыть" onclick="closeDictionary();return false;">✕ Закрыть</button>
+                    </div>
+                </div>
+                <iframe id="dictFrame" class="dict-frame" title="Словарь китайского языка" src="" data-src="/dictionary"
+                    loading="eager" referrerpolicy="no-referrer"></iframe>
+            </div>
+        </div>
+
         <!-- TEACHER / ADMIN JOURNAL -->
         <div class="sec" id="secJournal">
             <div class="coupon-chinese-title">
@@ -12009,8 +12206,9 @@ textarea.inp{min-height:70px;resize:vertical;font-family:inherit}
                 <div class="ru">Журнал</div>
                 <div class="sub">Группы, оценки и успеваемость учеников</div>
             </div>
-            <div style="margin-bottom:14px">
+            <div style="margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap">
                 <button type="button" class="btn btn-ghost btn-sm" onclick="openJournalSettings()"><i data-lucide="settings" style="width:16px;height:16px"></i> Настройки журнала</button>
+                <button type="button" class="btn btn-accent btn-sm" onclick="go('homework')"><i data-lucide="book-open-check" style="width:16px;height:16px"></i> Домашние задания</button>
             </div>
             <div id="journalRoot"></div>
         </div>
@@ -12019,6 +12217,12 @@ textarea.inp{min-height:70px;resize:vertical;font-family:inherit}
         <div class="sec" id="secMafia">
             <div id="mafiaRoot" class="mafia-game"></div>
         </div>
+
+        <!-- CROCODILE + BUNKER (party games) -->
+        <div class="sec" id="secCroc">
+            <div id="partyRoot" class="party-game"></div>
+        </div>
+        <div class="sec" id="secBunker"></div>
 
         <!-- ADMIN QR CODES MANAGEMENT -->
         <div class="sec" id="secAdminqr">
@@ -12056,9 +12260,9 @@ textarea.inp{min-height:70px;resize:vertical;font-family:inherit}
 <!-- BOTTOM NAVIGATION (Mobile) -->
 <nav class="mob-bottom-nav" id="mobBottomNav">
   <div class="bnav-item on" data-s="home" onclick="go('home')"><i data-lucide="home" style="width:20px;height:20px"></i><span>Главная</span></div>
-  <div class="bnav-item" data-s="mybanks" onclick="go('mybanks')"><i data-lucide="landmark" style="width:20px;height:20px"></i><span>Банки</span></div>
-  <div class="bnav-item center" data-s="qrterminal" onclick="go('qrterminal')"><div class="bnav-center-icon"><i data-lucide="scan" style="width:22px;height:22px"></i></div><span>QR</span></div>
   <div class="bnav-item" data-s="diary" onclick="go('diary')"><i data-lucide="book-open" style="width:20px;height:20px"></i><span>Дневник</span></div>
+  <div class="bnav-item center" data-s="qrterminal" onclick="go('qrterminal')"><div class="bnav-center-icon"><i data-lucide="scan" style="width:22px;height:22px"></i></div><span>QR</span></div>
+  <div class="bnav-item" data-s="dictionary" onclick="go('dictionary')"><i data-lucide="book-a" style="width:20px;height:20px"></i><span>Словарь</span></div>
   <div class="bnav-item" data-s="profile" onclick="go('profile')"><i data-lucide="user" style="width:20px;height:20px"></i><span>Ещё</span></div>
 </nav>
 
@@ -12082,11 +12286,16 @@ textarea.inp{min-height:70px;resize:vertical;font-family:inherit}
     <div class="sm-item" onclick="go('tasks');closeSlideMenu()"><i data-lucide="clipboard-list" style="width:18px;height:18px"></i>📋 Задания</div>
     <div class="sm-item" onclick="go('duels');closeSlideMenu()"><i data-lucide="swords" style="width:18px;height:18px"></i>⚔️ Дуэли</div>
     <div class="sm-item" onclick="go('mafia');closeSlideMenu()"><i data-lucide="venetian-mask" style="width:18px;height:18px"></i>🎭 МАФИЯ</div>
+    <div class="sm-item" onclick="go('croc');closeSlideMenu()"><i data-lucide="smile" style="width:18px;height:18px"></i>🐊 Крокодил</div>
+    <div class="sm-item" onclick="go('bunker');closeSlideMenu()"><i data-lucide="vault" style="width:18px;height:18px"></i>🚀 Бункер</div>
     <div class="sm-item" onclick="go('mybanks');closeSlideMenu()"><i data-lucide="landmark" style="width:18px;height:18px"></i>🏦 Мои банки</div>
     <div class="sm-item" onclick="go('battlepass');closeSlideMenu()"><i data-lucide="award" style="width:18px;height:18px"></i>🐉 Сезонный путь</div>
     <div class="sm-item" onclick="go('myqr');closeSlideMenu()"><i data-lucide="qr-code" style="width:18px;height:18px"></i>📱 Мой QR</div>
     <div class="sm-item" onclick="go('qrterminal');closeSlideMenu()"><i data-lucide="scan" style="width:18px;height:18px"></i>📷 QR-Терминал</div>
     <div class="sm-item" data-s="journal" onclick="go('journal');closeSlideMenu()"><i data-lucide="book-open-check" style="width:18px;height:18px"></i>📖 Журнал</div>
+    <div class="sm-item" data-s="dictionary" onclick="go('dictionary');closeSlideMenu()"><i data-lucide="book-a" style="width:18px;height:18px"></i>📖 Словарь</div>
+    <div class="sm-item" data-s="diary" onclick="go('diary');closeSlideMenu()"><i data-lucide="book-open" style="width:18px;height:18px"></i>📔 Дневник</div>
+    <div class="sm-item hidden" id="slideHwBtn" data-s="homework" onclick="go('homework');closeSlideMenu()"><i data-lucide="book-open-check" style="width:18px;height:18px"></i>📝 ДЗ</div>
     <div class="sm-sep"></div>
     <div class="sm-item" onclick="showInvestments();closeSlideMenu()"><i data-lucide="trending-up" style="width:18px;height:18px"></i>Инвестиции</div>
     <div class="sm-sep"></div>
@@ -12818,6 +13027,53 @@ textarea.inp{min-height:70px;resize:vertical;font-family:inherit}
     <button class="btn btn-accent btn-full" onclick="doStartRest()"><i data-lucide="moon" style="width:16px;height:16px"></i> Отправить отдых</button>
 </div></div>
 
+<!-- Global Mode Modal (admin) -->
+<div class="modal-bg" id="mGlobalMode" onclick="cm('mGlobalMode')"><div class="modal" onclick="event.stopPropagation()" style="max-width:520px">
+    <div class="modal-h"><h2>🌐 Глобальное управление</h2><button class="modal-x" onclick="cm('mGlobalMode')">Назад</button></div>
+    <div class="form-g">
+        <label>Текущий режим</label>
+        <div id="gmStatus" style="padding:12px 14px;border-radius:var(--r-sm);border:1px solid var(--border);background:rgba(255,255,255,.03);font-size:14px;font-weight:700">Выключен</div>
+    </div>
+    <div class="form-g">
+        <label>Модуль для всех пользователей</label>
+        <select class="inp" id="gmSection">
+            <option value="coupons">🎟️ Купоны</option>
+            <option value="mafia">🎭 Мафия</option>
+            <option value="quests">🎯 Квесты</option>
+            <option value="tasks">📋 Задания</option>
+            <option value="duels">⚔️ Дуэли</option>
+            <option value="homework">📝 ДЗ</option>
+            <option value="dictionary">📖 Словарь</option>
+            <option value="diary">📔 Дневник</option>
+            <option value="journal">📖 Журнал</option>
+            <option value="mybanks">🏦 Мои банки</option>
+            <option value="battlepass">🐉 Сезонный путь</option>
+            <option value="myqr">📱 Мой QR</option>
+            <option value="qrterminal">📷 QR-Терминал</option>
+            <option value="purchases">🛒 Покупки</option>
+            <option value="history">📜 История</option>
+            <option value="messages">💬 Сообщения</option>
+            <option value="notifications">🔔 Уведомления</option>
+            <option value="users">👥 Пользователи</option>
+        </select>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-success" style="flex:1;min-width:140px" onclick="globalModeConfirmEnable()"><i data-lucide="power" style="width:16px;height:16px"></i> Включить режим</button>
+        <button class="btn btn-danger" style="flex:1;min-width:140px" onclick="globalModeConfirmDisable()"><i data-lucide="power-off" style="width:16px;height:16px"></i> Выключить</button>
+    </div>
+    <div style="font-size:12px;color:var(--dim);margin-top:12px;line-height:1.5">
+        Все пользователи (включая онлайн) будут перенаправлены в выбранный модуль.
+        Администратор сохраняет полный доступ. Состояние сохраняется на сервере.
+    </div>
+</div></div>
+
+<!-- Global Mode Banner (users) -->
+<div id="globalModeBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:180;background:rgba(201,168,76,.95);color:#1a1200;padding:10px 14px;font-size:13px;font-weight:700;box-shadow:0 4px 20px rgba(0,0,0,.35);align-items:center;justify-content:center;gap:10px;flex-wrap:wrap">
+    <span id="globalModeBannerText">🌐 Глобальный режим</span>
+    <button type="button" id="globalModeBackBtn" onclick="globalModeReturnNow()" style="background:#1a1200;color:#f5d76e;padding:6px 14px;font-size:12px;font-weight:800;border:none;border-radius:8px;cursor:pointer;min-height:36px">⬅️ Вернуться</button>
+    <button type="button" id="globalModeExitBtn" onclick="globalModeTempExit()" style="background:rgba(0,0,0,.25);color:#1a1200;padding:6px 12px;font-size:12px;font-weight:700;border:none;border-radius:8px;cursor:pointer;min-height:36px">Временно выйти</button>
+</div>
+
 <!-- Rest Timer Overlay (for user) -->
 <div id="restTimerOverlay" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:150;background:rgba(18,18,28,0.95);backdrop-filter:blur(16px);border:1px solid rgba(99,102,241,0.3);border-radius:var(--r);padding:16px 24px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.4);min-width:200px">
     <div style="font-size:12px;color:var(--dim);margin-bottom:4px">😴 Отдых</div>
@@ -13136,7 +13392,6 @@ function emitActivityDebounced(){
 window.refreshData=function(){if(!socket.connected)socket.connect();if(U){const token=localStorage.getItem('pb_session_token');if(token)socket.emit('user:session_login',{token});else socket.emit('user:login',{userId:U.id,pinCached:true});socket.emit('coupon:getShop');socket.emit('coupon:getMy');}toast('i','Обновление','Данные обновляются...');};
 function init(){
     $('authName').addEventListener('keydown',e=>{if(e.key==='Enter')doAuth()});
-    $('authPassword')&&$('authPassword').addEventListener('keydown',e=>{if(e.key==='Enter')doAuth()});
     setupPinFields('authPinFields',()=>doPinLogin());
     setupPinFields('adminPinFields',()=>doAdminLogin());
     setupPinFields('adminModalPinFields',()=>doAdminLoginModal());
@@ -13328,6 +13583,24 @@ window.go=function(s){
     document.querySelectorAll('.sec').forEach(e=>e.classList.remove('on'));
     const el=$('sec'+s.charAt(0).toUpperCase()+s.slice(1));
     if(el)el.classList.add('on');
+    // Full-width layout for Notifications (admin HW review)
+    const mainEl=document.querySelector('.layout .main');
+    const wide=s==='notifications';
+    if(mainEl){
+        mainEl.classList.toggle('main-wide',wide);
+        if(wide){
+            mainEl.style.maxWidth='none';
+            mainEl.style.width='100%';
+            mainEl.style.margin='0';
+            mainEl.style.flex='1 1 auto';
+        }else{
+            mainEl.style.maxWidth='';
+            mainEl.style.width='';
+            mainEl.style.margin='';
+            mainEl.style.flex='';
+        }
+    }
+    document.body.classList.toggle('sec-notifications',wide);
     document.querySelectorAll('.nav-i').forEach(n=>n.classList.toggle('on',n.dataset.s===s));
     document.querySelectorAll('.mob-nav .mi').forEach(n=>n.classList.toggle('on',n.dataset.s===s));
     if(s==='history')renderFullHist();
@@ -13340,6 +13613,51 @@ window.go=function(s){
     lucide.createIcons();
 };
 
+// --- Dictionary: fullscreen open/close (доступно сразу, inline onclick) ---
+window.reloadDictionary=function(){
+    const fr=document.getElementById('dictFrame');
+    if(fr){const src=fr.getAttribute('data-src')||'/dictionary';fr.setAttribute('src',src);}
+};
+window.closeDictionary=function(){
+    window._dictClosing=true;
+    try{document.body.classList.remove('dict-fullscreen');}catch(e){}
+    // мгновенно спрятать секцию словаря
+    const sec=document.getElementById('secDictionary');
+    if(sec)sec.classList.remove('on');
+    // закрыть iframe-сеанс словаря, чтобы он не оставался активным
+    try{
+        const fr=document.getElementById('dictFrame');
+        if(fr){fr.setAttribute('src','about:blank');fr.removeAttribute('src');}
+    }catch(e){}
+    // сразу показать главный экран напрямую (без ожидания go)
+    document.querySelectorAll('.sec').forEach(e=>e.classList.remove('on'));
+    const home=document.getElementById('secHome');
+    if(home)home.classList.add('on');
+    try{curSec='home';}catch(e){}
+    if(typeof window.go==='function'){
+        try{window.go('home');}catch(e){}
+    }
+    // не дать глобальному режиму сразу вернуть в словарь
+    try{
+        // если режим держит именно словарь — пользователь сам его закрыл,
+        // не возвращаем до перезагрузки страницы
+        if(typeof globalModeState!=='undefined'&&globalModeState&&globalModeState.enabled&&globalModeState.section==='dictionary'){
+            _gmTempExitUntil=Date.now()+24*60*60*1000;
+        }else{
+            _gmTempExitUntil=Date.now()+20000;
+        }
+        if(typeof updateGlobalModeBanner==='function')updateGlobalModeBanner();
+    }catch(e){}
+    setTimeout(function(){window._dictClosing=false;},300);
+    return false;
+};
+// Esc тоже закрывает словарь
+document.addEventListener('keydown',function(e){
+    if(e.key==='Escape'&&document.body.classList.contains('dict-fullscreen')){
+        window.closeDictionary();
+    }
+});
+
 // --- Auth ---
 window.doAuth=function(){
     if(!socket.connected){
@@ -13348,14 +13666,9 @@ window.doAuth=function(){
         return;
     }
     const name=$('authName').value.trim();
-    const password=($('authPassword')&&$('authPassword').value)||'';
     if(!name){showAuthErr('Введите имя пользователя');return;}
-    // Password login (new accounts). Legacy users can leave password empty and use PIN.
-    if(!password){
-        socket.emit('user:check_pin',{name});
-        return;
-    }
-    socket.emit('user:login_password',{name,password});
+    // Always: name → PIN
+    socket.emit('user:check_pin',{name});
 };
 
 socket.on('user:login_result',d=>{
@@ -13370,8 +13683,7 @@ socket.on('user:login_result',d=>{
         $('authErr').style.display='none';
         return;
     }
-    showAuthErr((d&&d.message)||'Неверное имя пользователя или пароль');
-    if($('authPassword'))$('authPassword').value='';
+    showAuthErr((d&&d.message)||'Неверное имя пользователя или PIN');
 });
 
 socket.on('user:register_disabled',d=>{
@@ -13381,20 +13693,17 @@ socket.on('user:register_disabled',d=>{
 
 socket.on('user:pin_status',d=>{
     if(!d.exists){
-        showAuthErr('Неверное имя пользователя или пароль');
+        showAuthErr('Пользователь не найден');
         return;
     }
     pendingUserId=d.userId;
     pendingUserName=d.name;
-    if(d.hasPin){
-        $('authStep1').classList.add('hidden');
-        $('authStepPin').classList.remove('hidden');
-        $('authPinTitle').textContent='Введите PIN-код для '+d.name;
-        clearPinFields('authPinFields');
-        $('authErr').style.display='none';
-    } else if(!d.hasPassword){
-        showAuthErr('Для входа нужен пароль. Обратитесь к администратору.');
-    }
+    // Always show PIN screen after name (same flow for all users)
+    $('authStep1').classList.add('hidden');
+    $('authStepPin').classList.remove('hidden');
+    $('authPinTitle').textContent='Введите PIN-код для '+d.name;
+    clearPinFields('authPinFields');
+    $('authErr').style.display='none';
 });
 
 socket.on('user:need_pin',d=>{
@@ -13410,9 +13719,7 @@ window.doPinLogin=function(){
 };
 
 window.tryPinLogin=function(){
-    const name=($('authName')&&$('authName').value||'').trim();
-    if(!name){showAuthErr('Введите имя пользователя');return;}
-    socket.emit('user:check_pin',{name});
+    doAuth();
 };
 window.backToLogin=function(){
     $('authStepPin').classList.add('hidden');
@@ -13464,6 +13771,7 @@ function updateAdminUI(){
     const show=isAdmin;
     $('navAdmin')?.classList.toggle('hidden',!show);
     $('slideAdminBtn')?.classList.toggle('hidden',!show);
+    $('slideHwBtn')?.classList.toggle('hidden',!show);
     $('sideAdminBadge')?.classList.toggle('show',show);
     $('mobAdminBadge')?.classList.toggle('show',show);
     if(show&&U){
@@ -13510,7 +13818,7 @@ socket.on('init',d=>{
     if(d.groups)groups=d.groups;
     if(d.groupPermissions)groupPermissions=d.groupPermissions;
     setOnline(d.onlineCount||0);
-    if(d.me){U=d.me;$('uName').textContent=U.name;setBal(U.balance);showApp();refreshU();renderRecent();}
+    if(d.me){U=d.me;window._infBal=!!U.infiniteBalance;$('uName').textContent=U.name;setBal(U.balance);showApp();refreshU();renderRecent();}
     // If we have a session token but no user yet, try session login
     if(!U&&!d.me){
         const token=localStorage.getItem('pb_session_token');
@@ -13540,6 +13848,8 @@ socket.on('user:logged_in',d=>{
     socket.emit('user:getXP');
     // Request approval requests
     socket.emit('approval:getList');
+    socket.emit('globalMode:get');
+    if(typeof enforceGlobalMode==='function')setTimeout(function(){enforceGlobalMode(true);},300);
 });
 
 socket.on('admin:authenticated',d=>{
@@ -13582,6 +13892,7 @@ socket.on('admin:full_data',d=>{
     if(d.tasks)window._adminTasks=d.tasks;
     if(d.duels)window._adminDuels=d.duels;
     if(d.approvalRequests)approvalRequests=d.approvalRequests;
+    if(d.globalMode&&typeof applyGlobalModeState==='function')applyGlobalModeState(d.globalMode);
     if(d.userXP){
         // Update XP for all users
         Object.keys(d.userXP).forEach(uid=>{
@@ -13630,9 +13941,10 @@ socket.on('user:changePinResult',d=>{
 
 socket.on('bank:update',d=>{
     users=d.users||[];
-    if(d.me){U=d.me;setBal(U.balance);}
+    if(d.me){U=d.me;window._infBal=!!U.infiniteBalance;setBal(U.balance);}
     if(d.groups)groups=d.groups;
     if(d.groupPermissions)groupPermissions=d.groupPermissions;
+    if(d.globalMode&&typeof applyGlobalModeState==='function')applyGlobalModeState(d.globalMode);
     setOnline(d.onlineCount||0);
     refreshU();
     if(isAdmin&&curSec==='admin')renderAdmin();
@@ -13746,7 +14058,15 @@ function updateApprovalBadge(){
     const slideBadge=$('slideNotifBadge');
     // Combine with unread notifications count
     const unreadNotifs=notifs.filter(n=>!n.read&&n.targetUserId===U?.id).length;
-    const total=isAdmin?pendingCount:(unreadNotifs);
+    let hwPending=0;
+    if(isAdmin){
+        try{
+            const jdb=(window.Journal&&window.Journal.getData)?window.Journal.getData():null;
+            const subs=(jdb&&jdb.homeworkSubmissions)||[];
+            hwPending=subs.filter(s=>s&&(!s.status||s.status==='pending')).length;
+        }catch(e){}
+    }
+    const total=isAdmin?(pendingCount+hwPending):(unreadNotifs);
     [badge,slideBadge].forEach(b=>{
         if(b){
             if(total>0){b.textContent=total;b.classList.remove('hidden');}
@@ -13918,9 +14238,11 @@ socket.on('user:blocked_login',function(d){
 });
 
 // --- Helpers ---
-function refreshU(){if(!U)return;const f=users.find(u=>u.id===U.id);if(f){U=f;setBal(U.balance);const nameEl=$('uName');nameEl.textContent=U.nickname||U.name;const colorStyle=getNickColorStyle(U)||getUserColorStyle(U);if(colorStyle)nameEl.style.cssText=colorStyle;else nameEl.style.cssText='';if(U.level){const lb=$('homeLevelBadge');if(lb){lb.innerHTML=getLevelBadgeHTML(U.level);}const ht=$('homeTitle');if(ht){const ct=U.customTitle||U.currentTitle;ht.textContent=ct&&ct!=='Новичок'?ct:'🌱 Новичок';}const xb=$('homeXPBar');if(xb){const nxp=XP_PER_LEVEL_TABLE[U.level]||99999;const pxp=U.level>1?(XP_PER_LEVEL_TABLE[U.level-1]||0):0;xb.innerHTML=renderXPBar(U.xp||0,U.level,nxp,pxp);}}const avH=$('homeAvatar');if(avH){avH.style.borderRadius='50%';avH.style.overflow='hidden';if(U.profilePhoto){avH.innerHTML='<img src="'+esc(safeImgSrc(U.profilePhoto))+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%">';}else{avH.innerHTML='';const ic=getUserIcon(U);avH.textContent=ic||U.name.charAt(0).toUpperCase();}if(!U.profilePhoto&&U.profileColor){avH.style.background='linear-gradient(135deg,'+U.profileColor+','+U.profileColor+'cc)';}else if(!U.profilePhoto){avH.style.background='';}if(U.neonColor){avH.style.boxShadow='0 0 10px 2px '+U.neonColor;avH.style.borderColor=U.neonColor;}else{avH.style.boxShadow='';avH.style.borderColor='';}}}}
-function setBal(v){const el=$('balVal'),cur=parseInt(el.textContent.replace(/\s/g,''))||0,tar=v;if(cur===tar){el.textContent=moneyLang==='zh'?toChinese(tar):formatN(tar);return;}const dur=400,st=performance.now();(function step(now){const p=Math.min((now-st)/dur,1),e=1-Math.pow(1-p,3);const val=Math.round(cur+(tar-cur)*e);el.textContent=moneyLang==='zh'?toChinese(val):formatN(val);if(p<1)requestAnimationFrame(step);})(performance.now());}
+function refreshU(){if(!U)return;const f=users.find(u=>u.id===U.id);if(f){U=f;setBal(U.balance);const nameEl=$('uName');nameEl.textContent=U.nickname||U.name;const colorStyle=getNickColorStyle(U)||getUserColorStyle(U);if(colorStyle)nameEl.style.cssText=colorStyle;else nameEl.style.cssText='';if(U.level){const lb=$('homeLevelBadge');if(lb){lb.innerHTML=getLevelBadgeHTML(U.level);}const ht=$('homeTitle');if(ht){const ct=U.customTitle||U.currentTitle;ht.textContent=ct&&ct!=='Новичок'?ct:'🌱 Новичок';}const xb=$('homeXPBar');if(xb){xb.innerHTML=getXpDisplay(U);}}const avH=$('homeAvatar');if(avH){avH.style.borderRadius='50%';avH.style.overflow='hidden';if(U.profilePhoto){avH.innerHTML='<img src="'+esc(safeImgSrc(U.profilePhoto))+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%">';}else{avH.innerHTML='';const ic=getUserIcon(U);avH.textContent=ic||U.name.charAt(0).toUpperCase();}if(!U.profilePhoto&&U.profileColor){avH.style.background='linear-gradient(135deg,'+U.profileColor+','+U.profileColor+'cc)';}else if(!U.profilePhoto){avH.style.background='';}if(U.neonColor){avH.style.boxShadow='0 0 10px 2px '+U.neonColor;avH.style.borderColor=U.neonColor;}else{avH.style.boxShadow='';avH.style.borderColor='';}}}else{setBal(U.balance);}window._infBal=!!U.infiniteBalance;}
+function setBal(v){const el=$('balVal');if(!el)return;if(window._infBal||U?.infiniteBalance){el.innerHTML='<span class="bal-inf">∞</span>';return;}const cur=parseInt(el.textContent.replace(/\s/g,''))||0,tar=v;if(cur===tar){el.textContent=moneyLang==='zh'?toChinese(tar):formatN(tar);return;}const dur=400,st=performance.now();(function step(now){const p=Math.min((now-st)/dur,1),e=1-Math.pow(1-p,3);const val=Math.round(cur+(tar-cur)*e);el.textContent=moneyLang==='zh'?toChinese(val):formatN(val);if(p<1)requestAnimationFrame(step);})(performance.now());}
 function formatN(n){if(n==null||isNaN(n))return'0';return Math.round(n).toLocaleString('ru-RU');}
+function isInfBal(){return !!(window._infBal||U?.infiniteBalance);}
+function balDisplay(n){if(isInfBal())return'<span class="bal-inf" style="font-size:28px">∞</span>';return formatN(n)+' 分';}
 function safeText(val,fallback){if(val===null||val===undefined||val===''||(typeof val==='number'&&isNaN(val))||val===Infinity||val===-Infinity||String(val)==='[object Object]')return fallback||'—';return String(val);}
 
 // Filter users based on group permissions
@@ -14214,42 +14536,179 @@ function renderMessages(){
 }
 
 // --- Render Notifications ---
+let _hwReviewFilter='all';
+function renderHwReview(){
+    const wrap=$('hwReviewWrap');
+    if(!wrap)return;
+    if(!isAdmin){wrap.innerHTML='';return;}
+    const mainEl=document.querySelector('.layout .main');
+    if(mainEl&&curSec==='notifications'){mainEl.classList.add('main-wide');document.body.classList.add('sec-notifications');}
+    // Pull homework submissions from journal module state via window
+    const jdb=(window.Journal&&window.Journal.getData)?window.Journal.getData():null;
+    const subs=(jdb&&jdb.homeworkSubmissions)||window._hwSubs||[];
+    const hws=(jdb&&jdb.homework)||window._hwList||[];
+    const groups=(jdb&&jdb.groups)||[];
+    if(!subs.length&&!hws.length){
+        wrap.innerHTML='<div class="hw-item"><div class="hw-block-label">📝 Домашние задания</div><div style="color:var(--dim);font-size:13px">Ответы учеников появятся здесь после отправки ДЗ.</div></div>';
+        return;
+    }
+    // Enrich submissions
+    const items=subs.map(s=>{
+        const hw=hws.find(h=>h&&h.id===s.homeworkId)||null;
+        const grp=groups.find(g=>g&&g.id===(s.groupId||(hw&&hw.groupId)))||null;
+        let answers=[];
+        if(Array.isArray(s.answers)&&s.answers.length){
+            answers=s.answers.filter(a=>a&&(a.text!=null)).map(a=>({text:String(a.text),at:a.at||s.createdAt||''}));
+        }else if(s.answer){
+            answers=[{text:String(s.answer),at:s.createdAt||''}];
+        }
+        return {
+            id:s.id,
+            studentName:s.studentName||'—',
+            groupName:grp?grp.name:(s.groupName||'—'),
+            hwDate:s.hwDate||(hw&&hw.date)||'',
+            hwText:s.hwText||(hw&&hw.text)||'',
+            answer:s.answer||'',
+            answers,
+            status:s.status||'pending',
+            adminComment:s.adminComment||'',
+            createdAt:s.createdAt,
+            reviewedAt:s.reviewedAt
+        };
+    }).sort((a,b)=>{
+        const order={pending:0,rejected:1,approved:2};
+        const ao=order[a.status]??3,bo=order[b.status]??3;
+        if(ao!==bo)return ao-bo;
+        return String(b.createdAt||'').localeCompare(String(a.createdAt||''));
+    });
+    const filtered=items.filter(it=>{
+        if(_hwReviewFilter==='all')return true;
+        return it.status===_hwReviewFilter;
+    });
+    const counts={all:items.length,pending:items.filter(i=>i.status==='pending').length,approved:items.filter(i=>i.status==='approved').length,rejected:items.filter(i=>i.status==='rejected').length};
+    let html='';
+    html+='<div class="hw-review-head"><div class="hw-review-title">📝 Проверка домашних заданий</div>';
+    html+='<div class="hw-review-stats"><span>Всего: '+counts.all+'</span><span>⏳ '+counts.pending+'</span><span>✅ '+counts.approved+'</span><span>❌ '+counts.rejected+'</span></div></div>';
+    html+='<div class="hw-review-tabs">';
+    [['all','Все'],['pending','⏳ На проверке'],['approved','✅ Одобренные'],['rejected','❌ Отклонённые']].forEach(([k,label])=>{
+        html+='<button type="button" class="filt'+(_hwReviewFilter===k?' on':'')+'" onclick="setHwReviewFilter(\''+k+'\')">'+label+' ('+(counts[k]||0)+')</button>';
+    });
+    html+='</div>';
+    if(!filtered.length){
+        html+='<div class="hw-item"><div style="color:var(--dim);font-size:13px;text-align:center;padding:20px">Нет заданий в этой категории</div></div>';
+    }
+    filtered.forEach(it=>{
+        const stMap={pending:['pending','На проверке'],approved:['approved','Одобрено'],rejected:['rejected','Отказано']};
+        const st=stMap[it.status]||['pending',it.status];
+        const dateStr=it.hwDate?new Date(it.hwDate+'T12:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}):'';
+        const sentStr=it.createdAt?new Date(it.createdAt).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+        const revStr=it.reviewedAt?new Date(it.reviewedAt).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+        html+='<div class="hw-item '+it.status+'">';
+        html+='<div class="hw-item-head"><div class="hw-item-name">👤 '+esc(it.studentName)+'</div>';
+        html+='<div class="hw-badge '+st[0]+'">'+st[1]+'</div></div>';
+        html+='<div class="hw-item-meta">';
+        html+='<span>👥 '+esc(it.groupName)+'</span>';
+        if(dateStr)html+='<span>📅 Урок: '+esc(dateStr)+'</span>';
+        if(sentStr)html+='<span>📤 Отправлено: '+esc(sentStr)+'</span>';
+        if(revStr)html+='<span>🔍 Проверено: '+esc(revStr)+'</span>';
+        html+='</div>';
+        html+='<div class="hw-cols">';
+        html+='<div class="hw-block"><div class="hw-block-label">📋 Задание</div><div class="hw-block-body">'+esc(it.hwText||'—')+'</div></div>';
+        html+='<div class="hw-block"><div class="hw-block-label">✍️ Ответ ученика'+(it.answers.length>1?' ('+it.answers.length+')':'')+'</div><div class="hw-block-body answer">';
+        if(!it.answers.length){
+            html+='—';
+        }else if(it.answers.length===1){
+            html+=esc(it.answers[0].text||'—');
+        }else{
+            it.answers.forEach((a,idx)=>{
+                const atStr=a.at?new Date(a.at).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+                html+='<div class="hw-answer-item"><div class="hw-answer-at">Вариант '+(idx+1)+(atStr?' · '+esc(atStr):'')+'</div>'+esc(a.text||'—')+'</div>';
+            });
+        }
+        html+='</div></div>';
+        html+='</div>';
+        if(it.adminComment){
+            html+='<div class="hw-block"><div class="hw-block-label">💬 Комментарий проверяющего</div><div class="hw-block-body">'+esc(it.adminComment)+'</div></div>';
+        }
+        if(it.status==='pending'){
+            html+='<div class="hw-actions">';
+            html+='<textarea class="inp" id="hwRevCmt_'+esc(it.id)+'" rows="2" maxlength="1000" placeholder="Причина отказа / комментарий (обязателен при отказе)"></textarea>';
+            html+='<button type="button" class="btn btn-success" onclick="hwReviewSubmit(\''+esc(it.id)+'\',\'approved\')">✅ Одобрить</button>';
+            html+='<button type="button" class="btn btn-danger" onclick="hwReviewSubmit(\''+esc(it.id)+'\',\'rejected\')">❌ Отказать</button>';
+            html+='</div>';
+        }
+        html+='</div>';
+    });
+    wrap.innerHTML=html;
+}
+window.setHwReviewFilter=function(f){_hwReviewFilter=f||'all';renderHwReview();};
+window.renderHwReview=renderHwReview;
+window.hwReviewSubmit=function(id,status){
+    const cmtEl=$('hwRevCmt_'+id);
+    const comment=cmtEl?cmtEl.value.trim():'';
+    if(status==='rejected'&&!comment){
+        toast('e','Проверка','Укажите причину отказа');
+        if(cmtEl)cmtEl.focus();
+        return;
+    }
+    if(window.BP&&window.BP.homeworkReview){
+        window.BP.homeworkReview({submissionId:id,status,comment});
+    }else{
+        socket.emit('homework:review',{submissionId:id,status,comment});
+    }
+};
 function renderNotifications(){
     const cont=$('notifList');
+    // Ensure full-width layout is active for this section
+    const mainEl=document.querySelector('.layout .main');
+    if(mainEl&&curSec==='notifications'){mainEl.classList.add('main-wide');document.body.classList.add('sec-notifications');}
     if(isAdmin){
-        // Admin sees approval requests with approve/reject buttons
+        // Full-width homework review + approval requests
+        renderHwReview();
         const pending=approvalRequests.filter(r=>r.status==='pending').sort((a,b)=>b.createdAt-a.createdAt);
         const resolved=approvalRequests.filter(r=>r.status!=='pending').sort((a,b)=>(b.reviewedAt||b.createdAt)-(a.reviewedAt||a.createdAt));
-        if(!pending.length&&!resolved.length){cont.innerHTML='<div class="empty">Нет заявок на проверку</div>';return;}
         cont.innerHTML='';
+        if(pending.length||resolved.length){
+            const sep=document.createElement('div');
+            sep.style.cssText='font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin:18px 0 8px;font-weight:700';
+            sep.textContent='📋 Заявки на проверку';
+            cont.appendChild(sep);
+        }
+        if(!pending.length&&!resolved.length){/* homework wrap already shows content */}
         if(pending.length){
             const hdr=document.createElement('div');
-            hdr.style.cssText='font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--warning);margin:8px 0;font-weight:700';
+            hdr.style.cssText='font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--warning);margin:8px 0;font-weight:700';
             hdr.textContent='⏳ Ожидают проверки ('+pending.length+')';
             cont.appendChild(hdr);
             pending.forEach(r=>{
                 const el=document.createElement('div');
-                el.className='notif-item unread';
+                el.className='hw-item pending notif-item unread';
                 const typeIcon={purchase:'🛒',quest:'🎯',task:'📋',duel:'⚔️',coupon:'🎟️'}[r.type]||'📋';
                 const typeName={purchase:'Покупка',quest:'Квест',task:'Задание',duel:'Дуэль',coupon:'Купон'}[r.type]||'Заявка';
                 const desc=getApprovalDesc(r);
-                el.innerHTML=`<div style="display:flex;align-items:flex-start;gap:10px"><div style="font-size:20px;flex-shrink:0">${typeIcon}</div><div style="flex:1;min-width:0"><div class="ni-title">${esc(r.userName)} — ${esc(typeName)}</div><div class="ni-text">${esc(desc)}</div><div class="ni-time">${formatDate(r.createdAt)}</div><div style="display:flex;gap:6px;margin-top:8px"><button class="btn btn-success btn-sm" style="padding:6px 12px;font-size:11px" onclick="approveRequest('${r.id}')">✅ Одобрить</button><button class="btn btn-danger btn-sm" style="padding:6px 12px;font-size:11px" onclick="rejectRequest('${r.id}')">❌ Отказать</button></div></div></div>`;
+                const dateStr=r.createdAt?new Date(r.createdAt).toLocaleString('ru-RU',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+                el.innerHTML=`<div class="hw-item-head"><div class="hw-item-name">${typeIcon} ${esc(r.userName)} — ${esc(typeName)}</div><div class="hw-badge pending">На проверке</div></div>`+
+                    `<div class="hw-item-meta"><span>📤 ${esc(dateStr)}</span></div>`+
+                    `<div class="hw-block"><div class="hw-block-label">📋 Описание</div><div class="hw-block-body">${esc(desc)}</div></div>`+
+                    `<div class="hw-actions"><button type="button" class="btn btn-success" onclick="approveRequest('${r.id}')">✅ Одобрить</button><button type="button" class="btn btn-danger" onclick="rejectRequest('${r.id}')">❌ Отказать</button></div>`;
                 cont.appendChild(el);
             });
         }
         if(resolved.length){
             const hdr=document.createElement('div');
-            hdr.style.cssText='font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:16px 0 8px;font-weight:700';
+            hdr.style.cssText='font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:16px 0 8px;font-weight:700';
             hdr.textContent='Обработанные ('+resolved.length+')';
             cont.appendChild(hdr);
-            resolved.slice(0,20).forEach(r=>{
+            resolved.slice(0,50).forEach(r=>{
                 const el=document.createElement('div');
-                el.className='notif-item';
+                el.className='hw-item '+(r.status==='approved'?'approved':'rejected');
                 const typeIcon={purchase:'🛒',quest:'🎯',task:'📋',duel:'⚔️',coupon:'🎟️'}[r.type]||'📋';
-                const statusColor=r.status==='approved'?'var(--success)':'var(--error)';
                 const statusText=r.status==='approved'?'✅ Одобрено':'❌ Отказано';
                 const desc=getApprovalDesc(r);
-                el.innerHTML=`<div style="display:flex;align-items:flex-start;gap:10px"><div style="font-size:18px;flex-shrink:0">${typeIcon}</div><div style="flex:1;min-width:0"><div class="ni-title">${esc(r.userName)}</div><div class="ni-text">${esc(desc)}</div><div style="font-size:11px;color:${statusColor};margin-top:2px">${statusText}${r.adminComment?' · '+esc(r.adminComment):''}</div><div class="ni-time">${formatDate(r.reviewedAt||r.createdAt)}</div></div></div>`;
+                const dateStr=(r.reviewedAt||r.createdAt)?new Date(r.reviewedAt||r.createdAt).toLocaleString('ru-RU',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+                el.innerHTML=`<div class="hw-item-head"><div class="hw-item-name">${typeIcon} ${esc(r.userName)}</div><div class="hw-badge ${r.status==='approved'?'approved':'rejected'}">${statusText}</div></div>`+
+                    `<div class="hw-item-meta"><span>📤 ${esc(dateStr)}</span>${r.adminComment?'<span>💬 '+esc(r.adminComment)+'</span>':''}</div>`+
+                    `<div class="hw-block"><div class="hw-block-label">📋 Описание</div><div class="hw-block-body">${esc(desc)}</div></div>`;
                 cont.appendChild(el);
             });
         }
@@ -14266,24 +14725,29 @@ function renderNotifications(){
             cont.appendChild(hdr);
             myApprovalReqs.forEach(r=>{
                 const el=document.createElement('div');
-                el.className='notif-item'+(r.status==='pending'?' unread':'');
+                el.className='hw-item '+(r.status==='approved'?'approved':r.status==='rejected'?'rejected':'pending');
                 const typeIcon={purchase:'🛒',quest:'🎯',task:'📋',duel:'⚔️',coupon:'🎟️'}[r.type]||'📋';
-                const statusMap={pending:['⏳ Ожидает проверки','var(--warning)'],approved:['✅ Одобрено','var(--success)'],rejected:['❌ Отказано','var(--error)']};
-                const [statusText,statusColor]=statusMap[r.status]||[r.status,'var(--dim)'];
+                const statusMap={pending:['⏳ Ожидает проверки','pending'],approved:['✅ Одобрено','approved'],rejected:['❌ Отказано','rejected']};
+                const [statusText,statusCls]=statusMap[r.status]||[r.status,'pending'];
                 const desc=getApprovalDesc(r);
-                el.innerHTML=`<div style="display:flex;align-items:flex-start;gap:10px"><div style="font-size:18px;flex-shrink:0">${typeIcon}</div><div style="flex:1;min-width:0"><div class="ni-text">${esc(desc)}</div><div style="font-size:12px;color:${statusColor};margin-top:4px;font-weight:600">${statusText}</div>${r.adminComment?'<div style="font-size:11px;color:var(--dim);margin-top:2px">'+esc(r.adminComment)+'</div>':''}<div class="ni-time">${formatDate(r.createdAt)}</div></div></div>`;
+                el.innerHTML=`<div class="hw-item-head"><div class="hw-item-name">${typeIcon} ${esc(desc.split(' — ')[0]||'Заявка')}</div><div class="hw-badge ${statusCls}">${statusText}</div></div>`+
+                    `<div class="hw-block"><div class="hw-block-label">📋 Подробности</div><div class="hw-block-body">${esc(desc)}</div></div>`+
+                    (r.adminComment?`<div class="hw-block"><div class="hw-block-label">💬 Комментарий</div><div class="hw-block-body">${esc(r.adminComment)}</div></div>`:'')+
+                    `<div class="hw-item-meta"><span>📤 ${esc(formatDate(r.createdAt))}</span></div>`;
                 cont.appendChild(el);
             });
         }
         if(myNotifs.length){
             const hdr=document.createElement('div');
-            hdr.style.cssText='font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin:16px 0 8px;font-weight:700';
+            hdr.style.cssText='font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin:16px 0 8px;font-weight:700';
             hdr.textContent='Системные уведомления';
             cont.appendChild(hdr);
             myNotifs.forEach(n=>{
                 const el=document.createElement('div');
-                el.className='notif-item'+(n.read?'':' unread');
-                el.innerHTML=`<div class="ni-title">${esc(n.title)}</div><div class="ni-text">${esc(n.text)}</div><div class="ni-time">${formatDate(n.timestamp)}</div>`;
+                el.className='hw-item'+(n.read?'':' pending');
+                el.innerHTML=`<div class="hw-item-head"><div class="hw-item-name">${esc(n.title)}</div></div>`+
+                    `<div class="hw-block"><div class="hw-block-body">${esc(n.text)}</div></div>`+
+                    `<div class="hw-item-meta"><span>${esc(formatDate(n.timestamp))}</span></div>`;
                 el.onclick=()=>{if(!n.read)socket.emit('notifications:read',{notifId:n.id});};
                 cont.appendChild(el);
             });
@@ -14293,9 +14757,9 @@ function renderNotifications(){
 
 function getApprovalDesc(r){
     if(r.type==='purchase')return'Покупка: '+(r.data?.reason||'')+' ('+formatN(r.data?.amount||0)+' 分)';
-    if(r.type==='quest')return'Квест: '+(r.data?.questTitle||'')+(r.data?.result?' — '+r.data.result.substring(0,80):'');
-    if(r.type==='task')return'Задание: '+(r.data?.taskTitle||'')+(r.data?.result?' — '+r.data.result.substring(0,80):'');
-    if(r.type==='duel')return'Дуэль: '+(r.data?.duelTitle||'');
+    if(r.type==='quest')return'Квест: '+(r.data?.questTitle||'')+(r.data?.result?' — '+r.data.result:'');
+    if(r.type==='task')return'Задание: '+(r.data?.taskTitle||'')+(r.data?.result?' — '+r.data.result:'');
+    if(r.type==='duel')return'Дуэль: '+(r.data?.duelTitle||'')+(r.data?.result?' — '+r.data.result:'');
     if(r.type==='coupon')return'Купон: '+(r.data?.couponName||'');
     return'Заявка';
 }
@@ -14502,6 +14966,38 @@ window.doResetUDLevel=function(uid){
     toast('s','Админ','Уровень сброшен на автоматический');
     setTimeout(()=>showUD(uid),300);
 }
+// --- Infinite balance + self Level/XP (admin only) ---
+window.toggleInfiniteBalance=function(enabled){
+    if(!isAdmin){toast('e','Ошибка','Только администратор');return;}
+    socket.emit('admin:setInfiniteBalance',{enabled:!!enabled});
+};
+window.saveSelfStats=function(){
+    if(!isAdmin){toast('e','Ошибка','Только администратор');return;}
+    const payload={};
+    const lv=$('selfLevel')?.value; if(lv!=='')payload.level=parseInt(lv);
+    const xp=$('selfXP')?.value; if(xp!=='')payload.xp=parseInt(xp);
+    const disp=$('selfDisplay')?.value; if(disp!=null)payload.displayValue=disp;
+    const ml=$('selfMaxLevel')?.value; if(ml!=='')payload.maxLevel=parseInt(ml);
+    const mx=$('selfMaxXP')?.value; if(mx!=='')payload.maxXP=parseInt(mx);
+    socket.emit('admin:setSelfStats',payload);
+};
+window.fillSelfStats=function(){
+    if(!U)return;
+    const t=$('infBalToggle'); if(t)t.checked=!!U.infiniteBalance;
+    const lv=$('selfLevel'); if(lv)lv.value=(U.adminLevel||U.level||'');
+    const xp=$('selfXP'); if(xp)xp.value=(U.adminXP!=null?U.adminXP:(U.xp||''));
+    const d=$('selfDisplay'); if(d)d.value=U.adminDisplay||'';
+    const ml=$('selfMaxLevel'); if(ml)ml.value=U.maxLevel||'';
+    const mx=$('selfMaxXP'); if(mx)mx.value=U.maxXP||'';
+};
+socket.on('admin:selfStatsResult',function(d){
+    if(!d)return;
+    if(!d.ok){toast('e','Level/XP',d.error||'Ошибка');return;}
+    if(d.user){U=d.user;window._infBal=!!U.infiniteBalance;setBal(U.balance);refreshU();renderProfile();}
+    if(d.infiniteBalance!==undefined){window._infBal=!!d.infiniteBalance;if(U)U.infiniteBalance=!!d.infiniteBalance;setBal(U?.balance||0);}
+    toast('s','Админ','Настройки сохранены');
+    setTimeout(fillSelfStats,100);
+});
 window.showResetUDPIN=function(uid){
     const u=users.find(x=>x.id===uid);if(!u)return;
     const area=$('udEditArea');if(!area)return;
@@ -14532,26 +15028,29 @@ window.doCreateUser=function(){
     const displayName=($('cuDisplay').value||'').trim();
     const status=$('cuStatus').value||'active';
     if(!login){toast('e','Ошибка','Введите логин');return;}
-    if(!password||password.length<4){toast('e','Ошибка','Пароль: минимум 4 символа');return;}
-    if(pin&&!/^\d{4}$/.test(pin)){toast('e','Ошибка','PIN: ровно 4 цифры');return;}
+    if(!pin||!/^\d{4}$/.test(pin)){toast('e','Ошибка','PIN: ровно 4 цифры (обязательно)');return;}
+    if(password&&password.length<4){toast('e','Ошибка','Пароль: минимум 4 символа');return;}
     socket.emit('admin:createUser',{login,password,pin,displayName,status});
 };
 socket.on('admin:createUserResult',d=>{
     if(!d)return;
     if(!d.success){toast('e','Ошибка',d.message||'Не удалось создать');return;}
     const u=d.user||{};
-    const creds='Логин: '+u.login+'\nПароль: '+($('cuPassword')?$('cuPassword').value:'');
+    const pinVal=$('cuPin')?$('cuPin').value:'';
+    const pwVal=$('cuPassword')?$('cuPassword').value:'';
+    const creds='Логин: '+u.login+'\nPIN: '+pinVal;
     const res=$('cuResult');
     if(res){
         res.innerHTML='<div style="background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);border-radius:var(--r-sm);padding:12px;font-size:13px">'
             +'<div style="font-weight:700;color:#22c55e;margin-bottom:6px">✅ Аккаунт создан</div>'
             +'<div>Логин: <b>'+esc(u.login)+'</b></div>'
-            +'<div>Пароль: <b>'+esc($('cuPassword')?$('cuPassword').value:'')+'</b></div>'
+            +'<div>PIN: <b>'+esc(pinVal)+'</b></div>'
+            +(pwVal?'<div>Пароль: <b>'+esc(pwVal)+'</b></div>':'')
             +(u.displayName?'<div>Имя: '+esc(u.displayName)+'</div>':'')
             +'<button class="btn btn-ghost btn-sm mt-12" onclick="navigator.clipboard&&navigator.clipboard.writeText('+JSON.stringify(creds).replace(/"/g,'&quot;')+')">📋 Скопировать данные</button>'
             +'</div>';
     }
-    toast('s','Готово','Аккаунт «'+u.login+'» создан. Передайте пользователю логин и пароль.');
+    toast('s','Готово','Аккаунт «'+u.login+'» создан. Передайте пользователю логин и PIN.');
     if(status==='blocked'&&u.id){socket.emit('admin:blockUser',{targetId:u.id,mode:'standard',duration:'forever',reason:'Заблокирован при создании'});}
     renderAdminCards();
 });
@@ -14610,6 +15109,25 @@ window.quickUnblockUser=function(uid){
     socket.emit('admin:unblockUser',{targetId:uid});
     toast('s','Доступ','Пользователь «'+u.name+'» разблокирован');
 };
+
+socket.on('homework:reviewed',function(d){
+    if(!d)return;
+    if(d.ok){
+        toast('s','Проверка ДЗ',d.submission&&d.submission.status==='approved'?'Одобрено':'Отказано');
+        // Patch local journal state so UI persists until next journal:updated
+        try{
+            const jdb=(window.Journal&&window.Journal.getData)?window.Journal.getData():null;
+            if(jdb&&Array.isArray(jdb.homeworkSubmissions)&&d.submission){
+                const i=jdb.homeworkSubmissions.findIndex(s=>s&&s.id===d.submission.id);
+                if(i>=0)jdb.homeworkSubmissions[i]=Object.assign({},jdb.homeworkSubmissions[i],d.submission);
+            }
+        }catch(e){}
+        if(typeof renderHwReview==='function')renderHwReview();
+        if(typeof updateApprovalBadge==='function')updateApprovalBadge();
+        if(typeof renderNotifications==='function'&&curSec==='notifications')renderNotifications();
+    }
+    else toast('e','Проверка ДЗ',d.error||'Ошибка');
+});
 
 // --- Admin: account requests ---
 let _accReqOpen=false;
@@ -14695,7 +15213,11 @@ function renderProfile(){
     const title=customTitle&&customTitle!=='Новичок'?customTitle:'Новичок';
     $('profRole').textContent=isAdmin?(U.name+' 老师 🦁'):('🌱 '+title);
     if(colorStyle)$('profRole').style.cssText=colorStyle;else $('profRole').style.cssText='';
-    $('profBal').textContent=formatN(U.balance);
+    const profBalEl=$('profBal');
+    if(profBalEl){
+        if(isInfBal()){profBalEl.innerHTML='<span class="prof-bal-inf">∞</span>';}
+        else{profBalEl.textContent=formatN(U.balance)+' 分';}
+    }
     $('profTx').textContent=hist.filter(t=>t.userId===U.id||t.toId===U.id||t.fromId===U.id).length;
     $('profReg').textContent=new Date(U.createdAt).toLocaleDateString('ru-RU',{day:'numeric',month:'short'});
     $('profStatus').textContent=isAdmin?'老师 🦁':'Юзер';
@@ -14978,7 +15500,7 @@ window.showTransfer=function(){trSel=null;trAmt=0;trOnlineFilter='online';$('trS
 window.debounceTrList=function(){debounce('tr',renderTrList);};
 function renderTrList(){const cont=$('trUL');const q=($('trSearch')?.value||'').toLowerCase();let list=getVisibleUsers();if(q)list=list.filter(u=>u.name.toLowerCase().includes(q));if(!q){if(trOnlineFilter==='online')list=list.filter(u=>u.online);else list=list.filter(u=>!u.online);}list.sort((a,b)=>(b.online?1:0)-(a.online?1:0));cont.innerHTML='';if(!list.length){cont.innerHTML='<div class="empty">'+(trOnlineFilter==='online'?'Нет пользователей онлайн':'Нет пользователей офлайн')+'</div>';return;}list.forEach(u=>{const el=document.createElement('div');el.className='uitem'+(trSel===u.id?' sel':'');el.dataset.uid=u.id;const icon=getUserIcon(u);const avHtml=icon?icon:esc(u.name.charAt(0).toUpperCase());const colorStyle=getUserColorStyle(u);const titleBadge=getUserTitleBadge(u);el.innerHTML=`<div class="av" ${colorStyle?'style="'+colorStyle+'"':''}>${avHtml}</div><div class="un" ${colorStyle?'style="'+colorStyle+'"':''}>${esc(u.name)}${titleBadge}</div>`;el.onclick=()=>{trSel=u.id;cont.querySelectorAll('.uitem').forEach(i=>i.classList.remove('sel'));el.classList.add('sel');};cont.appendChild(el);});}
 window.setTrFilter=function(mode){trOnlineFilter=mode;$('trFilterOnline').classList.toggle('on',mode==='online');$('trFilterOffline').classList.toggle('on',mode==='offline');renderTrList();};
-window.showTrConfirm=function(){if(!trSel){toast('e','Ошибка','Выберите получателя');return;}const amt=parseInt($('trAmt').value);if(!amt||amt<=0){toast('e','Ошибка','Введите сумму');return;}if(amt>(U?.balance||0)){toast('e','Недостаточно средств','Баланс: '+formatN(U?.balance||0)+' 分');return;}trAmt=amt;const u=users.find(x=>x.id===trSel);$('cfName').textContent=u?.name||'';$('cfAmt').textContent=formatN(amt)+' 分';const msg=$('trMsg').value.trim();$('cfMsg').textContent=msg?'"'+msg+'"':'';$('trS1').classList.add('hidden');$('trS2').classList.remove('hidden');lucide.createIcons();};
+window.showTrConfirm=function(){if(!trSel){toast('e','Ошибка','Выберите получателя');return;}const amt=parseInt($('trAmt').value);if(!amt||amt<=0){toast('e','Ошибка','Введите сумму');return;}if(amt>(U?.balance||0)&&!isInfBal()){toast('e','Недостаточно средств','Баланс: '+formatN(U?.balance||0)+' 分');return;}trAmt=amt;const u=users.find(x=>x.id===trSel);$('cfName').textContent=u?.name||'';$('cfAmt').textContent=formatN(amt)+' 分';const msg=$('trMsg').value.trim();$('cfMsg').textContent=msg?'"'+msg+'"':'';$('trS1').classList.add('hidden');$('trS2').classList.remove('hidden');lucide.createIcons();};
 window.doTransfer=function(){$('trSendBtn').disabled=true;socket.emit('bank:send',{recipientId:trSel,amount:trAmt,message:$('trMsg').value.trim()});};
 
 // --- Purchase (new system - functions defined at end of file) ---
@@ -15010,6 +15532,7 @@ function renderAdmin(){
     $('aTx').textContent=hist.length;$('aFines').textContent=hist.filter(t=>t.type==='fine').length;$('aAdds').textContent=hist.filter(t=>t.type==='add'||t.type==='start_capital').length;
     renderAdminCards();renderAdminHist();renderAdminGroups();renderGroupPerms();renderAdminInvestmentControls();
     updateCouponNotifBadge();
+    if(window.fillSelfStats)fillSelfStats();
 }
 
 function renderAdminCards(){
@@ -15513,7 +16036,7 @@ window.switchInvestTab=function(tabId){
 window.doInvest=function(){
     const amt=parseInt($('invAmt')?.value);
     if(!amt||amt<=0){toast('e','Ошибка','Введите сумму');return;}
-    if(amt>(U?.balance||0)){toast('e','Недостаточно средств','Баланс: '+formatN(U?.balance||0)+' 分');return;}
+    if(amt>(U?.balance||0)&&!isInfBal()){toast('e','Недостаточно средств','Баланс: '+formatN(U?.balance||0)+' 分');return;}
     socket.emit('user:invest',{amount:amt,type:currentInvestTab});
 };
 window.sellInvestment=function(investmentId){
@@ -15988,7 +16511,7 @@ window.doSendMsg=function(){
     const text=(window.sanitizeUserTextNoUrl?sanitizeUserTextNoUrl(raw,500):raw);
     if(text===null){toast('e','Запрещено','Ссылки и вложения запрещены. Уберите URL из сообщения.');return;}
     if(!text){toast('e','Ошибка','Введите сообщение');return;}
-    if((U?.balance||0)<10){toast('e','Недостаточно средств','Отправка сообщения стоит 10 分. Ваш баланс: '+formatN(U?.balance||0)+' 分');return;}
+    if((U?.balance||0)<10&&!isInfBal()){toast('e','Недостаточно средств','Отправка сообщения стоит 10 分. Ваш баланс: '+formatN(U?.balance||0)+' 分');return;}
     socket.emit('message:send',{toId:sel.dataset.uid,text});
     cm('mNewMsg');toast('s','Отправлено','Сообщение отправлено (−10 分)');
 };
@@ -16768,6 +17291,25 @@ function getLevelClass(level){
 function getLevelBadgeHTML(level,name){
     const cls=getLevelClass(level);
     return`<span class="level-badge ${cls}">⭐${level}</span>`;
+}
+function getXpDisplay(u){
+    const lvl=(u&&u.adminLevel)||(u&&u.level)||1;
+    const xp=(u&&u.adminXP!=null)?u.adminXP:((u&&u.xp)||0);
+    const maxLvl=(u&&u.maxLevel)||9999;
+    const maxXP=(u&&u.maxXP)||1000000000;
+    const custom=u&&u.adminDisplay;
+    if(custom)return`<div class="xp-bar"><div class="xp-bar-fill" style="width:100%"></div></div><div class="xp-info"><span>Lvl ${lvl}</span><span>${esc(custom)}</span></div>`;
+    let nextLvlXP=XP_PER_LEVEL_TABLE[lvl];
+    let prevLvlXP=lvl>1?(XP_PER_LEVEL_TABLE[lvl-1]||0):0;
+    if(nextLvlXP==null){
+        const last=XP_PER_LEVEL_TABLE[XP_PER_LEVEL_TABLE.length-1];
+        const step=50000;
+        nextLvlXP=last+Math.max(0,lvl-(XP_PER_LEVEL_TABLE.length-1))*step;
+        prevLvlXP=last+Math.max(0,lvl-XP_PER_LEVEL_TABLE.length)*step;
+    }
+    if(maxXP&&nextLvlXP>maxXP)nextLvlXP=maxXP;
+    if(maxLvl&&lvl>=maxLvl){return`<div class="xp-bar"><div class="xp-bar-fill" style="width:100%"></div></div><div class="xp-info"><span>Lvl ${lvl}</span><span>MAX</span></div>`;}
+    return renderXPBar(xp,lvl,nextLvlXP,prevLvlXP);
 }
 function getUserTitleBadge(u){
     if(!u)return'';
@@ -17940,23 +18482,212 @@ window.showA=function(type){
     _origShowA(type);
 };
 
+// --- Global Mode (force all users into one module) ---
+const GM_SECTIONS={
+    coupons:'🎟️ Купоны',mafia:'🎭 Мафия',quests:'🎯 Квесты',tasks:'📋 Задания',duels:'⚔️ Дуэли',
+    homework:'📝 ДЗ',journal:'📖 Журнал',mybanks:'🏦 Мои банки',battlepass:'🐉 Сезонный путь',
+    myqr:'📱 Мой QR',qrterminal:'📷 QR-Терминал',purchases:'🛒 Покупки',history:'📜 История',
+    messages:'💬 Сообщения',notifications:'🔔 Уведомления',users:'👥 Пользователи',profile:'👤 Профиль',home:'🏠 Главная',diary:'📔 Дневник',
+    dictionary:'📖 Словарь',
+    croc:'🐊 Крокодил',bunker:'🚀 Бункер'
+};
+let globalModeState={enabled:false,section:null,updatedAt:null};
+let _gmTempExitUntil=0;
+let _gmTimer=null;
+
+function applyGlobalModeState(st){
+    if(!st||typeof st!=='object')return;
+    globalModeState={enabled:!!st.enabled,section:st.section||null,updatedAt:st.updatedAt||null};
+    try{localStorage.setItem('pb_global_mode',JSON.stringify(globalModeState));}catch(e){}
+    updateGlobalModeBanner();
+    // во время временного выхода не выдёргиваем пользователя обратно
+    if(Date.now()>=_gmTempExitUntil)enforceGlobalMode(true);
+    else updateGlobalModeBanner();
+    if(isAdmin&&typeof renderGlobalModeStatus==='function')renderGlobalModeStatus();
+}
+function updateGlobalModeBanner(){
+    const b=$('globalModeBanner');
+    if(!b)return;
+    const active=globalModeState.enabled&&!isAdmin;
+    if(!active){
+        b.style.display='none';
+        document.body.style.paddingTop='';
+        document.querySelectorAll('.nav-i,.mob-nav .mi,.bnav-item,.sm-item').forEach(n=>{n.style.display='';});
+        return;
+    }
+    const name=GM_SECTIONS[globalModeState.section]||globalModeState.section||'модуль';
+    const outside=curSec!==globalModeState.section;
+    const txt=$('globalModeBannerText');
+    if(txt){
+        if(outside&&Date.now()<_gmTempExitUntil){
+            const left=Math.max(0,Math.ceil((_gmTempExitUntil-Date.now())/1000));
+            txt.textContent='🌐 Режим «'+name+'» · возврат через '+left+'с';
+        }else if(outside){
+            txt.textContent='🌐 Глобальный режим: '+name+' · требуется возврат';
+        }else{
+            txt.textContent='🌐 Глобальный режим: '+name;
+        }
+    }
+    const back=$('globalModeBackBtn');
+    if(back)back.style.display=outside?'':'none';
+    const exitBtn=$('globalModeExitBtn');
+    if(exitBtn)exitBtn.style.display=outside?'none':'';
+    b.style.display='flex';
+    document.body.style.paddingTop='48px';
+    // Hide other nav entries — only forced module stays visible
+    const target=globalModeState.section;
+    document.querySelectorAll('.nav-i,.mob-nav .mi,.bnav-item,.sm-item').forEach(n=>{
+        const sec=n.dataset&&n.dataset.s;
+        if(!sec){n.style.display='';return;}
+        n.style.display=(sec===target||sec==='admin')?'':'none';
+    });
+}
+function enforceGlobalMode(force){
+    if(!globalModeState.enabled||isAdmin||!globalModeState.section)return;
+    const target=globalModeState.section;
+    const outside=curSec!==target;
+    if(!outside){updateGlobalModeBanner();return;}
+    // Temporary exit window: allow brief leave, then auto-return
+    if(Date.now()<_gmTempExitUntil&&!force){
+        updateGlobalModeBanner();
+        return;
+    }
+    if(force||Date.now()>=_gmTempExitUntil){
+        _gmTempExitUntil=0;
+        if(curSec!==target&&typeof go==='function'){
+            go(target);
+        }
+        updateGlobalModeBanner();
+    }
+}
+window.globalModeReturnNow=function(){
+    _gmTempExitUntil=0;
+    if(globalModeState.section&&typeof go==='function')go(globalModeState.section);
+    updateGlobalModeBanner();
+};
+window.globalModeTempExit=function(){
+    if(!globalModeState.enabled||isAdmin)return;
+    _gmTempExitUntil=Date.now()+20000;
+    toast('i','Глобальный режим','Временный выход на 20 секунд. Режим остаётся активным.');
+    updateGlobalModeBanner();
+};
+window.globalModeConfirmEnable=function(){
+    const sec=$('gmSection')?$('gmSection').value:null;
+    if(!sec){toast('e','Глобальный режим','Выберите модуль');return;}
+    const name=GM_SECTIONS[sec]||sec;
+    showConfirm('Включить глобальный режим?','Все пользователи будут перенаправлены в «'+name+'». Администратор сохранит доступ.',function(){
+        socket.emit('admin:globalMode:set',{enabled:true,section:sec});
+    });
+};
+window.globalModeConfirmDisable=function(){
+    showConfirm('Выключить глобальный режим?','Пользователи снова получат свободный доступ ко всем разделам.',function(){
+        socket.emit('admin:globalMode:set',{enabled:false,section:null});
+    });
+};
+window.renderGlobalModeStatus=function(){
+    const el=$('gmStatus');
+    if(!el)return;
+    if(globalModeState.enabled&&globalModeState.section){
+        const name=GM_SECTIONS[globalModeState.section]||globalModeState.section;
+        el.textContent='🟢 Активен — «'+name+'»';
+        el.style.color='#22c55e';
+        el.style.borderColor='rgba(34,197,94,.4)';
+        if($('gmSection'))$('gmSection').value=globalModeState.section;
+    }else{
+        el.textContent='⚪ Выключен';
+        el.style.color='var(--dim)';
+        el.style.borderColor='var(--border)';
+    }
+};
+// Extend showA for global mode modal
+const _origShowAGM=window.showA;
+window.showA=function(type){
+    if(type==='globalMode'){
+        socket.emit('globalMode:get');
+        renderGlobalModeStatus();
+        openModal('mGlobalMode');
+        return;
+    }
+    _origShowAGM(type);
+};
+// Socket + sync
+socket.on('globalMode:changed',function(st){applyGlobalModeState(st);});
+socket.on('globalMode:state',function(st){applyGlobalModeState(st);});
+socket.on('globalMode:setResult',function(d){
+    if(!d)return;
+    if(d.ok){
+        toast('s','Глобальный режим',d.globalMode&&d.globalMode.enabled?('Активен: '+(GM_SECTIONS[d.globalMode.section]||d.globalMode.section)):'Выключен');
+        if(d.globalMode)applyGlobalModeState(d.globalMode);
+        cm('mGlobalMode');
+    }else toast('e','Глобальный режим',d.error||'Ошибка');
+});
+// Pull state + periodic re-check (returns temp-exited users)
+socket.emit('globalMode:get');
+try{const cached=localStorage.getItem('pb_global_mode');if(cached)applyGlobalModeState(JSON.parse(cached));}catch(e){}
+_gmTimer=setInterval(function(){
+    if(globalModeState.enabled&&!isAdmin){
+        if(Date.now()>=_gmTempExitUntil)enforceGlobalMode(true);
+        else updateGlobalModeBanner();
+    }
+},2000);
+// Also re-request from server periodically
+setInterval(function(){try{socket.emit('globalMode:get');}catch(e){}},30000);
+
 // Override go() to handle new sections
 const _origGo2=window.go;
 window.go=function(s){
+    // Global mode: lock non-admin users into forced section (кроме явного закрытия словаря)
+    if(!window._dictClosing&&globalModeState&&globalModeState.enabled&&!isAdmin&&globalModeState.section&&s!==globalModeState.section){
+        if(Date.now()>=_gmTempExitUntil){
+            toast('w','Глобальный режим','Доступен только раздел «'+(GM_SECTIONS[globalModeState.section]||globalModeState.section)+'»');
+            s=globalModeState.section;
+        }
+        // during temp exit allow navigation; timer will pull back
+    }
     // Journal is admin-only; block before any section is shown
     if(s==='journal'){/* journal is available from main menu */}
     _origGo2(s);
     if(s==='quests'){socket.emit('quest:getList');}
     if(s==='tasks'){socket.emit('task:getList');}
     if(s==='duels'){socket.emit('duel:getList');}
-    if(s==='notifications'){socket.emit('approval:getList');}
+    if(s==='notifications'){
+        socket.emit('approval:getList');
+        socket.emit('journal:get');
+        const mainEl=document.querySelector('.layout .main');
+        if(mainEl){
+            mainEl.classList.add('main-wide');
+            mainEl.style.maxWidth='none';
+            mainEl.style.width='100%';
+            mainEl.style.margin='0';
+            mainEl.style.flex='1 1 auto';
+        }
+        document.body.classList.add('sec-notifications');
+    }
     if(s==='battlepass'){requestBattlePass();}
     if(s==='myqr'){generateMyQRPage();}
     if(s==='qrterminal'){socket.emit('qr:generateData');socket.emit('qr:getUsers');socket.emit('qr:getHistory');generateMyQR();}
     if(s==='mybanks'){currentBankView=null;$('bankListView').classList.remove('hidden');$('bankDetailView').classList.add('hidden');socket.emit('bank:getAll');socket.emit('bank:getDeposits');socket.emit('bank:getHistory');renderMyBanks();}
+    if(s==='homework'){if(window.Journal&&window.Journal.renderHomework)window.Journal.renderHomework();}
+    if(s==='dictionary'){
+        document.body.classList.add('dict-fullscreen');
+        const fr=$('dictFrame');
+        if(fr&&!fr.getAttribute('src'))fr.setAttribute('src',fr.getAttribute('data-src')||'/dictionary');
+    }else{
+        document.body.classList.remove('dict-fullscreen');
+    }
+    if(s==='notifications'){if(window.Journal&&window.Journal.reload)window.Journal.reload();if(typeof renderHwReview==='function')renderHwReview();if(typeof updateApprovalBadge==='function')updateApprovalBadge();}
     if(s==='tests'){renderTestResults();}
     if(s==='adminqr'){renderAdminQrCodes();}
     if(s==='mafia'){if(window.Mafia&&window.Mafia.onNavigate)window.Mafia.onNavigate(s);}
+    if(s==='croc'||s==='bunker'){
+        const pr=document.getElementById('partyRoot');
+        const host=document.getElementById(s==='bunker'?'secBunker':'secCroc');
+        if(pr&&host&&pr.parentNode!==host)host.appendChild(pr);
+        if(window.Party){
+            if(window.Party.setMode)window.Party.setMode(s==='bunker'?'bunker':'croc');
+            if(window.Party.onNavigate)window.Party.onNavigate(s);
+        }
+    }
     // Bottom nav highlighting
     document.querySelectorAll('.mob-bottom-nav .bnav-item').forEach(n=>n.classList.toggle('on',n.dataset.s===s));
     // Show admin QR nav for admins
@@ -17984,9 +18715,7 @@ renderProfile=function(){
     if(statsEl&&statsEl.parentNode){
         let xpBar=document.getElementById('profXPBar');
         if(!xpBar){xpBar=document.createElement('div');xpBar.id='profXPBar';xpBar.style.marginTop='12px';statsEl.parentNode.insertBefore(xpBar,statsEl.nextSibling);}
-        const nextLvlXP=XP_PER_LEVEL_TABLE[U.level]||99999;
-        const prevLvlXP=U.level>1?(XP_PER_LEVEL_TABLE[U.level-1]||0):0;
-        xpBar.innerHTML=renderXPBar(userXP.xp||U.xp||0,userXP.level||U.level||1,nextLvlXP,prevLvlXP);
+        xpBar.innerHTML=getXpDisplay(U);
     }
 };
 
@@ -20756,11 +21485,21 @@ window.BP={
     journalGet:function(){try{if(socket&&socket.emit)socket.emit('journal:get');}catch(e){}},
     journalSave:function(data){try{if(socket&&socket.emit)socket.emit('journal:save',data);}catch(e){}},
     journalCredit:function(data){try{if(socket&&socket.emit)socket.emit('journal:credit',data);}catch(e){}},
+    homeworkSave:function(data){try{if(socket&&socket.emit)socket.emit('homework:save',data);}catch(e){}},
+    homeworkDelete:function(data){try{if(socket&&socket.emit)socket.emit('homework:delete',data);}catch(e){}},
+    homeworkSubmit:function(data){try{if(socket&&socket.emit)socket.emit('homework:submit',data);}catch(e){}},
+    homeworkReview:function(data){try{if(socket&&socket.emit)socket.emit('homework:review',data);}catch(e){}},
+    onHomeworkSaved:function(cb){try{if(socket&&socket.on)socket.on('homework:saved',cb);}catch(e){}},
+    onHomeworkDeleted:function(cb){try{if(socket&&socket.on)socket.on('homework:deleted',cb);}catch(e){}},
+    onHomeworkSubmitted:function(cb){try{if(socket&&socket.on)socket.on('homework:submitted',cb);}catch(e){}},
+    onHomeworkReviewed:function(cb){try{if(socket&&socket.on)socket.on('homework:reviewed',cb);}catch(e){}},
     onJournalUpdate:function(cb){try{if(socket&&socket.on)socket.on('journal:updated',cb);}catch(e){}},
     onJournalSaved:function(cb){try{if(socket&&socket.on)socket.on('journal:saved',cb);}catch(e){}},
     onJournalCredit:function(cb){try{if(socket&&socket.on)socket.on('journal:creditResult',cb);}catch(e){}},
     mafiaEmit:function(ev,data){try{if(socket&&socket.emit)socket.emit(ev,data);}catch(e){}},
-    onMafia:function(ev,cb){try{if(socket&&socket.on)socket.on(ev,cb);}catch(e){}}
+    onMafia:function(ev,cb){try{if(socket&&socket.on)socket.on(ev,cb);}catch(e){}},
+    partyEmit:function(ev,data){try{if(socket&&socket.emit)socket.emit(ev,data);}catch(e){}},
+    onParty:function(ev,cb){try{if(socket&&socket.on)socket.on(ev,cb);}catch(e){}}
 };
 if(window.Journal&&window.Journal.init)window.Journal.init(window.BP);
 })();
@@ -20768,6 +21507,7 @@ if(window.Journal&&window.Journal.init)window.Journal.init(window.BP);
 
 <script src="journal.js"></script>
 <script src="mafia.js"></script>
+<script src="party.js"></script>
 <script src="security-panel.js"></script>
 <script>
 // Journal helpers bound after journal.js loads
@@ -20775,10 +21515,21 @@ function openJournalSettings(){
     if(window.Journal&&window.Journal.openSettings)window.Journal.openSettings();
 }
 document.addEventListener('DOMContentLoaded',function(){
-    if(window.Journal&&window.Journal.init&&window.BP)window.Journal.init(window.BP);
-    if(window.Mafia&&window.Mafia.init&&window.BP)window.Mafia.init(window.BP);
+    // Кнопки словаря — до init, чтобы не потеряться при ошибке модулей
+    try{
+        const dictClose=$('dictClose');
+        if(dictClose){
+            dictClose.onclick=function(e){if(e){e.preventDefault();e.stopPropagation();}return window.closeDictionary();};
+            dictClose.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();window.closeDictionary();},true);
+        }
+        const dictReload=$('dictReload');
+        if(dictReload)dictReload.onclick=function(){return window.reloadDictionary();};
+    }catch(e){}
+    try{ if(window.Journal&&window.Journal.init&&window.BP)window.Journal.init(window.BP); }catch(e){}
+    try{ if(window.Mafia&&window.Mafia.init&&window.BP)window.Mafia.init(window.BP); }catch(e){}
+    try{ if(window.Party&&window.Party.init&&window.BP)window.Party.init(window.BP); }catch(e){}
     // Highlight bottom nav diary by default on mobile when shown
-    if(window.Journal&&window.Journal.reload)window.Journal.reload();
+    try{ if(window.Journal&&window.Journal.reload)window.Journal.reload(); }catch(e){}
 });
 </script>
 

@@ -14,7 +14,7 @@
     };
 
     var emptyDb = function () {
-        return { groups: [], students: [], records: [], settings: { reward: 300 } };
+        return { groups: [], students: [], records: [], settings: { reward: 300 }, homework: [], homeworkSubmissions: [] };
     };
 
     /* ---------- утилиты (из исходного журнала) ---------- */
@@ -149,7 +149,9 @@
                     groups: raw.groups,
                     students: raw.students,
                     records: raw.records,
-                    settings: Object.assign({ reward: 300 }, raw.settings || {})
+                    settings: Object.assign({ reward: 300 }, raw.settings || {}),
+                    homework: Array.isArray(raw.homework) ? raw.homework : [],
+                    homeworkSubmissions: Array.isArray(raw.homeworkSubmissions) ? raw.homeworkSubmissions : []
                 };
                 var m = migrate(merged);
                 if (m.changed) {
@@ -207,11 +209,13 @@
         if (Array.isArray(data.groups)) next.groups = data.groups;
         if (Array.isArray(data.students)) next.students = data.students;
         if (Array.isArray(data.records)) next.records = data.records;
+        if (Array.isArray(data.homework)) next.homework = data.homework;
+        if (Array.isArray(data.homeworkSubmissions)) next.homeworkSubmissions = data.homeworkSubmissions;
         if (data.settings && typeof data.settings === 'object') {
             next.settings = Object.assign({ reward: 300 }, data.settings);
         }
-        var serverEmpty = !next.groups.length && !next.students.length && !next.records.length;
-        var localHas = db.groups.length || db.students.length || db.records.length;
+        var serverEmpty = !next.groups.length && !next.students.length && !next.records.length && !next.homework.length;
+        var localHas = db.groups.length || db.students.length || db.records.length || db.homework.length;
         // Миграция: на сервере пусто, а в localStorage есть данные — публикуем их (только админ).
         if (serverEmpty && localHas && isAdminNow()) {
             try {
@@ -243,6 +247,10 @@
     var draft = {};
     var message = '';
     var diaryDate = TODAY();
+    var hwGroupId = '';
+    var hwDate = TODAY();
+    var hwStudentId = '';
+    var hwEditId = '';
 
     /* ---------- связь учеников с аккаунтами ---------- */
     function findStudentForUser(u) {
@@ -270,6 +278,452 @@
     }
 
     /* ============================================================
+       ДОМАШНЕЕ ЗАДАНИЕ — модель (текущее = последнее опубликованное)
+       ============================================================ */
+    function hwSortAsc(a, b) {
+        var da = String((a && a.date) || '');
+        var db_ = String((b && b.date) || '');
+        if (da !== db_) return da < db_ ? -1 : 1;
+        var ca = String((a && a.createdAt) || '');
+        var cb = String((b && b.createdAt) || '');
+        return ca < cb ? -1 : ca > cb ? 1 : 0;
+    }
+
+    function hwOfGroup(gid, studentId) {
+        return (db.homework || []).filter(function (h) {
+            if (!h || h.groupId !== gid) return false;
+            if (studentId) return !h.studentId || h.studentId === studentId;
+            return true;
+        }).sort(hwSortAsc);
+    }
+
+    function hwForStudent(s) {
+        if (!s) return [];
+        return (db.homework || []).filter(function (h) {
+            if (!h) return false;
+            if (h.studentId && s.id) return h.studentId === s.id;
+            return !h.studentId && s.groupId && h.groupId === s.groupId;
+        }).sort(hwSortAsc);
+    }
+
+    // Последнее опубликованное (не зависит от «сегодня»)
+    function currentHw(list) {
+        if (!list || !list.length) return null;
+        return list[list.length - 1];
+    }
+
+    function currentHwForStudent(s) {
+        if (!s) return [];
+        var out = [];
+        var indiv = (db.homework || []).filter(function (h) { return h && h.studentId && s.id && h.studentId === s.id; }).sort(hwSortAsc);
+        var group = (db.homework || []).filter(function (h) { return h && !h.studentId && s.groupId && h.groupId === s.groupId; }).sort(hwSortAsc);
+        var ci = currentHw(indiv);
+        var cg = currentHw(group);
+        if (ci) out.push(ci);
+        if (cg) out.push(cg);
+        // если оба — порядок: более свежая публикация первой
+        out.sort(function (a, b) {
+            var ka = String(a.createdAt || a.date || '');
+            var kb = String(b.createdAt || b.date || '');
+            return kb.localeCompare(ka);
+        });
+        return out;
+    }
+
+    // Задание, актуальное в конкретную дату (период действия)
+    function hwActiveOn(list, day) {
+        if (!list || !list.length) return null;
+        var fit = list.filter(function (h) { return h && String(h.date || '') <= day; });
+        if (fit.length) return fit[fit.length - 1];
+        return null;
+    }
+
+    function hwActiveOnForStudent(s, day) {
+        if (!s) return [];
+        var out = [];
+        var indiv = (db.homework || []).filter(function (h) { return h && h.studentId && s.id && h.studentId === s.id; }).sort(hwSortAsc);
+        var group = (db.homework || []).filter(function (h) { return h && !h.studentId && s.groupId && h.groupId === s.groupId; }).sort(hwSortAsc);
+        var ai = hwActiveOn(indiv, day);
+        var ag = hwActiveOn(group, day);
+        if (ai) out.push(ai);
+        if (ag) out.push(ag);
+        return out;
+    }
+
+    // Текст задания: нумерация / списки / переносы строк
+    function formatHwText(text, autoNumber) {
+        var lines = String(text == null ? '' : text).split(/\r?\n/);
+        var html = '';
+        var openList = false;
+        var autoN = 0;
+        function closeList() {
+            if (openList) { html += '</div>'; openList = false; }
+        }
+        lines.forEach(function (raw) {
+            var t = String(raw || '').trim();
+            if (!t) { closeList(); return; }
+            var num = t.match(/^(\d{1,3})[.)]\s+(.*)$/);
+            var bullet = t.match(/^[-•*]\s+(.*)$/);
+            if (num || bullet || autoNumber) {
+                if (!openList) { html += '<div class="hw-steps">'; openList = true; }
+                var nLabel, body;
+                if (num) { nLabel = esc(num[1]); body = esc(num[2]); }
+                else if (bullet) { nLabel = '•'; body = esc(bullet[1]); }
+                else { autoN += 1; nLabel = String(autoN); body = esc(t); }
+                html += '<div class="hw-step"><span class="hw-step-n">' + nLabel + '</span><span class="hw-step-t">' + body + '</span></div>';
+            } else {
+                closeList();
+                html += '<div class="hw-line">' + esc(t) + '</div>';
+            }
+        });
+        closeList();
+        return html || '<div class="hw-line">—</div>';
+    }
+
+    function hwCardHtml(h, opts) {
+        opts = opts || {};
+        var edited = h && (h.editedAt || (h.originalText != null && h.originalText !== h.text));
+        var html = '<div class="hw-card' + (opts.current ? ' hw-card-current' : '') + '">';
+        html += '<div class="hw-card-head">';
+        html += '<div class="hw-card-badge' + (opts.current ? ' on' : '') + '">' +
+            (opts.current ? 'Текущее задание' : 'История') + '</div>';
+        if (h && h.studentId) html += '<div class="hw-card-scope">Индивидуально</div>';
+        else html += '<div class="hw-card-scope">Группа</div>';
+        html += '</div>';
+        html += '<div class="hw-card-date">Назначено: <b>' + esc(shortDate(h.date)) + '</b>' +
+            (edited ? ' <span class="hw-edited">изменено</span>' : '') + '</div>';
+        html += '<div class="hw-card-body">' + formatHwText(h && h.text, true) + '</div>';
+        if (opts.footer) html += opts.footer;
+        html += '</div>';
+        return html;
+    }
+
+    function saveHomeworkEntry(groupId, date, text, studentId, editId) {
+        if (!isAdminNow()) {
+            toast('e', 'ДЗ', 'Сохранение доступно только администратору');
+            return;
+        }
+        if (!groupId || !date) {
+            toast('e', 'ДЗ', 'Выберите группу и дату');
+            return;
+        }
+        var nowIso = new Date().toISOString();
+        var payload = {
+            groupId: groupId,
+            date: date,
+            text: text,
+            studentId: studentId || null
+        };
+        if (editId) {
+            payload.id = editId;
+            var old = (db.homework || []).find(function (h) { return h && h.id === editId; });
+            if (old && old.originalText == null) payload.originalText = old.text || '';
+        }
+        // локально: правка или новая запись (не перетираем прошлые)
+        var next = (db.homework || []).slice();
+        if (editId) {
+            for (var i = 0; i < next.length; i++) {
+                if (next[i] && next[i].id === editId) {
+                    next[i] = Object.assign({}, next[i], {
+                        text: text,
+                        studentId: studentId || null,
+                        updatedAt: nowIso,
+                        editedAt: nowIso
+                    });
+                    if (payload.originalText != null && next[i].originalText == null) next[i].originalText = payload.originalText;
+                    break;
+                }
+            }
+        } else {
+            next.push({
+                id: uid(),
+                groupId: groupId,
+                studentId: studentId || null,
+                date: date,
+                text: text,
+                createdAt: nowIso,
+                updatedAt: nowIso
+            });
+        }
+        db.homework = next;
+        cacheLocal(db);
+        if (BP && BP.homeworkSave) {
+            BP.homeworkSave(payload);
+            toast('s', 'ДЗ', editId ? 'Задание обновлено' : 'Задание опубликовано');
+        }
+        renderHomework();
+    }
+
+    function deleteHomeworkEntry(id) {
+        if (!isAdminNow()) {
+            toast('e', 'ДЗ', 'Удаление доступно только администратору');
+            return;
+        }
+        if (!id) return;
+        if (!window.confirm('Удалить это домашнее задание?')) return;
+        db.homework = (db.homework || []).filter(function (h) { return !h || h.id !== id; });
+        cacheLocal(db);
+        if (BP && BP.homeworkDelete) {
+            BP.homeworkDelete({ id: id });
+            toast('s', 'ДЗ', 'Задание удалено');
+        }
+        renderHomework();
+    }
+
+    function renderHomework() {
+        var root = document.getElementById('homeworkRoot');
+        if (!root) return;
+        var u = currentUser();
+        if (!u) {
+            root.innerHTML = '<div class="empty">Войдите в аккаунт, чтобы открыть ДЗ.</div>';
+            return;
+        }
+        var html = '';
+
+        if (isAdminNow()) {
+            var group = db.groups.find(function (g) { return g.id === hwGroupId; });
+            if (!group) {
+                html += '<div class="jr-panel"><div class="jr-head"><div>' +
+                    '<div class="jr-title">Домашние задания</div>' +
+                    '<div class="jr-muted">Выберите группу из журнала, чтобы назначить задание</div>' +
+                    '</div></div>';
+                html += '<div class="jr-group-cards">';
+                if (db.groups.length) {
+                    db.groups.forEach(function (g) {
+                        var count = db.students.filter(function (s) { return s.groupId === g.id; }).length;
+                        var latest = currentHw(hwOfGroup(g.id));
+                        html += '<button type="button" class="jr-group-card" data-hwgroup="' + esc(g.id) + '">' +
+                            '<span><strong>' + esc(g.name) + '</strong>' +
+                            '<small style="display:block;margin-top:7px">' + count + ' учеников</small>' +
+                            '<small style="display:block;margin-top:4px;color:var(--muted)">' +
+                            (latest ? 'Текущее: ' + esc(shortDate(latest.date)) : 'ДЗ пока нет') +
+                            '</small></span>' +
+                            '<span>→</span></button>';
+                    });
+                } else {
+                    html += '<div class="jr-empty">Групп пока нет. Создайте группу в разделе «Журнал».</div>';
+                }
+                html += '</div></div>';
+                root.innerHTML = html;
+                root.querySelectorAll('[data-hwgroup]').forEach(function (b) {
+                    b.onclick = function () {
+                        hwGroupId = b.dataset.hwgroup;
+                        hwDate = TODAY();
+                        hwStudentId = '';
+                        hwEditId = '';
+                        renderHomework();
+                    };
+                });
+                refreshIcons();
+                return;
+            }
+
+            var students = db.students.filter(function (s) { return s && s.groupId === hwGroupId; });
+            var editing = hwEditId ? (db.homework || []).find(function (h) { return h && h.id === hwEditId; }) : null;
+            var formDate = editing ? editing.date : hwDate;
+            var formStudent = editing ? (editing.studentId || '') : (hwStudentId || '');
+            var formText = editing ? (editing.text || '') : '';
+
+            html += '<div class="jr-panel">';
+            html += '<div class="jr-head"><div>' +
+                '<button type="button" class="btn btn-ghost btn-sm" id="hwBack">← Все группы</button>' +
+                '<div class="jr-title" style="margin-top:10px">' + esc(group.name) + '</div>' +
+                '<div class="jr-muted">' + (editing ? 'Редактирование задания' : 'Новое домашнее задание') + '</div>' +
+                '</div></div>';
+
+            html += '<div class="jr-fields" style="margin-top:16px">' +
+                '<div><label class="jr-label" style="margin:0 0 4px">Кому</label>' +
+                '<select class="inp jr-date" id="hwStudent" style="max-width:220px">' +
+                '<option value="">Вся группа</option>' +
+                students.map(function (st) {
+                    return '<option value="' + esc(st.id) + '"' + (formStudent === st.id ? ' selected' : '') + '>' + esc(st.name) + '</option>';
+                }).join('') +
+                '</select></div>' +
+                '<div><label class="jr-label" style="margin:0 0 4px">Дата назначения</label>' +
+                '<input type="date" class="inp jr-date" id="hwDate" value="' + esc(formDate) + '"></div>' +
+                '</div>';
+
+            html += '<label class="jr-label">Текст задания</label>' +
+                '<textarea class="inp" id="hwText" rows="6" maxlength="20000" placeholder="1. Выучить новые слова…&#10;2. Сделать упражнение…">' +
+                esc(formText) + '</textarea>';
+            html += '<div class="jr-mini" style="margin-top:6px">Поддерживаются нумерация, списки и переносы строк.</div>';
+            html += '<div class="jr-foot">' +
+                '<div class="jr-mini">' + (editing ? 'Дата публикации сохраняется. Текст обновится у учеников.' : 'Новое задание станет текущим для выбранной группы или ученика.') + '</div>' +
+                '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+                (editing ? '<button type="button" class="btn btn-ghost" id="hwCancelEdit">Отмена</button>' : '') +
+                '<button type="button" class="btn btn-accent" id="hwSave">' + (editing ? 'Сохранить изменения' : 'Опубликовать ДЗ') + '</button>' +
+                '</div></div>';
+            html += '</div>';
+
+            // Текущие + история
+            var list = hwOfGroup(hwGroupId);
+            var curGroup = currentHw(list.filter(function (h) { return !h.studentId; }));
+            html += '<div class="jr-panel">';
+            html += '<div class="jr-subtitle">Текущее задание группы</div>';
+            if (curGroup) {
+                html += hwCardHtml(curGroup, {
+                    current: true,
+                    footer: '<div class="hw-card-actions">' +
+                        '<button type="button" class="btn btn-ghost btn-sm" data-hwedit="' + esc(curGroup.id) + '">Редактировать</button>' +
+                        '<button type="button" class="btn btn-danger btn-sm" data-hwdel="' + esc(curGroup.id) + '">Удалить</button>' +
+                        '</div>'
+                });
+            } else {
+                html += '<div class="jr-empty">Домашнее задание пока не назначено</div>';
+            }
+
+            // индивидуальные текущие
+            var indivCur = {};
+            students.forEach(function (st) {
+                var ci = currentHw(list.filter(function (h) { return h && h.studentId === st.id; }));
+                if (ci) indivCur[st.id] = ci;
+            });
+            var indivKeys = Object.keys(indivCur);
+            if (indivKeys.length) {
+                html += '<div class="jr-subtitle" style="margin-top:20px">Индивидуальные задания</div>';
+                indivKeys.forEach(function (sid) {
+                    var h = indivCur[sid];
+                    var st = students.find(function (x) { return x.id === sid; });
+                    html += '<div class="hw-card hw-card-current" style="margin-top:10px">' +
+                        '<div class="hw-card-head"><div class="hw-card-badge on">Текущее · ' + esc(st ? st.name : '') + '</div><div class="hw-card-scope">Индивидуально</div></div>' +
+                        '<div class="hw-card-date">Назначено: <b>' + esc(shortDate(h.date)) + '</b></div>' +
+                        '<div class="hw-card-body">' + formatHwText(h.text, true) + '</div>' +
+                        '<div class="hw-card-actions">' +
+                        '<button type="button" class="btn btn-ghost btn-sm" data-hwedit="' + esc(h.id) + '">Редактировать</button>' +
+                        '<button type="button" class="btn btn-danger btn-sm" data-hwdel="' + esc(h.id) + '">Удалить</button>' +
+                        '</div></div>';
+                });
+            }
+
+            html += '<div class="jr-subtitle" style="margin-top:24px">История ДЗ</div>';
+            var history = list.slice().sort(function (a, b) { return hwSortAsc(b, a); });
+            if (history.length) {
+                history.forEach(function (h) {
+                    var st = h.studentId ? students.find(function (x) { return x.id === h.studentId; }) : null;
+                    var isCur = (curGroup && h.id === curGroup.id) ||
+                        (h.studentId && indivCur[h.studentId] && indivCur[h.studentId].id === h.id);
+                    html += '<div class="jr-record"><div class="jr-record-head"><div style="flex:1;min-width:0">' +
+                        '<b>' + esc(shortDate(h.date)) + '</b>' +
+                        (isCur ? ' <span class="hw-edited" style="color:var(--accent)">текущее</span>' : '') +
+                        (h.studentId ? ' <span class="hw-card-scope" style="display:inline">' + esc(st ? st.name : 'Ученик') + '</span>' : '') +
+                        '<div class="jr-mini" style="white-space:pre-wrap;margin-top:6px;max-width:520px">' + esc(h.text || '—') + '</div>' +
+                        '</div><div class="jr-right" style="display:flex;gap:6px;flex-wrap:wrap">' +
+                        '<button type="button" class="btn btn-ghost btn-sm" data-hwedit="' + esc(h.id) + '">Изменить</button>' +
+                        '<button type="button" class="btn btn-danger btn-sm" data-hwdel="' + esc(h.id) + '">Удалить</button>' +
+                        '</div></div></div>';
+                });
+            } else {
+                html += '<div class="jr-empty">История пока пуста.</div>';
+            }
+            html += '</div>';
+            root.innerHTML = html;
+
+            var back = document.getElementById('hwBack');
+            if (back) back.onclick = function () { hwGroupId = ''; hwEditId = ''; hwStudentId = ''; renderHomework(); };
+            var dateInp = document.getElementById('hwDate');
+            if (dateInp) dateInp.onchange = function (e) {
+                if (e.target.value) hwDate = e.target.value;
+            };
+            var stuInp = document.getElementById('hwStudent');
+            if (stuInp) stuInp.onchange = function (e) { hwStudentId = e.target.value || ''; };
+            var cancelBtn = document.getElementById('hwCancelEdit');
+            if (cancelBtn) cancelBtn.onclick = function () { hwEditId = ''; renderHomework(); };
+            var saveBtn = document.getElementById('hwSave');
+            if (saveBtn) saveBtn.onclick = function () {
+                var textEl = document.getElementById('hwText');
+                var stEl = document.getElementById('hwStudent');
+                var dtEl = document.getElementById('hwDate');
+                var dt = dtEl && dtEl.value ? dtEl.value : hwDate;
+                hwDate = dt;
+                hwStudentId = stEl ? (stEl.value || '') : hwStudentId;
+                saveHomeworkEntry(hwGroupId, dt, textEl ? textEl.value.trim() : '', hwStudentId || null, hwEditId || null);
+                hwEditId = '';
+            };
+            root.querySelectorAll('[data-hwedit]').forEach(function (b) {
+                b.onclick = function () {
+                    hwEditId = b.dataset.hwedit;
+                    var h = (db.homework || []).find(function (x) { return x && x.id === hwEditId; });
+                    if (h) { hwDate = h.date; hwStudentId = h.studentId || ''; }
+                    renderHomework();
+                };
+            });
+            root.querySelectorAll('[data-hwdel]').forEach(function (b) {
+                b.onclick = function () { deleteHomeworkEntry(b.dataset.hwdel); };
+            });
+            refreshIcons();
+            return;
+        }
+
+        /* --- кабинет ученика (краткий; полный вид — в «Мой дневник») --- */
+        var s = findStudentForUser(u);
+        var g = s ? db.groups.find(function (x) { return x.id === s.groupId; }) : null;
+        html += '<div class="jr-panel">';
+        html += '<div class="jr-head"><div><div class="jr-title">' + esc(u.name) + '</div>';
+        html += '<div class="jr-muted">' + esc(g ? g.name : 'Без группы') + ' · Домашнее задание</div></div></div>';
+        var myCurrent = currentHwForStudent(s);
+        var mySubs = (db.homeworkSubmissions || []).filter(function (x) { return x && s && x.studentId === s.id; });
+        if (!s) {
+            html += '<div class="jr-empty">Вы пока не привязаны к группе.<br><span class="jr-muted">Преподаватель добавит вас в группу — ДЗ появится здесь.</span></div>';
+        } else if (!myCurrent.length && !hwForStudent(s).length) {
+            html += '<div class="jr-empty">Домашнее задание пока не назначено</div>';
+        } else {
+            if (myCurrent.length) {
+                html += '<div class="jr-subtitle" style="margin-top:18px">Текущее домашнее задание</div>';
+                myCurrent.forEach(function (h) {
+                    var sub = mySubs.find(function (x) { return x.homeworkId === h.id; }) || null;
+                    var footer = '';
+                    if (!sub || sub.status === 'pending') {
+                        footer = '<label class="jr-label">' + (sub ? 'Изменить ответ' : 'Ваш ответ') + '</label>' +
+                            '<textarea class="inp" id="hwAns_' + esc(h.id) + '" rows="4" maxlength="20000" placeholder="Напишите ответ на задание...">' + esc(sub ? sub.answer : '') + '</textarea>' +
+                            '<div class="jr-foot"><div class="jr-mini">Ответ сохраняется и отправляется на проверку</div>' +
+                            '<button type="button" class="btn btn-accent btn-sm" data-hwsub="' + esc(h.id) + '">' + (sub ? 'Обновить ответ' : 'Отправить на проверку') + '</button></div>';
+                    } else if (sub) {
+                        var stMap = { approved: ['✅ Одобрено', '#22c55e'], rejected: ['❌ Отказано', '#ef4444'] };
+                        var stInfo = stMap[sub.status] || [sub.status, 'var(--dim)'];
+                        footer = '<div style="font-size:12px;font-weight:700;color:' + stInfo[1] + ';margin-top:8px">' + stInfo[0] + '</div>' +
+                            (sub.adminComment ? '<div class="jr-mini">Комментарий: ' + esc(sub.adminComment) + '</div>' : '');
+                    }
+                    html += hwCardHtml(h, { current: true, footer: footer });
+                });
+            } else {
+                html += '<div class="jr-empty">Домашнее задание пока не назначено</div>';
+            }
+            var myHist = hwForStudent(s).slice().sort(function (a, b) { return hwSortAsc(b, a); });
+            html += '<div class="jr-subtitle" style="margin-top:24px">История домашних заданий</div>';
+            if (myHist.length) {
+                myHist.forEach(function (h) {
+                    html += '<div class="jr-record"><div class="jr-record-head"><div>' +
+                        '<b>' + esc(shortDate(h.date)) + '</b>' +
+                        '<div class="jr-mini" style="white-space:pre-wrap;max-width:520px">' + esc(h.text || '—') + '</div>' +
+                        '</div></div></div>';
+                });
+            } else {
+                html += '<div class="jr-empty">История пока пуста.</div>';
+            }
+        }
+        html += '</div>';
+        root.innerHTML = html;
+        root.querySelectorAll('[data-hwsub]').forEach(function (b) {
+            b.onclick = function () {
+                var id = b.dataset.hwsub;
+                var ta = document.getElementById('hwAns_' + id);
+                submitHomeworkAnswer(id, ta ? ta.value.trim() : '');
+            };
+        });
+        refreshIcons();
+    }
+
+    function submitHomeworkAnswer(homeworkId, answer) {
+        if (!answer) {
+            toast('e', 'ДЗ', 'Введите ответ');
+            return;
+        }
+        if (BP && BP.homeworkSubmit) {
+            BP.homeworkSubmit({ homeworkId: homeworkId, answer: answer });
+        }
+    }
+
+    /* ============================================================
        ДНЕВНИК УЧЕНИКА
        ============================================================ */
     function renderDiary() {
@@ -288,21 +742,73 @@
         }
         var all = recordsOf(s.id);
         var dayRecords = all.filter(function (r) { return r.date === diaryDate; });
-        var html = '';
-        html += '<div class="jr-panel">';
-        html += '<div class="jr-head"><div><div class="jr-title">' + esc(s.name) + '</div>';
         var g = db.groups.find(function (x) { return x.id === s.groupId; });
+        var isTodayView = diaryDate === TODAY();
+        var html = '';
+
+        html += '<div class="jr-panel diary-panel">';
+        html += '<div class="jr-head"><div><div class="jr-title">' + esc(s.name) + '</div>';
         html += '<div class="jr-muted">' + esc(g ? g.name : 'Без группы') + ' · Мой дневник</div></div></div>';
 
-        html += '<div class="jr-head" style="margin-top:22px"><div class="jr-subtitle">' +
-            (diaryDate === TODAY() ? 'Сегодня' : 'Занятия') + ' · ' + esc(shortDate(diaryDate)) + '</div>';
-        html += '<div class="jr-fields">' +
+        // 1. Текущая дата
+        html += '<div class="diary-date-row">' +
+            '<div class="diary-date-big">' + esc(shortDate(diaryDate)) + '</div>' +
+            '<div class="diary-date-sub">' + (isTodayView ? 'Сегодня' : 'Просмотр за день') + '</div>' +
+            '</div>';
+
+        html += '<div class="jr-fields" style="margin:12px 0 18px">' +
             '<button type="button" class="btn btn-ghost btn-sm" id="diaryPrev">←</button>' +
             '<input type="date" class="inp jr-date" id="diaryPick" value="' + esc(diaryDate) + '">' +
             '<button type="button" class="btn btn-ghost btn-sm" id="diaryNext">→</button>' +
             '<button type="button" class="btn btn-ghost btn-sm" id="diaryToday">Сегодня</button>' +
-            '</div></div>';
+            '</div>';
 
+        // 2. Текущее / актуальное домашнее задание
+        var shownHw = isTodayView ? currentHwForStudent(s) : hwActiveOnForStudent(s, diaryDate);
+        // На сегодня: именно текущие; в прошлую дату — действовавшее тогда
+        if (!isTodayView) {
+            // уникальные по id
+            var seen = {};
+            shownHw = shownHw.filter(function (h) {
+                if (!h || seen[h.id]) return false;
+                seen[h.id] = true;
+                return true;
+            });
+        }
+        html += '<div class="hw-current-block">';
+        html += '<div class="hw-current-title">' +
+            (isTodayView ? 'Текущее домашнее задание' : 'Домашнее задание на эту дату') +
+            '</div>';
+        if (shownHw.length) {
+            shownHw.forEach(function (h) {
+                html += '<div class="hw-card hw-card-current">';
+                html += '<div class="hw-card-head">';
+                html += '<div class="hw-card-badge on">Актуальное</div>';
+                html += '<div class="hw-card-scope">' + (h.studentId ? 'Индивидуально' : 'Группа') + '</div>';
+                html += '</div>';
+                html += '<div class="hw-card-date">Назначено: <b>' + esc(shortDate(h.date)) + '</b></div>';
+                html += '<div class="hw-card-body">' + formatHwText(h.text, true) + '</div>';
+                // ответ ученика / статус
+                var sub = (db.homeworkSubmissions || []).find(function (x) { return x && x.homeworkId === h.id && x.studentId === s.id; }) || null;
+                if (isTodayView && (!sub || sub.status === 'pending')) {
+                    html += '<label class="jr-label">' + (sub ? 'Изменить ответ' : 'Ваш ответ') + '</label>' +
+                        '<textarea class="inp" id="hwAns_' + esc(h.id) + '" rows="3" maxlength="20000" placeholder="Напишите ответ на задание...">' + esc(sub ? sub.answer : '') + '</textarea>' +
+                        '<div class="jr-foot"><button type="button" class="btn btn-accent btn-sm" data-hwsub="' + esc(h.id) + '">' + (sub ? 'Обновить ответ' : 'Отправить на проверку') + '</button></div>';
+                } else if (sub) {
+                    var stMapD = { pending: ['⏳ На проверке', 'var(--warning)'], approved: ['✅ Одобрено', '#22c55e'], rejected: ['❌ Отказано', '#ef4444'] };
+                    var stInf = stMapD[sub.status] || [sub.status, 'var(--dim)'];
+                    html += '<div style="font-size:12px;font-weight:700;color:' + stInf[1] + ';margin-top:8px">' + stInf[0] + '</div>';
+                    if (sub.adminComment) html += '<div class="jr-mini">Комментарий: ' + esc(sub.adminComment) + '</div>';
+                }
+                html += '</div>';
+            });
+        } else {
+            html += '<div class="hw-empty-msg">Домашнее задание пока не назначено</div>';
+        }
+        html += '</div>';
+
+        // 4. Мои оценки за выбранную дату
+        html += '<div class="jr-subtitle" style="margin-top:24px">Мои оценки</div>';
         if (dayRecords.length) {
             dayRecords.forEach(function (r) {
                 var color = r.color === 'green' ? '#22c55e' : r.color === 'yellow' ? '#eab308' : '#ef4444';
@@ -314,13 +820,29 @@
                     '<div class="jr-muted">Начислено за занятие</div>' +
                     '<div class="jr-money">+' + r.points + ' ◈</div>' +
                     '<div class="jr-mini">Основные: ' + r.basePoints + ' · Дополнительно: ' + r.bonus + '</div>' +
-                    (r.note ? '<div class="jr-mini" style="margin-top:8px;max-width:260px">' + esc(r.note) + '</div>' : '') +
+                    (r.note ? '<div class="jr-mini" style="margin-top:8px;max-width:260px">Комментарий: ' + esc(r.note) + '</div>' : '') +
                     '</div></div>';
             });
         } else {
-            html += '<div class="jr-empty">На выбранную дату оценок пока нет.</div>';
+            html += '<div class="jr-empty">' + (isTodayView ? 'Сегодня оценок пока нет.' : 'На выбранную дату оценок пока нет.') + '</div>';
         }
 
+        // 5. История домашних заданий
+        html += '<div class="jr-subtitle" style="margin-top:28px">История домашних заданий</div>';
+        var myAll = hwForStudent(s).slice().sort(function (a, b) { return hwSortAsc(b, a); });
+        if (myAll.length) {
+            myAll.forEach(function (h) {
+                html += '<div class="jr-record"><div class="jr-record-head"><div>' +
+                    '<b>' + esc(shortDate(h.date)) + '</b>' +
+                    (h.studentId ? ' <span class="hw-card-scope" style="display:inline">Индивидуально</span>' : '') +
+                    '<div class="jr-mini" style="white-space:pre-wrap;max-width:520px">' + esc(h.text || '—') + '</div>' +
+                    '</div></div></div>';
+            });
+        } else {
+            html += '<div class="jr-empty">История пока пуста.</div>';
+        }
+
+        // Оценки — общая история
         html += '<div class="jr-subtitle" style="margin-top:28px">История занятий</div>';
         if (all.length) {
             all.forEach(function (r) {
@@ -356,6 +878,13 @@
         if (pick) pick.onchange = function (e) {
             if (e.target.value) { diaryDate = e.target.value; renderDiary(); }
         };
+        root.querySelectorAll('[data-hwsub]').forEach(function (b) {
+            b.onclick = function () {
+                var id = b.dataset.hwsub;
+                var ta = document.getElementById('hwAns_' + id);
+                submitHomeworkAnswer(id, ta ? ta.value.trim() : '');
+            };
+        });
         refreshIcons();
     }
 
@@ -879,6 +1408,9 @@
                     try {
                         renderDiary();
                         renderJournal();
+                        renderHomework();
+                        if (typeof window.renderHwReview === 'function') window.renderHwReview();
+                        if (typeof window.updateApprovalBadge === 'function') window.updateApprovalBadge();
                     } catch (e) { }
                 });
             }
@@ -904,6 +1436,37 @@
                     } catch (e) { }
                 });
             }
+            if (BP && BP.onHomeworkSaved) {
+                BP.onHomeworkSaved(function (res) {
+                    try {
+                        if (res && res.ok) {
+                            pullFromServer();
+                        } else if (res && res.error) {
+                            toast('e', 'ДЗ', res.error);
+                        }
+                    } catch (e) { }
+                });
+            }
+            if (BP && BP.onHomeworkSubmitted) {
+                BP.onHomeworkSubmitted(function (res) {
+                    try {
+                        if (res && res.ok) {
+                            toast('s', 'ДЗ', 'Ответ отправлен на проверку');
+                            pullFromServer();
+                        } else if (res && res.error) {
+                            toast('e', 'ДЗ', res.error);
+                        }
+                    } catch (e) { }
+                });
+            }
+            if (BP && BP.onHomeworkDeleted) {
+                BP.onHomeworkDeleted(function (res) {
+                    try {
+                        if (res && res.ok) pullFromServer();
+                        else if (res && res.error) toast('e', 'ДЗ', res.error);
+                    } catch (e) { }
+                });
+            }
             pullFromServer();
         },
         reload: function () {
@@ -912,6 +1475,18 @@
         },
         renderDiary: renderDiary,
         renderJournal: renderJournal,
+        renderHomework: renderHomework,
+        deleteHomeworkEntry: deleteHomeworkEntry,
+        getData: function () {
+            return {
+                groups: db.groups,
+                students: db.students,
+                records: db.records,
+                homework: db.homework || [],
+                homeworkSubmissions: db.homeworkSubmissions || [],
+                settings: db.settings
+            };
+        },
         canOpenJournal: canOpenJournal,
         openSettings: function () {
             openJournalModal('settings');
@@ -928,6 +1503,7 @@
             pullFromServer();
             if (s === 'diary') renderDiary();
             if (s === 'journal') renderJournal();
+            if (s === 'homework') renderHomework();
         }
     };
 
