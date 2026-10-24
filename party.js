@@ -122,22 +122,47 @@
 
     function applyState(d) {
         if (!d || !d.mode) return;
+        var prev = states[d.mode];
         states[d.mode] = d;
-        if (page !== 'editor') {
-            activeMode = d.mode;
-            // Infer page from state when not on home/editor
-            if (page === 'home' || page === 'lobby' || page === 'game' || page === 'player') {
-                if (d.status === 'lobby' && d.lobbyOpen) {
-                    if (isAdminNow() || d.me && d.me.inRoom) page = 'lobby';
-                } else if (d.status === 'playing') {
-                    if (isAdminNow()) page = 'game';
-                    else if (d.me && d.me.inRoom) page = 'player';
-                } else if (d.status === 'finished' && isAdminNow()) {
-                    page = 'game';
-                }
-            }
+        // Сбрасываем личные карточки, если их больше нет (новая комната / выход)
+        if (d.me && !d.me.hasCard) {
+            myCards[d.mode] = null;
+            cardOpen[d.mode] = false;
         }
-        render();
+        // Новая комната: обнуляем старые локальные данные предыдущей комнаты
+        if (prev && d.version != null && prev.version != null && d.version !== prev.version
+            && (d.status === 'idle' || d.status === 'lobby') && !(d.players && d.players.length)) {
+            myCards[d.mode] = null;
+            cardOpen[d.mode] = false;
+        }
+        if (page !== 'editor') {
+            // Не переключаем activeMode, если пришло состояние другой игры
+            if (d.mode === activeMode || page === 'home') {
+                activeMode = d.mode;
+                if (page === 'home' || page === 'lobby' || page === 'game' || page === 'player') {
+                    if (d.status === 'lobby' && d.lobbyOpen) {
+                        // Все видят открытое лобби: админ управляет, игроки подключаются
+                        page = 'lobby';
+                    } else if (d.status === 'playing') {
+                        if (isAdminNow()) page = 'game';
+                        else if (d.me && d.me.inRoom) page = 'player';
+                    } else if (d.status === 'finished' && isAdminNow()) {
+                        page = 'game';
+                    } else if (d.status === 'idle') {
+                        // Нет активной комнаты: игрок уходит на главную, админ остаётся для создания
+                        if (!isAdminNow() && (page === 'lobby' || page === 'game' || page === 'player')) {
+                            page = 'home';
+                        }
+                    }
+                }
+                render();
+            } else {
+                // Состояние другой игры — только сохраняем, не перерисовываем текущее
+                return;
+            }
+        } else {
+            render();
+        }
     }
 
     function applyMyCard(d) {
@@ -187,6 +212,17 @@
         var adm = isAdminNow();
         var html = htmlTabs();
         html += '<div class="pg-panel"><h2>' + ICONS[activeMode] + ' ' + TITLES[activeMode] + ' · зал ожидания</h2>';
+        var noRoom = !s || s.status === 'idle' || (!s.lobbyOpen && s.status !== 'playing' && !(s.players && s.players.length));
+        if (noRoom) {
+            if (adm) {
+                html += '<p class="pg-muted">Комната ещё не создана. Создайте её, чтобы ученики могли присоединиться.</p>';
+                html += '<button type="button" class="pg-btn primary" data-act="createRoom">Создать комнату →</button>';
+            } else {
+                html += '<p class="pg-muted">Ведущий ещё не открыл комнату. Дождитесь начала.</p>';
+            }
+            html += '</div>';
+            return html;
+        }
         html += '<div class="pg-code"><span class="lbl">Статус</span><strong>' + (s.lobbyOpen ? 'ОТКРЫТ' : 'ЗАКРЫТ') + '</strong></div>';
         html += '<p class="pg-muted">Участники: <b>' + s.players.length + '</b> · в колоде: <b>' + s.poolCount + '</b></p>';
         if (adm) {
@@ -213,6 +249,9 @@
             html += '<button type="button" class="pg-btn" data-act="leave">Выйти из комнаты</button>';
         }
         if (adm) {
+            if (!s.lobbyOpen && s.status !== 'playing') {
+                html += '<button type="button" class="pg-btn primary" data-act="openRoom">Открыть комнату →</button>';
+            }
             html += '<button type="button" class="pg-btn primary" data-act="start"' + (s.players.length ? '' : ' disabled') + '>Начать игру →</button>';
             html += '<button type="button" class="pg-btn danger" data-act="closeRoom">Закрыть комнату</button>';
         }
@@ -301,8 +340,8 @@
         var s = st();
         var html = '';
         if (page === 'editor') html = htmlEditor();
-        else if (page === 'home' || (!s && page !== 'player')) html = htmlHome();
-        else if (page === 'lobby' && s) html = htmlLobby(s);
+        else if (page === 'home' || (!s && page !== 'player' && page !== 'lobby')) html = htmlHome();
+        else if (page === 'lobby') html = htmlLobby(s || { status: 'idle', lobbyOpen: false, players: [], poolCount: 0, usedCount: 0, config: { allowNext: true, distribution: 'all' }, me: { inRoom: false, hasCard: false } });
         else if (page === 'game' && s) html = isAdminNow() ? htmlHostGame(s) : htmlPlayer(s);
         else if (page === 'player' && s) html = htmlPlayer(s);
         else html = htmlHome();
@@ -323,8 +362,18 @@
                     page = (states[activeMode] && states[activeMode].status === 'playing') ? (isAdminNow() ? 'game' : 'player') : 'lobby';
                     render();
                     break;
-                case 'goCroc': activeMode = 'croc'; emit('party:getState', { mode: 'croc' }); page = 'lobby'; render(); break;
-                case 'goBunker': activeMode = 'bunker'; emit('party:getState', { mode: 'bunker' }); page = 'lobby'; render(); break;
+                case 'goCroc':
+                    activeMode = 'croc';
+                    emit('party:getState', { mode: 'croc' });
+                    page = (states.croc && states.croc.status === 'playing') ? (isAdminNow() ? 'game' : 'player') : 'lobby';
+                    render();
+                    break;
+                case 'goBunker':
+                    activeMode = 'bunker';
+                    emit('party:getState', { mode: 'bunker' });
+                    page = (states.bunker && states.bunker.status === 'playing') ? (isAdminNow() ? 'game' : 'player') : 'lobby';
+                    render();
+                    break;
                 case 'tab':
                     activeMode = b.dataset.mode || 'croc';
                     emit('party:getState', { mode: activeMode });
@@ -342,6 +391,8 @@
                     render();
                     break;
                 case 'join': emit('party:join', { mode: activeMode }); break;
+                case 'createRoom': emit('party:createRoom', { mode: activeMode }); break;
+                case 'openRoom': emit('party:openRoom', { mode: activeMode }); break;
                 case 'leave': emit('party:leave', { mode: activeMode }); break;
                 case 'kick': emit('party:removePlayer', { mode: activeMode, userId: b.dataset.uid }); break;
                 case 'start': emit('party:start', { mode: activeMode }); break;
@@ -353,7 +404,14 @@
                 case 'requestCard': emit('party:getState', { mode: activeMode }); toast('i', TITLES[activeMode], 'Запрос отправлен ведущему'); break;
                 case 'reshuffle': emit('party:reshuffle', { mode: activeMode }); break;
                 case 'finish': emit('party:finish', { mode: activeMode }); break;
-                case 'closeRoom': emit('party:closeRoom', { mode: activeMode }); page = 'home'; render(); break;
+                case 'closeRoom':
+                    emit('party:closeRoom', { mode: activeMode });
+                    myCards[activeMode] = null;
+                    cardOpen[activeMode] = false;
+                    states[activeMode] = null;
+                    page = 'home';
+                    render();
+                    break;
                 case 'cfgDist': emit('party:updateConfig', { mode: activeMode, config: { distribution: b.dataset.val } }); break;
                 case 'addCard': {
                     var inp = document.getElementById('pgNewCard');

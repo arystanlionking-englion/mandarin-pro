@@ -97,6 +97,19 @@ app.get('/parent-view', (req, res) => {
 app.get('/dictionary', (req, res) => {
     res.sendFile(path.join(__dirname, '12 версия FINALL', 'DLK AI V1 3 хск 2026 словарь кит.html'));
 });
+// Сопутствующие файлы словаря (hsk4a_data.js, картинки) — относительные пути из /dictionary
+app.get('/hsk4a_data.js', (req, res) => {
+    res.sendFile(path.join(__dirname, '12 версия FINALL', 'hsk4a_data.js'));
+});
+app.get('/hsk1_data.js', (req, res) => {
+    res.sendFile(path.join(__dirname, '12 версия FINALL', 'hsk1_data.js'));
+});
+app.get('/dialogue_data.js', (req, res) => {
+    res.sendFile(path.join(__dirname, '12 версия FINALL', 'dialogue_data.js'));
+});
+app.get('/наш логотип фирмы.jpg', (req, res) => {
+    res.sendFile(path.join(__dirname, '12 версия FINALL', 'наш логотип фирмы.jpg'));
+});
 
 app.get('/api/parent-view/:token', (req, res) => {
     try {

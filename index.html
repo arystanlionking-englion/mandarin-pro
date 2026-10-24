@@ -11632,7 +11632,6 @@ body.dict-fullscreen .dict-title{color:#fff}
                 <div class="act-btn" onclick="showTransfer()"><div class="ic" style="background:rgba(201,168,76,.12);color:var(--accent)"><i data-lucide="send" style="width:18px;height:18px"></i></div>Перевести</div>
                 <div class="act-btn" onclick="showPurchase()"><div class="ic" style="background:rgba(139,92,246,.12);color:#a78bfa"><i data-lucide="shopping-bag" style="width:18px;height:18px"></i></div>Покупка</div>
                 <div class="act-btn" onclick="showInvestments()"><div class="ic" style="background:rgba(245,158,11,.12);color:#f59e0b"><i data-lucide="trending-up" style="width:18px;height:18px"></i></div>Инвестиции</div>
-                <div class="act-btn" onclick="go('dictionary')"><div class="ic" style="background:rgba(59,130,246,.12);color:#60a5fa"><i data-lucide="book-a" style="width:18px;height:18px"></i></div>Словарь</div>
             </div>
             <div style="display:flex;justify-content:center;margin-top:24px;margin-bottom:8px">
                 <button class="btn btn-accent" onclick="toggleSlideMenu()" style="min-width:200px;min-height:48px;border-radius:24px;font-size:15px;gap:10px"><i data-lucide="menu" style="width:20px;height:20px"></i> Меню</button>
@@ -12169,7 +12168,7 @@ body.dict-fullscreen .dict-title{color:#fff}
             <div class="coupon-chinese-title">
                 <div class="zh">📔 我的日记</div>
                 <div class="ru">Мой дневник</div>
-                <div class="sub">Личные оценки, проценты и история занятий</div>
+                <div class="sub">Личные оценки, домашнее задание и история занятий</div>
             </div>
             <div id="diaryRoot"></div>
         </div>
@@ -13616,7 +13615,13 @@ window.go=function(s){
 // --- Dictionary: fullscreen open/close (доступно сразу, inline onclick) ---
 window.reloadDictionary=function(){
     const fr=document.getElementById('dictFrame');
-    if(fr){const src=fr.getAttribute('data-src')||'/dictionary';fr.setAttribute('src',src);}
+    if(!fr)return;
+    // Не перезагружаем, если уже загружен — только по явному сбросу src
+    const src=fr.getAttribute('data-src')||'/dictionary';
+    if(fr.getAttribute('src')&&fr.getAttribute('src')!==src&&fr.getAttribute('src')!=='about:blank'&&fr.getAttribute('src')!==''){
+        return; // уже загружен
+    }
+    fr.setAttribute('src',src);
 };
 window.closeDictionary=function(){
     window._dictClosing=true;
@@ -13624,11 +13629,8 @@ window.closeDictionary=function(){
     // мгновенно спрятать секцию словаря
     const sec=document.getElementById('secDictionary');
     if(sec)sec.classList.remove('on');
-    // закрыть iframe-сеанс словаря, чтобы он не оставался активным
-    try{
-        const fr=document.getElementById('dictFrame');
-        if(fr){fr.setAttribute('src','about:blank');fr.removeAttribute('src');}
-    }catch(e){}
+    // iframe НЕ выгружаем — оставляем закэшированным для быстрого повторного открытия
+    // (браузер сам притормозит фоновую активность скрытого iframe)
     // сразу показать главный экран напрямую (без ожидания go)
     document.querySelectorAll('.sec').forEach(e=>e.classList.remove('on'));
     const home=document.getElementById('secHome');
@@ -18671,7 +18673,32 @@ window.go=function(s){
     if(s==='dictionary'){
         document.body.classList.add('dict-fullscreen');
         const fr=$('dictFrame');
-        if(fr&&!fr.getAttribute('src'))fr.setAttribute('src',fr.getAttribute('data-src')||'/dictionary');
+        if(fr){
+            const src=fr.getAttribute('data-src')||'/dictionary';
+            const cur=fr.getAttribute('src');
+            // Загружаем только если ещё не загружен (без повторных запросов)
+            if(!cur||cur===''||cur==='about:blank'){
+                fr.setAttribute('src',src);
+                // Индикатор загрузки + защита от бесконечной загрузки
+                const wrap=fr.parentElement;
+                if(wrap&&!document.getElementById('dictLoadHint')){
+                    const hint=document.createElement('div');
+                    hint.id='dictLoadHint';
+                    hint.textContent='Загрузка словаря…';
+                    hint.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(18,20,22,.85);color:#e7c687;font-size:15px;z-index:5;pointer-events:none';
+                    wrap.style.position='relative';
+                    wrap.appendChild(hint);
+                    fr.addEventListener('load',function h(){
+                        fr.removeEventListener('load',h);
+                        if(hint.parentElement)hint.parentElement.removeChild(hint);
+                    },{once:true});
+                    // Таймаут: убираем индикатор, чтобы не висел вечно
+                    setTimeout(function(){
+                        if(hint.parentElement)hint.parentElement.removeChild(hint);
+                    },15000);
+                }
+            }
+        }
     }else{
         document.body.classList.remove('dict-fullscreen');
     }

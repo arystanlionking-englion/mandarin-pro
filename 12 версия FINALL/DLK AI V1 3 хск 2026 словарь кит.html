@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script defer src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
+<script async src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js" onerror="window.HanziWriter=null"></script>
 <style>
 :root {
   --bg: #f0f2f8;
@@ -2487,13 +2487,17 @@ const exampleTemplates=[
   {hanzi:"我试着用「{hanzi}」造一个新句子。",pinyin:"Wǒ shìzhe yòng \"{pinyin}\" zào yī gè xīn jùzi.",ru:"Я пробую составить предложение со словом «{hanzi}»."}
 ];
 function generateExamples(word,count=4){
-  const used=new Set();const out=[];
-  while(out.length<count&&used.size<exampleTemplates.length){
-    const i=Math.floor(Math.random()*exampleTemplates.length);if(used.has(i))continue;used.add(i);
-    const t=exampleTemplates[i];
-    out.push({hanzi:t.hanzi.replaceAll("{hanzi}",word.hanzi).replaceAll("{pinyin}",word.pinyin),pinyin:t.pinyin.replaceAll("{hanzi}",word.hanzi).replaceAll("{pinyin}",word.pinyin),ru:t.ru.replaceAll("{hanzi}",word.hanzi)});
+  // Кэш примеров на слово — без перегенерации при каждом рендере
+  if(!word._ex||word._ex.length<count){
+    const used=new Set();const out=[];
+    while(out.length<count&&used.size<exampleTemplates.length){
+      const i=Math.floor(Math.random()*exampleTemplates.length);if(used.has(i))continue;used.add(i);
+      const t=exampleTemplates[i];
+      out.push({hanzi:t.hanzi.replaceAll("{hanzi}",word.hanzi).replaceAll("{pinyin}",word.pinyin),pinyin:t.pinyin.replaceAll("{hanzi}",word.hanzi).replaceAll("{pinyin}",word.pinyin),ru:t.ru.replaceAll("{hanzi}",word.hanzi)});
+    }
+    word._ex=out;
   }
-  return out;
+  return word._ex.slice(0,count);
 }
 
 // ===== BUILD DATA =====
@@ -2562,6 +2566,8 @@ hsk2WordsWithType.forEach(mergeWord);
 hsk4aWordsWithType.forEach(mergeWord);
 
 const unifiedWords = [...unifiedWordMap.values()];
+// Предвычисленный ключ поиска — ускоряет фильтрацию без normalize на каждый ввод
+unifiedWords.forEach(w=>{w._sk=normalize(w.hanzi)+"|"+normalize(w.pinyin)+"|"+normalize(w.ru)+"|"+normalize(w.kz)});
 
 // ===== WORD-DIALOGUE BIDIRECTIONAL INDEX =====
 // Optimized: build full text per dialogue, scan words once per dialogue (not per line)
@@ -2730,7 +2736,7 @@ function renderDict(query=""){
   }
   if(query.trim()){
     const nq=normalize(query);
-    list=list.filter(w=>normalize(w.hanzi).includes(nq)||normalize(w.pinyin).includes(nq)||normalize(w.ru).includes(nq)||normalize(w.kz).includes(nq)||String(w.lesson)===query.trim());
+    list=list.filter(w=>(w._sk||"").includes(nq)||String(w.lesson)===query.trim());
   }
   if(!list.length){container.innerHTML="";empty.style.display="block";return}
   empty.style.display="none";

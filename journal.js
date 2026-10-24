@@ -763,7 +763,7 @@
             '<button type="button" class="btn btn-ghost btn-sm" id="diaryToday">Сегодня</button>' +
             '</div>';
 
-        // 2. Текущее / актуальное домашнее задание
+        // 2. Раздел «Домашнее задание» — задания группы из админ-панели
         var shownHw = isTodayView ? currentHwForStudent(s) : hwActiveOnForStudent(s, diaryDate);
         // На сегодня: именно текущие; в прошлую дату — действовавшее тогда
         if (!isTodayView) {
@@ -776,8 +776,10 @@
             });
         }
         html += '<div class="hw-current-block">';
-        html += '<div class="hw-current-title">' +
-            (isTodayView ? 'Текущее домашнее задание' : 'Домашнее задание на эту дату') +
+        html += '<div class="hw-current-title">Домашнее задание</div>';
+        html += '<div class="jr-muted" style="margin-bottom:10px">' +
+            (g ? 'Группа: ' + esc(g.name) : 'Группа не назначена') +
+            ' · задания от преподавателя' +
             '</div>';
         if (shownHw.length) {
             shownHw.forEach(function (h) {
@@ -1400,6 +1402,12 @@
        ============================================================ */
     window.Journal = {
         init: function (bridge) {
+            if (window._journalInited) {
+                BP = bridge || BP;
+                pullFromServer();
+                return;
+            }
+            window._journalInited = true;
             BP = bridge || null;
             db = load();
             if (BP && BP.onJournalUpdate) {
