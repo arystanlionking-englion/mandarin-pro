@@ -125,6 +125,184 @@ app.get('/api/parent-view/:token', (req, res) => {
     }
 });
 
+// --- Импорт теста по шаблону HSK (DOCX / текст) ---
+const zlib = require('zlib');
+
+function extractDocxXml(buf) {
+    // минимальный ZIP-ридер: ищем word/document.xml в локальных заголовках
+    let i = 0;
+    while (i < buf.length - 30) {
+        if (buf.readUInt32LE(i) === 0x04034b50) {
+            const method = buf.readUInt16LE(i + 8);
+            let compSize = buf.readUInt32LE(i + 18);
+            const nameLen = buf.readUInt16LE(i + 26);
+            const extraLen = buf.readUInt16LE(i + 28);
+            const name = buf.slice(i + 30, i + 30 + nameLen).toString('utf8');
+            const dataStart = i + 30 + nameLen + extraLen;
+            if (name === 'word/document.xml') {
+                if (!compSize) {
+                    // размер в дескрипторе — ищем следующую сигнатуру PK
+                    let j = dataStart;
+                    while (j < buf.length - 4) {
+                        if (buf.readUInt32LE(j) === 0x04034b50 || buf.readUInt32LE(j) === 0x02014b50 || buf.readUInt32LE(j) === 0x06054b50) break;
+                        j++;
+                    }
+                    compSize = j - dataStart;
+                }
+                const data = buf.slice(dataStart, dataStart + compSize);
+                return method === 0 ? data.toString('utf8') : zlib.inflateRawSync(data).toString('utf8');
+            }
+            i = dataStart + (compSize || 0);
+            if (i <= dataStart) i = dataStart + 1;
+        } else {
+            i++;
+        }
+    }
+    throw new Error('word/document.xml не найден — это не DOCX');
+}
+
+function docxXmlToText(xml) {
+    return String(xml || '')
+        .replace(/<w:tab[^>]*\/>/g, '\t')
+        .replace(/<w:br[^>]*\/>/g, '\n')
+        .replace(/<\/w:p>/g, '\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+        .replace(/&amp;/g, '&');
+}
+
+function parseTemplateText(text) {
+    const lines = String(text || '').split(/\r?\n/);
+    const questions = [];
+    const errors = [];
+    let title = '';
+    let cur = null;
+
+    const flush = () => {
+        if (!cur) return;
+        const opts = cur.options.map(o => String(o || '').trim());
+        const filled = opts.filter(Boolean);
+        if (!String(cur.text || '').trim()) {
+            errors.push('Строка ' + cur.line + ': нет текста вопроса.');
+            cur = null;
+            return;
+        }
+        if (filled.length < 2) {
+            errors.push('Вопрос ' + cur.num + ': нужно минимум 2 варианта ответа.');
+            cur = null;
+            return;
+        }
+        if (!cur.answer) {
+            errors.push('Вопрос ' + cur.num + ': нет строки «Правильный ответ».');
+            cur = null;
+            return;
+        }
+        // нормализуем ответ: буква → вариант, текст → буква
+        let answer = cur.answer;
+        const mLetter = answer.match(/^([A-Da-d])[.)]?\s*(.*)$/);
+        if (mLetter) {
+            const L = mLetter[1].toUpperCase();
+            const idx = L.charCodeAt(0) - 65;
+            if (opts[idx]) {
+                answer = L;
+            } else if (mLetter[2] && opts.indexOf(mLetter[2].trim()) >= 0) {
+                answer = L;
+            } else if (mLetter[2]) {
+                answer = mLetter[2].trim();
+            }
+        } else {
+            const ix = opts.findIndex(o => o.toLowerCase() === answer.toLowerCase());
+            if (ix >= 0) answer = 'ABCD'.charAt(ix);
+        }
+        questions.push({
+            id: 'q' + (questions.length + 1) + '_' + Date.now().toString(36),
+            text: String(cur.text).trim(),
+            options: filled,
+            answer,
+            points: 1,
+            explanation: ''
+        });
+        cur = null;
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+        const raw = String(lines[i] || '').replace(/\u00a0/g, ' ').trim();
+        if (!raw) continue;
+
+        // заголовок документа
+        if (!title && /^HSK/i.test(raw)) { title = raw; continue; }
+
+        // служебные строки шаблона
+        if (/^(姓名|日期|班级|得分|Формат|Вопрос варианты|Итого)/.test(raw)) continue;
+        if (/^____/.test(raw)) continue;
+        if (/^Часть\s+\d+/i.test(raw)) { flush(); continue; }
+
+        // строка ответа
+        const am = raw.match(/^Правильный\s+ответ\s*:\s*(.+)$/i);
+        if (am && cur) {
+            cur.answer = am[1].trim();
+            flush();
+            continue;
+        }
+
+        // вариант ответа: A. / B. / C. / D.
+        const om = raw.match(/^([A-Da-d])[.)]\s*(.*)$/);
+        if (om && cur && !/^\d/.test(raw)) {
+            cur.options[om[1].toUpperCase().charCodeAt(0) - 65] = om[2];
+            continue;
+        }
+
+        // новый вопрос: "12. текст"
+        const qm = raw.match(/^(\d{1,3})\.\s+(.*)$/);
+        if (qm) {
+            flush();
+            cur = { num: qm[1], text: qm[2], options: ['', '', '', ''], answer: '', line: i + 1 };
+            continue;
+        }
+
+        // продолжение текста вопроса
+        if (cur) cur.text += (cur.text ? ' ' : '') + raw;
+    }
+    flush();
+    return { title, questions, errors };
+}
+
+app.post('/api/exams/import-template', (req, res) => {
+    try {
+        const body = req.body || {};
+        let text = '';
+        if (body.text != null && String(body.text).length) {
+            text = String(body.text);
+        } else if (body.base64) {
+            const buf = Buffer.from(String(body.base64), 'base64');
+            const fname = String(body.filename || '').toLowerCase();
+            if (fname.endsWith('.docx') || (buf.length > 4 && buf.readUInt32LE(0) === 0x04034b50)) {
+                text = docxXmlToText(extractDocxXml(buf));
+            } else {
+                text = buf.toString('utf8');
+            }
+        } else {
+            res.status(400).json({ ok: false, error: 'Нужен файл (base64) или text.' });
+            return;
+        }
+        const parsed = parseTemplateText(text);
+        if (!parsed.questions.length) {
+            res.json({
+                ok: false,
+                title: parsed.title,
+                questions: [],
+                errors: parsed.errors.length ? parsed.errors : ['Не найдено ни одного вопроса. Ожидается формат: «1. вопрос» → «A. …» «B. …» «C. …» «D. …» → «Правильный ответ: B. …»']
+            });
+            return;
+        }
+        res.json({ ok: true, title: parsed.title, questions: parsed.questions, errors: parsed.errors });
+    } catch (err) {
+        console.error('[exams/import-template]', err.message);
+        res.status(400).json({ ok: false, error: err.message || 'Не удалось разобрать файл' });
+    }
+});
+
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: { origin: '*' },
@@ -1513,6 +1691,273 @@ function getJournalData() {
     if (!Array.isArray(db.journal.homework)) db.journal.homework = [];
     if (!Array.isArray(db.journal.homeworkSubmissions)) db.journal.homeworkSubmissions = [];
     return db.journal;
+}
+
+// --- Exams helpers (Mandarin Pro exams & tests) ---
+function getExamsData() {
+    if (!db.exams || typeof db.exams !== 'object') {
+        db.exams = { exams: [], attempts: [] };
+    }
+    if (!Array.isArray(db.exams.exams)) db.exams.exams = [];
+    if (!Array.isArray(db.exams.attempts)) db.exams.attempts = [];
+    return db.exams;
+}
+
+function findJournalStudentByUser(userId) {
+    if (!userId) return null;
+    const j = getJournalData();
+    return j.students.find(s => s && (s.userId === userId || s.id === userId)) || null;
+}
+
+function sanitizeQuestion(q) {
+    if (!q || typeof q !== 'object') return null;
+    const options = Array.isArray(q.options) ? q.options.slice(0, 8).map(o => String(o == null ? '' : o).slice(0, 500)) : [];
+    return {
+        id: String(q.id || genId()),
+        text: String(q.text == null ? '' : q.text).slice(0, 5000),
+        options,
+        answer: String(q.answer == null ? '' : q.answer).slice(0, 500),
+        points: Number.isFinite(Number(q.points)) && Number(q.points) > 0 ? Number(q.points) : 1,
+        explanation: String(q.explanation == null ? '' : q.explanation).slice(0, 2000)
+    };
+}
+
+function sanitizeExam(data) {
+    const questions = Array.isArray(data.questions) ? data.questions.map(sanitizeQuestion).filter(Boolean) : [];
+    return {
+        id: String(data.id || genId()),
+        title: String(data.title == null ? '' : data.title).slice(0, 200),
+        description: String(data.description == null ? '' : data.description).slice(0, 5000),
+        instruction: String(data.instruction == null ? '' : data.instruction).slice(0, 5000),
+        subject: String(data.subject == null ? 'Китайский язык' : data.subject).slice(0, 100),
+        level: String(data.level == null ? '' : data.level).slice(0, 50),
+        state: ['Черновик', 'Опубликован', 'Открыт', 'Закрыт', 'Архив'].includes(data.state) ? data.state : 'Опубликован',
+        open: String(data.open || ''),
+        close: String(data.close || ''),
+        minutes: Number.isFinite(Number(data.minutes)) && Number(data.minutes) >= 1 ? Math.min(600, Number(data.minutes)) : 20,
+        limit: Number.isFinite(Number(data.limit)) && Number(data.limit) >= 1 ? Math.min(50, Number(data.limit)) : 1,
+        pass: Number.isFinite(Number(data.pass)) ? Math.max(0, Math.min(100, Number(data.pass))) : 60,
+        reveal: ['after', 'closed', 'never'].includes(data.reveal) ? data.reveal : 'after',
+        navigate: data.navigate !== false,
+        access: Array.isArray(data.access) ? data.access.map(x => String(x == null ? '' : x).trim()).filter(Boolean).slice(0, 200) : [],
+        groupIds: Array.isArray(data.groupIds) ? data.groupIds.map(x => String(x == null ? '' : x).trim()).filter(Boolean).slice(0, 100) : [],
+        forAll: data.forAll !== false,
+        questions
+    };
+}
+
+function isExamVisibleToStudent(e, userId, st) {
+    if (!e) return false;
+    // Drafts / closed / archived are never listed for students
+    if (e.state !== 'Открыт' && e.state !== 'Опубликован') return false;
+    const access = Array.isArray(e.access) ? e.access.filter(Boolean) : [];
+    const groupIds = Array.isArray(e.groupIds) ? e.groupIds.filter(Boolean) : [];
+    // Explicit assignment: only matching groups / individuals
+    if (groupIds.length || access.length) {
+        if (st && st.groupId && groupIds.includes(st.groupId)) return true;
+        if (userId && access.includes(userId)) return true;
+        if (st && access.includes(st.id)) return true;
+        if (st && st.userId && access.includes(st.userId)) return true;
+        return false;
+    }
+    // Published with no assignment (or "for all") → every student sees it
+    return true;
+}
+
+function validateExam(data) {
+    const errors = [];
+    if (!data || typeof data !== 'object') { errors.push('Нет данных экзамена.'); return errors; }
+    if (!String(data.title || '').trim()) errors.push('Укажите название.');
+    const minutes = Number(data.minutes);
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 600) errors.push('Время: от 1 до 600 минут.');
+    const limit = Number(data.limit);
+    if (!Number.isInteger(limit) || limit < 1) errors.push('Число попыток — целое от 1.');
+    const pass = Number(data.pass);
+    if (!Number.isFinite(pass) || pass < 0 || pass > 100) errors.push('Проходной процент: 0–100.');
+    if (data.open && data.close && String(data.open) >= String(data.close)) errors.push('Закрытие должно быть позже открытия.');
+    const questions = Array.isArray(data.questions) ? data.questions : [];
+    if (!questions.length) errors.push('Добавьте хотя бы один вопрос.');
+    questions.forEach((q, i) => {
+        const n = i + 1;
+        if (!q || !String(q.text || '').trim()) errors.push('Вопрос ' + n + ': нет текста.');
+        const opts = Array.isArray(q.options) ? q.options.map(o => String(o || '').trim()).filter(Boolean) : [];
+        if (opts.length < 2) errors.push('Вопрос ' + n + ': нужно минимум 2 варианта ответа.');
+        const ans = String(q.answer || '').trim();
+        if (!ans) errors.push('Вопрос ' + n + ': нет правильного ответа.');
+        else if (opts.length && !opts.includes(ans) && !opts.includes(ans.replace(/^[A-Da-d][.)]\s*/, ''))) {
+            // allow letter answer A-D mapped later on client; server accepts letter or option text
+            if (!/^[A-Da-d]$/.test(ans)) errors.push('Вопрос ' + n + ': ответ должен совпадать с одним из вариантов.');
+        }
+    });
+    return errors;
+}
+
+function gradeExamAnswers(exam, answers) {
+    const grades = {};
+    let score = 0;
+    let maxScore = 0;
+    for (const q of (exam.questions || [])) {
+        const pts = Number(q.points) > 0 ? Number(q.points) : 1;
+        maxScore += pts;
+        const v = answers ? answers[q.id] : undefined;
+        const raw = Array.isArray(v) ? (v[0] || '') : (v == null ? '' : v);
+        const letter = String(raw).trim().toUpperCase();
+        const opts = (q.options || []).map(o => String(o || '').trim());
+        const letterIdx = /^[A-D]$/.test(letter) ? letter.charCodeAt(0) - 65 : -1;
+        const selectedText = letterIdx >= 0 ? (opts[letterIdx] || '') : String(raw).trim();
+
+        const ansRaw = String(q.answer || '').trim();
+        let correctLetter = '';
+        let correctText = '';
+        if (/^[A-Da-d]$/.test(ansRaw)) {
+            correctLetter = ansRaw.toUpperCase();
+            const ci = correctLetter.charCodeAt(0) - 65;
+            correctText = opts[ci] || '';
+        } else {
+            const m = ansRaw.match(/^([A-Da-d])[.)]\s*(.*)$/);
+            if (m) {
+                correctLetter = m[1].toUpperCase();
+                const ci = correctLetter.charCodeAt(0) - 65;
+                correctText = opts[ci] || m[2] || '';
+            } else {
+                const ix = opts.findIndex(o => o === ansRaw);
+                correctLetter = ix >= 0 ? 'ABCD'.charAt(ix) : '';
+                correctText = ix >= 0 ? opts[ix] : ansRaw;
+            }
+        }
+
+        let ok = false;
+        if (letter && correctLetter && letter === correctLetter) ok = true;
+        else if (selectedText && correctText && selectedText === correctText) ok = true;
+        else if (selectedText && ansRaw && selectedText === ansRaw) ok = true;
+
+        if (!letter && !selectedText) {
+            grades[q.id] = { score: 0, status: 'Пропущено', answer: '', answerText: '', correct: correctText || correctLetter };
+        } else {
+            grades[q.id] = {
+                score: ok ? pts : 0,
+                status: ok ? 'Правильно' : 'Неправильно',
+                answer: letter || selectedText,
+                answerText: selectedText || letter,
+                correct: correctText || correctLetter
+            };
+            if (ok) score += pts;
+        }
+    }
+    return { grades, score, maxScore };
+}
+
+function publicExamForStudent(e) {
+    // Hide correct answers from students during the attempt
+    return Object.assign({}, e, {
+        questions: (e.questions || []).map(q => ({
+            id: q.id,
+            text: q.text,
+            options: q.options,
+            points: q.points,
+            explanation: q.explanation || ''
+            // answer intentionally omitted
+        }))
+    });
+}
+
+function publicAttemptForStudent(a) {
+    const snap = a.examSnapshot || {};
+    const reveal = snap.reveal === 'after' || isAdminAttemptReveal(a);
+    return {
+        id: a.id,
+        examId: a.examId,
+        examSnapshot: {
+            id: snap.id,
+            title: snap.title,
+            pass: snap.pass,
+            minutes: snap.minutes,
+            reveal: snap.reveal,
+            questions: (snap.questions || []).map(q => ({
+                id: q.id,
+                text: q.text,
+                options: q.options,
+                points: q.points,
+                explanation: (reveal && a.end) ? (q.explanation || '') : ''
+            }))
+        },
+        start: a.start,
+        end: a.end || null,
+        deadline: a.deadline || null,
+        durationSec: a.durationSec,
+        answers: a.answers || {},
+        grades: a.end ? filterGradesForStudent(a.grades || {}, reveal) : {},
+        score: a.score,
+        maxScore: a.maxScore,
+        percent: a.percent,
+        status: a.status,
+        number: a.number
+    };
+}
+
+function isAdminAttemptReveal(a) {
+    const snap = a.examSnapshot || {};
+    if (snap.reveal === 'closed') {
+        const live = getExamsData().exams.find(e => e && e.id === a.examId);
+        return !!(live && (live.state === 'Закрыт' || live.state === 'Архив'));
+    }
+    return false;
+}
+
+function filterGradesForStudent(grades, reveal) {
+    const out = {};
+    for (const key of Object.keys(grades || {})) {
+        const g = grades[key] || {};
+        out[key] = {
+            score: g.score,
+            status: g.status,
+            answer: g.answer,
+            answerText: g.answerText
+        };
+        if (reveal) {
+            out[key].correct = g.correct;
+        }
+    }
+    return out;
+}
+
+function emitExamsUpdate() {
+    const ex = getExamsData();
+    const adminStudents = getJournalData().students.map(s => ({ id: s.id, name: s.name, groupId: s.groupId, userId: s.userId || null }));
+    const adminGroups = (getJournalData().groups || []).map(g => ({ id: g.id, name: g.name }));
+    for (const socketId of socketUserMap.keys()) {
+        const userId = socketUserMap.get(socketId);
+        const admin = isAdmin(socketId);
+        if (admin) {
+            io.to(socketId).emit('exams:updated', {
+                exams: ex.exams,
+                attempts: ex.attempts,
+                students: adminStudents,
+                groups: adminGroups,
+                isAdmin: true
+            });
+        } else if (userId) {
+            const st = findJournalStudentByUser(userId);
+            const myAttempts = ex.attempts.filter(a => a && (a.userId === userId || (st && a.studentId === st.id)));
+            const openExams = ex.exams.filter(e => isExamVisibleToStudent(e, userId, st));
+            io.to(socketId).emit('exams:updated', {
+                exams: openExams.map(e => publicExamForStudent(e)),
+                attempts: myAttempts.map(a => publicAttemptForStudent(a)),
+                isAdmin: false
+            });
+        }
+    }
+    for (const sid of adminSockets) {
+        if (!socketUserMap.has(sid)) {
+            io.to(sid).emit('exams:updated', {
+                exams: ex.exams,
+                attempts: ex.attempts,
+                students: adminStudents,
+                groups: adminGroups,
+                isAdmin: true
+            });
+        }
+    }
 }
 
 // --- Parent token / attendance helpers ---
@@ -7062,6 +7507,192 @@ io.on('connection', (socket) => {
         socket.emit('homework:reviewed', { ok: true, submission: sub });
     });
 
+    // ==================== EXAMS / TESTS (Mandarin Pro) ====================
+    socket.on('exams:get', () => {
+        const ex = getExamsData();
+        const userId = socketUserMap.get(socket.id);
+        const admin = isAdmin(socket.id);
+        if (!userId && !admin) {
+            socket.emit('exams:updated', { exams: [], attempts: [], isAdmin: false });
+            return;
+        }
+        if (admin) {
+            socket.emit('exams:updated', {
+                exams: ex.exams,
+                attempts: ex.attempts,
+                students: getJournalData().students.map(s => ({ id: s.id, name: s.name, groupId: s.groupId, userId: s.userId || null })),
+                groups: (getJournalData().groups || []).map(g => ({ id: g.id, name: g.name })),
+                isAdmin: true
+            });
+            return;
+        }
+        const myAttempts = ex.attempts.filter(a => a && (a.userId === userId || (a.studentId && findJournalStudentByUser(userId) && a.studentId === findJournalStudentByUser(userId).id)));
+        const stForVis = findJournalStudentByUser(userId);
+        const openExams = ex.exams.filter(e => isExamVisibleToStudent(e, userId, stForVis));
+        socket.emit('exams:updated', {
+            exams: openExams.map(e => publicExamForStudent(e)),
+            attempts: myAttempts.map(a => publicAttemptForStudent(a)),
+            isAdmin: false
+        });
+    });
+
+    socket.on('exams:save', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('exams:saved', { ok: false, error: 'Экзамены доступны только администратору.' }); return; }
+        if (!data || typeof data !== 'object') return;
+        const ex = getExamsData();
+        const err = validateExam(data);
+        if (err.length) { socket.emit('exams:saved', { ok: false, error: err.join('\n') }); return; }
+        const nowIso = new Date().toISOString();
+        const exam = sanitizeExam(data);
+        exam.updatedAt = nowIso;
+        const idx = ex.exams.findIndex(e => e && e.id === exam.id);
+        if (idx < 0) {
+            exam.createdAt = nowIso;
+            ex.exams.push(exam);
+        } else {
+            exam.createdAt = ex.exams[idx].createdAt || nowIso;
+            ex.exams[idx] = exam;
+        }
+        saveDB();
+        emitExamsUpdate();
+        socket.emit('exams:saved', { ok: true, id: exam.id });
+    });
+
+    socket.on('exams:delete', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('exams:deleted', { ok: false, error: 'Требуется администратор.' }); return; }
+        const ex = getExamsData();
+        const id = data && data.id ? String(data.id) : '';
+        const idx = ex.exams.findIndex(e => e && e.id === id);
+        if (idx < 0) { socket.emit('exams:deleted', { ok: false, error: 'Экзамен не найден.' }); return; }
+        ex.exams.splice(idx, 1);
+        ex.attempts = ex.attempts.filter(a => a && a.examId !== id);
+        saveDB();
+        emitExamsUpdate();
+        socket.emit('exams:deleted', { ok: true, id });
+    });
+
+    socket.on('exams:saveResult', (data) => {
+        // Client submits the finished attempt; server auto-grades against the live exam.
+        const userId = socketUserMap.get(socket.id);
+        const user = findUser(userId);
+        if (!user && !isAdmin(socket.id)) { socket.emit('exams:resultSaved', { ok: false, error: 'Не авторизован.' }); return; }
+        if (!data || typeof data !== 'object') return;
+        const ex = getExamsData();
+        const exam = ex.exams.find(e => e && e.id === String(data.examId || ''));
+        if (!exam) { socket.emit('exams:resultSaved', { ok: false, error: 'Экзамен не найден.' }); return; }
+        const nowMs = Date.now();
+        const nowIso = new Date(nowMs).toISOString();
+        const st = userId ? findJournalStudentByUser(userId) : null;
+        const start = Number(data.start) || nowMs;
+        const isFinal = data.final !== false && data.status !== 'В процессе';
+        const end = isFinal ? (Number(data.end) || nowMs) : null;
+        const answers = data.answers && typeof data.answers === 'object' ? data.answers : {};
+
+        let grades = {};
+        let score = 0;
+        let maxScore = 0;
+        if (isFinal) {
+            const graded = gradeExamAnswers(exam, answers);
+            grades = graded.grades;
+            score = graded.score;
+            maxScore = graded.maxScore;
+        } else {
+            maxScore = (exam.questions || []).reduce((s, q) => s + (Number(q.points) || 0), 0);
+        }
+        const percent = maxScore ? Math.round(score / maxScore * 1000) / 10 : 0;
+        const status = !isFinal ? 'В процессе' : (percent >= Number(exam.pass || 60) ? 'Сдан' : 'Не сдан');
+
+        const attempt = {
+            id: String(data.id || genId()),
+            examId: exam.id,
+            examSnapshot: {
+                id: exam.id,
+                title: exam.title,
+                pass: exam.pass,
+                minutes: exam.minutes,
+                reveal: exam.reveal,
+                navigate: exam.navigate,
+                questions: (exam.questions || []).map(q => ({
+                    id: q.id, text: q.text, options: q.options, answer: q.answer,
+                    points: q.points, explanation: q.explanation || ''
+                }))
+            },
+            userId: userId || (data.userId ? String(data.userId) : null),
+            studentId: st ? st.id : (data.studentId ? String(data.studentId) : null),
+            studentName: (st && st.name) || (user && user.name) || String(data.studentName || ''),
+            groupId: st ? st.groupId || null : null,
+            start,
+            end,
+            deadline: Number(data.deadline) || (start + Number(exam.minutes || 20) * 60000),
+            durationSec: isFinal ? Math.max(0, Math.round((end - start) / 1000)) : 0,
+            answers,
+            grades,
+            score,
+            maxScore,
+            percent,
+            status,
+            number: Number(data.number) || (ex.attempts.filter(a => a && a.examId === exam.id && (a.userId === (userId || data.userId) || (st && a.studentId === st.id))).length + 1),
+            position: Number(data.position) || 0,
+            createdAt: nowIso
+        };
+        const existingIdx = ex.attempts.findIndex(a => a && a.id === attempt.id);
+        if (existingIdx >= 0) {
+            // keep createdAt / number from the original in-progress attempt
+            attempt.createdAt = ex.attempts[existingIdx].createdAt || nowIso;
+            if (!Number(data.number) && ex.attempts[existingIdx].number) attempt.number = ex.attempts[existingIdx].number;
+            ex.attempts[existingIdx] = attempt;
+        } else {
+            ex.attempts.push(attempt);
+        }
+        saveDB();
+        emitExamsUpdate();
+        socket.emit('exams:resultSaved', { ok: true, attempt: publicAttemptForStudent(attempt), isAdmin: isAdmin(socket.id) });
+    });
+
+    socket.on('exams:saveAnswer', (data) => {
+        const userId = socketUserMap.get(socket.id);
+        if (!userId && !isAdmin(socket.id)) return;
+        if (!data || !data.attemptId) return;
+        const ex = getExamsData();
+        let a = ex.attempts.find(x => x && x.id === String(data.attemptId));
+        if (a && a.end) return;
+        if (a && a.userId && userId && a.userId !== userId && !isAdmin(socket.id)) return;
+        if (!a) {
+            // create minimal in-progress attempt so answers are not lost
+            const exam = data.examId ? ex.exams.find(e => e && e.id === String(data.examId)) : null;
+            const st = userId ? findJournalStudentByUser(userId) : null;
+            const user = findUser(userId);
+            a = {
+                id: String(data.attemptId),
+                examId: exam ? exam.id : String(data.examId || ''),
+                examSnapshot: exam ? {
+                    id: exam.id, title: exam.title, pass: exam.pass, minutes: exam.minutes, reveal: exam.reveal, navigate: exam.navigate,
+                    questions: (exam.questions || []).map(q => ({ id: q.id, text: q.text, options: q.options, answer: q.answer, points: q.points, explanation: q.explanation || '' }))
+                } : { id: String(data.examId || ''), title: '', questions: [] },
+                userId: userId || null,
+                studentId: st ? st.id : null,
+                studentName: (st && st.name) || (user && user.name) || '',
+                groupId: st ? st.groupId || null : null,
+                start: Number(data.start) || Date.now(),
+                end: null,
+                deadline: Number(data.deadline) || Date.now() + 30 * 60000,
+                durationSec: 0,
+                answers: {},
+                grades: {},
+                score: 0, maxScore: 0, percent: 0,
+                status: 'В процессе',
+                number: ex.attempts.filter(x => x && x.examId === (exam ? exam.id : data.examId) && x.userId === (userId || null)).length + 1,
+                position: 0,
+                createdAt: new Date().toISOString()
+            };
+            ex.attempts.push(a);
+        }
+        if (data.answers && typeof data.answers === 'object') a.answers = Object.assign({}, a.answers || {}, data.answers);
+        if (Number.isFinite(Number(data.position))) a.position = Number(data.position);
+        if (Number.isFinite(Number(data.deadline))) a.deadline = Number(data.deadline);
+        saveDB();
+    });
+
     socket.on('globalMode:get', () => {
         socket.emit('globalMode:state', publicGlobalMode());
     });
@@ -7070,7 +7701,7 @@ io.on('connection', (socket) => {
         if (!isAdmin(socket.id)) { socket.emit('globalMode:setResult', { ok: false, error: 'Требуется администратор.' }); return; }
         const enabled = !!(data && data.enabled);
         const section = data && data.section ? String(data.section) : null;
-        const allowed = ['home', 'history', 'purchases', 'messages', 'notifications', 'coupons', 'quests', 'tasks', 'duels', 'mafia', 'mybanks', 'battlepass', 'myqr', 'qrterminal', 'journal', 'homework', 'users', 'profile', 'diary', 'croc', 'bunker'];
+        const allowed = ['home', 'history', 'purchases', 'messages', 'notifications', 'coupons', 'quests', 'tasks', 'duels', 'mafia', 'mybanks', 'battlepass', 'myqr', 'qrterminal', 'journal', 'homework', 'users', 'profile', 'diary', 'croc', 'bunker', 'exams'];
         if (enabled && (!section || !allowed.includes(section))) {
             socket.emit('globalMode:setResult', { ok: false, error: 'Неизвестный модуль.' });
             return;

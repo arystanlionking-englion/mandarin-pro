@@ -11599,6 +11599,7 @@ body.dict-fullscreen .dict-title{color:#fff}
             <div class="nav-i" data-s="myqr" onclick="go('myqr')"><i data-lucide="qr-code" style="width:16px;height:16px"></i>📱 Мой QR</div>
             <div class="nav-i" data-s="qrterminal" onclick="go('qrterminal')"><i data-lucide="scan" style="width:16px;height:16px"></i>📷 QR-Терминал</div>
             <div class="nav-i" data-s="journal" onclick="go('journal')"><i data-lucide="book-open-check" style="width:16px;height:16px"></i>📖 Журнал</div>
+            <div class="nav-i" data-s="exams" onclick="go('exams')"><i data-lucide="clipboard-check" style="width:16px;height:16px"></i>📝 Экзамены</div>
             <div class="nav-i" data-s="dictionary" onclick="go('dictionary')"><i data-lucide="book-a" style="width:16px;height:16px"></i>📖 Словарь</div>
             <div class="nav-i" data-s="profile" onclick="go('profile')"><i data-lucide="user" style="width:16px;height:16px"></i>Профиль</div>
             <div class="nav-i hidden" id="navAdmin" data-s="admin" onclick="go('admin')"><i data-lucide="shield" style="width:16px;height:16px"></i>老师 🦁 Панель</div>
@@ -12153,6 +12154,16 @@ body.dict-fullscreen .dict-title{color:#fff}
             </div>
         </div>
 
+        <!-- EXAMS / TESTS MODULE -->
+        <div class="sec" id="secExams">
+            <div class="coupon-chinese-title">
+                <div class="zh">📝 考试</div>
+                <div class="ru">Экзамены и тесты</div>
+                <div class="sub">Создание, прохождение и проверка тестов</div>
+            </div>
+            <div id="examsRoot"></div>
+        </div>
+
         <!-- TESTS / CHECK RESULTS -->
         <div class="sec" id="secTests">
             <div class="coupon-chinese-title">
@@ -12292,6 +12303,7 @@ body.dict-fullscreen .dict-title{color:#fff}
     <div class="sm-item" onclick="go('myqr');closeSlideMenu()"><i data-lucide="qr-code" style="width:18px;height:18px"></i>📱 Мой QR</div>
     <div class="sm-item" onclick="go('qrterminal');closeSlideMenu()"><i data-lucide="scan" style="width:18px;height:18px"></i>📷 QR-Терминал</div>
     <div class="sm-item" data-s="journal" onclick="go('journal');closeSlideMenu()"><i data-lucide="book-open-check" style="width:18px;height:18px"></i>📖 Журнал</div>
+    <div class="sm-item" data-s="exams" onclick="go('exams');closeSlideMenu()"><i data-lucide="clipboard-check" style="width:18px;height:18px"></i>📝 Экзамены</div>
     <div class="sm-item" data-s="dictionary" onclick="go('dictionary');closeSlideMenu()"><i data-lucide="book-a" style="width:18px;height:18px"></i>📖 Словарь</div>
     <div class="sm-item" data-s="diary" onclick="go('diary');closeSlideMenu()"><i data-lucide="book-open" style="width:18px;height:18px"></i>📔 Дневник</div>
     <div class="sm-item hidden" id="slideHwBtn" data-s="homework" onclick="go('homework');closeSlideMenu()"><i data-lucide="book-open-check" style="width:18px;height:18px"></i>📝 ДЗ</div>
@@ -18490,7 +18502,7 @@ const GM_SECTIONS={
     homework:'📝 ДЗ',journal:'📖 Журнал',mybanks:'🏦 Мои банки',battlepass:'🐉 Сезонный путь',
     myqr:'📱 Мой QR',qrterminal:'📷 QR-Терминал',purchases:'🛒 Покупки',history:'📜 История',
     messages:'💬 Сообщения',notifications:'🔔 Уведомления',users:'👥 Пользователи',profile:'👤 Профиль',home:'🏠 Главная',diary:'📔 Дневник',
-    dictionary:'📖 Словарь',
+    dictionary:'📖 Словарь',exams:'📝 Экзамены',
     croc:'🐊 Крокодил',bunker:'🚀 Бункер'
 };
 let globalModeState={enabled:false,section:null,updatedAt:null};
@@ -18670,6 +18682,7 @@ window.go=function(s){
     if(s==='qrterminal'){socket.emit('qr:generateData');socket.emit('qr:getUsers');socket.emit('qr:getHistory');generateMyQR();}
     if(s==='mybanks'){currentBankView=null;$('bankListView').classList.remove('hidden');$('bankDetailView').classList.add('hidden');socket.emit('bank:getAll');socket.emit('bank:getDeposits');socket.emit('bank:getHistory');renderMyBanks();}
     if(s==='homework'){if(window.Journal&&window.Journal.renderHomework)window.Journal.renderHomework();}
+    if(s==='exams'){if(window.Exams&&window.Exams.onNavigate)window.Exams.onNavigate(s);}
     if(s==='dictionary'){
         document.body.classList.add('dict-fullscreen');
         const fr=$('dictFrame');
@@ -21526,13 +21539,22 @@ window.BP={
     mafiaEmit:function(ev,data){try{if(socket&&socket.emit)socket.emit(ev,data);}catch(e){}},
     onMafia:function(ev,cb){try{if(socket&&socket.on)socket.on(ev,cb);}catch(e){}},
     partyEmit:function(ev,data){try{if(socket&&socket.emit)socket.emit(ev,data);}catch(e){}},
-    onParty:function(ev,cb){try{if(socket&&socket.on)socket.on(ev,cb);}catch(e){}}
+    onParty:function(ev,cb){try{if(socket&&socket.on)socket.on(ev,cb);}catch(e){}},
+    examsGet:function(){try{if(socket&&socket.emit)socket.emit('exams:get');}catch(e){}},
+    examsSave:function(data){try{if(socket&&socket.emit)socket.emit('exams:save',data);}catch(e){}},
+    examsDelete:function(id){try{if(socket&&socket.emit)socket.emit('exams:delete',{id:id});}catch(e){}},
+    examsSaveResult:function(data){try{if(socket&&socket.emit)socket.emit('exams:saveResult',data);}catch(e){}},
+    examsSaveAnswer:function(data){try{if(socket&&socket.emit)socket.emit('exams:saveAnswer',data);}catch(e){}},
+    onExamsUpdate:function(cb){try{if(socket&&socket.on)socket.on('exams:updated',cb);}catch(e){}},
+    onExamsResultSaved:function(cb){try{if(socket&&socket.on)socket.on('exams:resultSaved',cb);}catch(e){}},
+    onExamsSaved:function(cb){try{if(socket&&socket.on)socket.on('exams:saved',cb);}catch(e){}}
 };
 if(window.Journal&&window.Journal.init)window.Journal.init(window.BP);
 })();
 </script>
 
 <script src="journal.js"></script>
+<script src="exams.js"></script>
 <script src="mafia.js"></script>
 <script src="party.js"></script>
 <script src="security-panel.js"></script>
@@ -21553,6 +21575,7 @@ document.addEventListener('DOMContentLoaded',function(){
         if(dictReload)dictReload.onclick=function(){return window.reloadDictionary();};
     }catch(e){}
     try{ if(window.Journal&&window.Journal.init&&window.BP)window.Journal.init(window.BP); }catch(e){}
+    try{ if(window.Exams&&window.Exams.init&&window.BP)window.Exams.init(window.BP); }catch(e){}
     try{ if(window.Mafia&&window.Mafia.init&&window.BP)window.Mafia.init(window.BP); }catch(e){}
     try{ if(window.Party&&window.Party.init&&window.BP)window.Party.init(window.BP); }catch(e){}
     // Highlight bottom nav diary by default on mobile when shown

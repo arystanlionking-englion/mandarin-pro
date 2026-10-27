@@ -844,6 +844,11 @@
             html += '<div class="jr-empty">История пока пуста.</div>';
         }
 
+        // 6. Результаты экзаменов (Mandarin Pro — экзамены и тесты)
+        if (window.Exams && window.Exams.renderDiaryBlock) {
+            try { html += window.Exams.renderDiaryBlock(); } catch (e) { }
+        }
+
         // Оценки — общая история
         html += '<div class="jr-subtitle" style="margin-top:28px">История занятий</div>';
         if (all.length) {
