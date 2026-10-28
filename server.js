@@ -406,7 +406,7 @@ const INVESTMENT_TYPES = [
     { id: 'certificates', name: 'Сертификаты', icon: 'award', emoji: '🏅' }
 ];
 
-let db = { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [], journal: { groups: [], students: [], records: [], settings: { reward: 300 } }, accountRequests: [], securityLog: [], auditLog: [], globalMode: { enabled: false, section: null, updatedAt: null }, party: null };
+let db = { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [], journal: { groups: [], students: [], records: [], settings: { reward: 300 } }, accountRequests: [], securityLog: [], auditLog: [], globalMode: { enabled: false, section: null, updatedAt: null }, party: null, guestMode: { enabled: false }, maintenanceMode: { enabled: false }, guestSessions: [], guestQrTokens: [], guestCounter: 0 };
 
 // True only after loadDB() successfully populated `db` from the real store.
 // Prevents empty in-memory defaults from being flushed over real data on startup.
@@ -498,13 +498,13 @@ async function loadDB() {
 }
 
 function getDefaultDB() {
-    return { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], virtualBanks: null, userBankDeposits: [], userBankInvestments: [], bankHistory: [], couponPricesHalved: false, qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [], journal: { groups: [], students: [], records: [], settings: { reward: 300 } }, mafia: null, accountRequests: [], securityLog: [], auditLog: [], globalMode: { enabled: false, section: null, updatedAt: null }, party: null };
+    return { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], virtualBanks: null, userBankDeposits: [], userBankInvestments: [], bankHistory: [], couponPricesHalved: false, qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [], journal: { groups: [], students: [], records: [], settings: { reward: 300 } }, mafia: null, accountRequests: [], securityLog: [], auditLog: [], globalMode: { enabled: false, section: null, updatedAt: null }, party: null, guestMode: { enabled: false }, maintenanceMode: { enabled: false }, guestSessions: [], guestQrTokens: [], guestCounter: 0 };
 }
 
 function getDefaultMafia() {
     return {
         status: 'idle', // idle | lobby | playing
-        config: { doctor: true, commissar: true, mafiaMode: 'auto', duration: 90, allowHostFinish: true },
+        config: { doctor: true, commissar: true, mafiaMode: 'auto', duration: 90, allowHostFinish: true, hostMode: 'both' },
         lobbyOpen: false,
         joined: [],
         game: null,
@@ -957,6 +957,122 @@ function removeSession(token) {
     saveDB();
 }
 
+// --- Guest / Maintenance / Guest-QR helpers ---
+const GUEST_SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+function ensureGuestState() {
+    if (!db.guestMode || typeof db.guestMode !== 'object') db.guestMode = { enabled: false };
+    if (!db.maintenanceMode || typeof db.maintenanceMode !== 'object') db.maintenanceMode = { enabled: false };
+    if (!Array.isArray(db.guestSessions)) db.guestSessions = [];
+    if (!Array.isArray(db.guestQrTokens)) db.guestQrTokens = [];
+    if (typeof db.guestCounter !== 'number') db.guestCounter = 0;
+}
+
+function isMaintenanceEnabled() {
+    ensureGuestState();
+    return !!db.maintenanceMode.enabled;
+}
+
+function isGuestModeEnabled() {
+    ensureGuestState();
+    return !!db.guestMode.enabled;
+}
+
+function cleanupExpiredGuests() {
+    ensureGuestState();
+    const now = Date.now();
+    let dirty = false;
+    // expired guest QR tokens
+    const beforeQr = db.guestQrTokens.length;
+    db.guestQrTokens = db.guestQrTokens.filter(t => t && !t.used && t.expiresAt > now);
+    if (db.guestQrTokens.length !== beforeQr) dirty = true;
+    // expired guest sessions → remove session + temporary user
+    const expired = db.guestSessions.filter(s => s && s.expiresAt <= now);
+    for (const g of expired) {
+        db.sessions = db.sessions.filter(s => s.token !== g.token);
+        if (g.userId) {
+            const u = findUser(g.userId);
+            if (u && u.isGuest) {
+                db.users = db.users.filter(x => x.id !== g.userId);
+                db.userXP = db.userXP || {};
+                delete db.userXP[g.userId];
+            }
+        }
+    }
+    if (expired.length) {
+        db.guestSessions = db.guestSessions.filter(s => s && s.expiresAt > now);
+        dirty = true;
+    }
+    // guest users without live session
+    for (const u of db.users.filter(x => x && x.isGuest)) {
+        const live = db.guestSessions.some(s => s.userId === u.id && s.expiresAt > now);
+        if (!live) {
+            db.users = db.users.filter(x => x.id !== u.id);
+            db.sessions = db.sessions.filter(s => s.userId !== u.id);
+            dirty = true;
+        }
+    }
+    if (dirty) saveDB();
+    return dirty;
+}
+
+function createGuestSession(userId, token) {
+    ensureGuestState();
+    const expiresAt = Date.now() + GUEST_SESSION_TTL_MS;
+    db.guestSessions.push({ id: genId(), userId, token, createdAt: Date.now(), expiresAt });
+    return expiresAt;
+}
+
+function findGuestSessionByToken(token) {
+    ensureGuestState();
+    return db.guestSessions.find(s => s.token === token && s.expiresAt > Date.now()) || null;
+}
+
+function isGuestUser(userId) {
+    const u = findUser(userId);
+    return !!(u && u.isGuest);
+}
+
+function guestBlocked() {
+    return { success: false, message: 'Гостям доступны только игры и комнаты.' };
+}
+
+function denyIfGuestOrMaintenance(socket, eventName) {
+    const uid = socketUserMap.get(socket.id);
+    if (isMaintenanceEnabled()) {
+        socket.emit('maintenance:blocked', { message: 'Ведутся технические работы. Пожалуйста, зайдите позже.' });
+        return true;
+    }
+    if (uid && isGuestUser(uid)) {
+        socket.emit(eventName || 'error', guestBlocked());
+        return true;
+    }
+    return false;
+}
+
+function maintenanceBlocked() {
+    return { success: false, maintenance: true, message: 'Ведутся технические работы. Пожалуйста, зайдите позже.' };
+}
+
+function emitMaintenanceState() {
+    ensureGuestState();
+    const payload = { enabled: !!db.maintenanceMode.enabled, updatedAt: db.maintenanceMode.updatedAt || null };
+    for (const socketId of socketUserMap.keys()) {
+        io.to(socketId).emit('maintenance:state', payload);
+    }
+    for (const sid of adminSockets) {
+        io.to(sid).emit('maintenance:state', payload);
+    }
+}
+
+function emitGuestModeState() {
+    ensureGuestState();
+    const payload = { enabled: !!db.guestMode.enabled, updatedAt: db.guestMode.updatedAt || null };
+    for (const sid of adminSockets) {
+        io.to(sid).emit('guestMode:state', payload);
+    }
+}
+
 function findUser(id) { return db.users.find(u => u.id === id); }
 function findUserByName(name) { return db.users.find(u => u.name === name); }
 function isUserBlocked(userId) { const now = Date.now(); return db.userBlocks.find(b => b.userId === userId && (b.expiresAt === null || b.expiresAt > now)) || null; }
@@ -1107,7 +1223,9 @@ function publicUserFull(u, onlineIds) {
         currentIcon: bp ? bp.currentIcon : null,
         profilePhoto: u.profilePhoto || null,
         neonColor: u.neonColor || null,
-        nickColor: u.nickColor || null
+        nickColor: u.nickColor || null,
+        isGuest: !!u.isGuest,
+        guestExpiresAt: u.guestExpiresAt || null
     };
 }
 
@@ -2182,6 +2300,7 @@ function mafiaPublicPayload(forSocketId) {
         })),
         hostId: m.game.hostId,
         hostName: (m.game.players.find(p => p.userId === m.game.hostId) || {}).name || null,
+        hostMode: m.game.hostMode || m.config.hostMode || 'both',
         timer: mafiaTimerPublic(m.game.timer),
         startedAt: m.game.startedAt || 0
     } : null;
@@ -2256,6 +2375,13 @@ setInterval(() => {
         }
     } catch (e) { /* timer watchdog must never crash the server */ }
 }, 500);
+
+// Guest session / QR expiry watchdog (1 hour TTL)
+setInterval(() => {
+    try {
+        cleanupExpiredGuests();
+    } catch (e) { /* guest cleanup must never crash the server */ }
+}, 30000);
 
 // ==================== PARTY GAMES (Крокодил / Бункер) ====================
 const PARTY_DECKS = require('./party-decks.json');
@@ -2498,6 +2624,10 @@ io.on('connection', (socket) => {
 
     // --- Login with PIN ---
     socket.on('user:login_with_pin', (data) => {
+        if (isMaintenanceEnabled()) {
+            socket.emit('maintenance:blocked', { message: 'Ведутся технические работы. Пожалуйста, зайдите позже.' });
+            return;
+        }
         const userId = data?.userId;
         const pin = String(data?.pin || '');
         const user = findUser(userId);
@@ -2544,6 +2674,10 @@ io.on('connection', (socket) => {
 
     // --- Login with password (primary) ---
     socket.on('user:login_password', (data) => {
+        if (isMaintenanceEnabled()) {
+            socket.emit('user:login_result', { success: false, maintenance: true, message: 'Ведутся технические работы. Пожалуйста, зайдите позже.' });
+            return;
+        }
         const name = sanitizeName(data?.name);
         const password = String(data?.password || '');
         if (!name || !password) {
@@ -2722,6 +2856,7 @@ io.on('connection', (socket) => {
 
     // --- Session Login (fast re-entry, no PIN needed) ---
     socket.on('user:session_login', (data) => {
+        cleanupExpiredGuests();
         const token = data?.token;
         const session = validateSession(token);
         if (!session) {
@@ -2732,6 +2867,26 @@ io.on('connection', (socket) => {
         if (!user) {
             removeSession(token);
             socket.emit('session:invalid', {});
+            return;
+        }
+        // Guest sessions: enforce 1h expiry on every entry
+        if (user.isGuest) {
+            const gs = findGuestSessionByToken(token);
+            if (!gs) {
+                removeSession(token);
+                socket.emit('session:invalid', { reason: 'guest_expired' });
+                return;
+            }
+            user.guestExpiresAt = gs.expiresAt;
+        }
+        // Maintenance: block regular users (admin panel access is separate)
+        if (isMaintenanceEnabled() && !user.isGuest) {
+            // allow admin sockets only; regular users get maintenance screen
+            socket.emit('maintenance:blocked', { message: 'Ведутся технические работы. Пожалуйста, зайдите позже.' });
+            return;
+        }
+        if (isMaintenanceEnabled() && user.isGuest) {
+            socket.emit('maintenance:blocked', { message: 'Ведутся технические работы. Пожалуйста, зайдите позже.' });
             return;
         }
         const blockS = isUserBlocked(user.id);
@@ -2751,6 +2906,242 @@ io.on('connection', (socket) => {
             sessionToken: session.token
         });
         emitBankUpdate();
+    });
+
+    // --- Logout (current device only) ---
+    socket.on('user:logout', (data) => {
+        const token = data?.token || null;
+        const uid = socketUserMap.get(socket.id);
+        if (token) {
+            const sess = db.sessions.find(s => s.token === token);
+            if (sess && uid && sess.userId === uid) {
+                db.sessions = db.sessions.filter(s => s.token !== token);
+            }
+        } else if (uid) {
+            // no token → drop this socket's association only
+        }
+        if (uid) {
+            // remove this socket mapping so the device is logged out
+            socketUserMap.delete(socket.id);
+        }
+        saveDB();
+        socket.emit('user:logged_out', { success: true });
+    });
+
+    // --- Guest mode toggle (admin) ---
+    socket.on('admin:guestMode:set', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('guestMode:setResult', { success: false, error: 'Доступ запрещён' }); return; }
+        ensureGuestState();
+        db.guestMode.enabled = !!data?.enabled;
+        db.guestMode.updatedAt = Date.now();
+        saveDB();
+        socket.emit('guestMode:setResult', { success: true, guestMode: db.guestMode });
+        emitGuestModeState();
+    });
+
+    socket.on('guestMode:get', () => {
+        ensureGuestState();
+        socket.emit('guestMode:state', { enabled: !!db.guestMode.enabled, updatedAt: db.guestMode.updatedAt || null });
+    });
+
+    // --- Maintenance mode toggle (admin) ---
+    socket.on('admin:maintenance:set', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('maintenance:setResult', { success: false, error: 'Доступ запрещён' }); return; }
+        ensureGuestState();
+        db.maintenanceMode.enabled = !!data?.enabled;
+        db.maintenanceMode.updatedAt = Date.now();
+        saveDB();
+        socket.emit('maintenance:setResult', { success: true, maintenanceMode: db.maintenanceMode });
+        emitMaintenanceState();
+        // Force non-admin users to the maintenance screen immediately
+        if (db.maintenanceMode.enabled) {
+            for (const socketId of socketUserMap.keys()) {
+                if (!adminSockets.has(socketId)) {
+                    io.to(socketId).emit('maintenance:blocked', { message: 'Ведутся технические работы. Пожалуйста, зайдите позже.' });
+                }
+            }
+        }
+    });
+
+    socket.on('maintenance:get', () => {
+        ensureGuestState();
+        socket.emit('maintenance:state', { enabled: !!db.maintenanceMode.enabled, updatedAt: db.maintenanceMode.updatedAt || null });
+    });
+
+    // --- Guest login by name (only when guest mode is ON) ---
+    socket.on('user:guest_login', (data) => {
+        cleanupExpiredGuests();
+        ensureGuestState();
+        if (isMaintenanceEnabled()) {
+            socket.emit('user:guest_login_result', maintenanceBlocked());
+            return;
+        }
+        if (!isGuestModeEnabled()) {
+            socket.emit('user:guest_login_result', { success: false, message: 'Гостевой режим выключен. Обратитесь к администратору.' });
+            return;
+        }
+        const name = sanitizeName(data?.name);
+        if (!name || name.length < 2 || name.length > 20) {
+            socket.emit('user:guest_login_result', { success: false, message: 'Введите имя (2–20 символов).' });
+            return;
+        }
+        // Temporary guest account, distinct from registered users
+        const guestId = genId();
+        const guestName = name;
+        const now = Date.now();
+        const user = {
+            id: guestId,
+            name: guestName,
+            balance: 0,
+            createdAt: now,
+            lastActive: now,
+            isGuest: true,
+            guestExpiresAt: now + GUEST_SESSION_TTL_MS,
+            passwordHash: null,
+            pinHash: null,
+            salt: null
+        };
+        db.users.push(user);
+        const session = createSession(guestId);
+        createGuestSession(guestId, session.token);
+        addSocketUser(socket.id, guestId);
+        saveDB();
+        socket.emit('user:guest_login_result', {
+            success: true,
+            user: publicUserFull(user, getOnlineUserIds()),
+            sessionToken: session.token,
+            expiresAt: user.guestExpiresAt
+        });
+        socket.emit('user:logged_in', {
+            user: publicUserFull(user, getOnlineUserIds()),
+            favorites: [],
+            history: [],
+            messages: [],
+            notifications: [],
+            xp: { xp: 0, level: 1 },
+            sessionToken: session.token
+        });
+    });
+
+    // --- Guest QR: create one-time token (admin) ---
+    socket.on('admin:guestQr:create', () => {
+        if (!isAdmin(socket.id)) { socket.emit('admin:guestQr:created', { success: false, error: 'Доступ запрещён' }); return; }
+        cleanupExpiredGuests();
+        ensureGuestState();
+        const token = crypto.randomBytes(24).toString('hex');
+        const now = Date.now();
+        const qr = {
+            id: genId(),
+            token,
+            createdAt: now,
+            expiresAt: now + GUEST_SESSION_TTL_MS,
+            used: false,
+            usedBy: null
+        };
+        db.guestQrTokens.push(qr);
+        saveDB();
+        socket.emit('admin:guestQr:created', {
+            success: true,
+            qr: { id: qr.id, token: qr.token, createdAt: qr.createdAt, expiresAt: qr.expiresAt, used: false }
+        });
+    });
+
+    socket.on('admin:guestQr:list', () => {
+        if (!isAdmin(socket.id)) { socket.emit('admin:guestQr:list', { success: false, error: 'Доступ запрещён' }); return; }
+        cleanupExpiredGuests();
+        ensureGuestState();
+        socket.emit('admin:guestQr:list', {
+            success: true,
+            tokens: db.guestQrTokens.map(t => ({
+                id: t.id, token: t.token, createdAt: t.createdAt,
+                expiresAt: t.expiresAt, used: !!t.used, usedBy: t.usedBy || null
+            }))
+        });
+    });
+
+    socket.on('admin:guestQr:revoke', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('admin:guestQr:revoked', { success: false, error: 'Доступ запрещён' }); return; }
+        ensureGuestState();
+        db.guestQrTokens = db.guestQrTokens.filter(t => t.id !== data?.id);
+        saveDB();
+        socket.emit('admin:guestQr:revoked', { success: true, id: data?.id });
+    });
+
+    // --- Guest login by QR (one-time, 1h) ---
+    socket.on('user:guestQr_login', (data) => {
+        cleanupExpiredGuests();
+        ensureGuestState();
+        if (isMaintenanceEnabled()) {
+            socket.emit('user:guest_login_result', maintenanceBlocked());
+            return;
+        }
+        const raw = String(data?.token || data?.qrToken || '').trim();
+        if (!raw) {
+            socket.emit('user:guest_login_result', { success: false, message: 'Неверный QR-код.' });
+            return;
+        }
+        // Accept both raw token and JSON payload {type:'mandarin_guest_qr', token}
+        let token = raw;
+        try {
+            const parsed = JSON.parse(raw);
+            if (parsed && parsed.token) token = String(parsed.token);
+            if (parsed && parsed.type && parsed.type !== 'mandarin_guest_qr' && !parsed.token) {
+                socket.emit('user:guest_login_result', { success: false, message: 'Этот QR-код не для гостевого входа.' });
+                return;
+            }
+        } catch (e) { /* plain token */ }
+        const qr = db.guestQrTokens.find(t => t.token === token);
+        if (!qr) {
+            socket.emit('user:guest_login_result', { success: false, message: 'QR-код не найден или уже использован.' });
+            return;
+        }
+        if (qr.used) {
+            socket.emit('user:guest_login_result', { success: false, message: 'QR-код уже использован. Повторный вход невозможен.' });
+            return;
+        }
+        if (qr.expiresAt <= Date.now()) {
+            socket.emit('user:guest_login_result', { success: false, message: 'Срок действия QR-кода истёк.' });
+            return;
+        }
+        // One-time use
+        qr.used = true;
+        qr.usedBy = { at: Date.now(), ip: (socket.handshake && socket.handshake.address) || null };
+        ensureGuestState();
+        db.guestCounter = (db.guestCounter || 0) + 1;
+        const guestName = 'Пользователь ' + db.guestCounter;
+        const now = Date.now();
+        const user = {
+            id: genId(),
+            name: guestName,
+            balance: 0,
+            createdAt: now,
+            lastActive: now,
+            isGuest: true,
+            guestExpiresAt: now + GUEST_SESSION_TTL_MS,
+            passwordHash: null,
+            pinHash: null,
+            salt: null
+        };
+        db.users.push(user);
+        const session = createSession(user.id);
+        createGuestSession(user.id, session.token);
+        addSocketUser(socket.id, user.id);
+        saveDB();
+        socket.emit('user:guest_login_result', {
+            success: true,
+            user: publicUserFull(user, getOnlineUserIds()),
+            sessionToken: session.token,
+            expiresAt: user.guestExpiresAt
+        });
+        socket.emit('user:logged_in', {
+            user: publicUserFull(user, getOnlineUserIds()),
+            favorites: [],
+            history: [],
+            messages: [],
+            notifications: [],
+            xp: { xp: 0, level: 1 },
+            sessionToken: session.token
+        });
     });
 
     // --- Admin Login ---
@@ -3137,6 +3528,7 @@ io.on('connection', (socket) => {
 
     // --- User Transfer ---
     socket.on('bank:send', (data) => {
+        if (denyIfGuestOrMaintenance(socket, 'error')) return;
         const userId = socketUserMap.get(socket.id);
         const sender = findUser(userId);
         if (!sender) { socket.emit('error', { message: 'Не авторизован.' }); return; }
@@ -3996,6 +4388,7 @@ io.on('connection', (socket) => {
 
     // --- User: Invest ---
     socket.on('user:invest', (data) => {
+        if (denyIfGuestOrMaintenance(socket, 'error')) return;
         const userId = socketUserMap.get(socket.id);
         const user = findUser(userId);
         if (!user) { socket.emit('error', { message: 'Не авторизован.' }); return; }
@@ -4294,6 +4687,7 @@ io.on('connection', (socket) => {
     // ==================== PURCHASE REQUESTS ====================
 
     socket.on('user:createPurchase', (data) => {
+        if (denyIfGuestOrMaintenance(socket, 'error')) return;
         const userId = socketUserMap.get(socket.id);
         const buyer = findUser(userId);
         if (!buyer) { socket.emit('error', { message: 'Не авторизован.' }); return; }
@@ -7743,6 +8137,12 @@ io.on('connection', (socket) => {
             allowNext: cfg.allowNext !== false,
             distribution: cfg.distribution === 'turn' ? 'turn' : 'all'
         };
+        // Creator joins as a full player and receives a character like everyone else
+        const creatorUid = socketUserMap.get(socket.id);
+        if (creatorUid && !g.players.some(p => p.userId === creatorUid)) {
+            const brief = partyUserBrief(creatorUid);
+            g.players.push({ ...brief, card: null, joinedAt: Date.now() });
+        }
         partyTouch(mode);
         saveDB();
         partyEmitState(mode);
@@ -8010,7 +8410,8 @@ io.on('connection', (socket) => {
             mafiaMode: cfg.mafiaMode === 'fixed' ? 'fixed' : 'auto',
             mafiaCount: Math.max(1, Math.min(10, Number(cfg.mafiaCount) || 1)),
             duration: [60, 90, 120].includes(Number(cfg.duration)) ? Number(cfg.duration) : 90,
-            allowHostFinish: cfg.allowHostFinish !== false
+            allowHostFinish: cfg.allowHostFinish !== false,
+            hostMode: ['host', 'player', 'both'].includes(cfg.hostMode) ? cfg.hostMode : 'both'
         };
         mafiaTouchVersion();
         emitMafiaState();
@@ -8027,6 +8428,7 @@ io.on('connection', (socket) => {
         if (cfg.mafiaCount !== undefined) m.config.mafiaCount = Math.max(1, Math.min(10, Number(cfg.mafiaCount) || 1));
         if (cfg.duration !== undefined && [60, 90, 120].includes(Number(cfg.duration))) m.config.duration = Number(cfg.duration);
         if (cfg.allowHostFinish !== undefined) m.config.allowHostFinish = !!cfg.allowHostFinish;
+        if (cfg.hostMode !== undefined && ['host', 'player', 'both'].includes(cfg.hostMode)) m.config.hostMode = cfg.hostMode;
         mafiaTouchVersion();
         emitMafiaState();
     });
@@ -8085,7 +8487,14 @@ io.on('connection', (socket) => {
         const m = mafiaEnsure();
         if (m.status === 'playing') { socket.emit('error', { message: 'Партия уже идёт.' }); return; }
         if (!m.lobbyOpen) { socket.emit('error', { message: 'Сначала откройте комнату.' }); return; }
-        const n = m.joined.length;
+        const adminUid = socketUserMap.get(socket.id) || null;
+        const hostMode = ['host', 'player', 'both'].includes(m.config.hostMode) ? m.config.hostMode : 'both';
+        // In pure «Ведущий» mode the admin does not receive a player card
+        let joinedList = m.joined.slice();
+        if (hostMode === 'host' && adminUid) {
+            joinedList = joinedList.filter(p => p.userId !== adminUid);
+        }
+        const n = joinedList.length;
         if (n < 4) {
             socket.emit('mafia:error', { message: 'Для партии нужно минимум 4 участника. Сейчас: ' + n + '.' });
             return;
@@ -8117,22 +8526,30 @@ io.on('connection', (socket) => {
             else j = Math.floor(Math.random() * (i + 1));
             [deck[i], deck[j]] = [deck[j], deck[i]];
         }
-        const players = m.joined.map((p, i) => ({
+        const players = joinedList.map((p, i) => ({
             userId: p.userId,
             name: p.name,
             photo: p.photo || null,
             role: deck[i],
             out: false
         }));
-        let hostIdx;
-        if (crypto?.randomInt) hostIdx = crypto.randomInt(0, players.length);
-        else hostIdx = Math.floor(Math.random() * players.length);
-        const hostId = players[hostIdx].userId;
+        let hostId;
+        if (hostMode === 'host' && adminUid) {
+            hostId = adminUid; // admin hosts only, no card
+        } else if (hostMode === 'both' && adminUid) {
+            hostId = adminUid; // admin hosts and plays
+        } else {
+            let hostIdx;
+            if (crypto?.randomInt) hostIdx = crypto.randomInt(0, players.length);
+            else hostIdx = Math.floor(Math.random() * players.length);
+            hostId = players[hostIdx].userId;
+        }
         const duration = [60, 90, 120].includes(Number(m.config.duration)) ? Number(m.config.duration) : 90;
         m.status = 'playing';
         m.game = {
             players,
             hostId,
+            hostMode,
             timer: { duration, left: duration, running: false, endAt: 0 },
             startedAt: Date.now()
         };

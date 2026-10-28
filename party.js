@@ -272,6 +272,10 @@
         html += '<p class="pg-muted" style="margin-top:12px">В колоде осталось: <b>' + s.poolCount + '</b> · использовано: <b>' + s.usedCount + '</b></p>';
         html += '<button type="button" class="pg-btn" data-act="reshuffle">Перемешать колоду</button>';
         html += '<label class="pg-check"><input type="checkbox" data-act="cfgNext"' + (s.config.allowNext ? ' checked' : '') + '><span>Ученики могут менять персонажа</span></label>';
+        // Creator participates like everyone else — quick access to their own card
+        if (s.me && s.me.inRoom) {
+            html += '<button type="button" class="pg-btn primary" data-act="myCard">🃏 Моя карточка</button>';
+        }
         html += '<button type="button" class="pg-btn primary" data-act="finish">Завершить игру</button>';
         html += '<button type="button" class="pg-btn danger" data-act="closeRoom">Закрыть комнату</button>';
         html += '</div>';
@@ -306,6 +310,7 @@
         html += '<button type="button" class="pg-btn primary" data-act="next"' + (m.allowNext ? '' : ' disabled') + '>Следующий персонаж →</button>';
         if (!m.allowNext) html += '<p class="pg-muted" style="text-align:center">Смена персонажа выключена</p>';
         html += '<button type="button" class="pg-btn" data-act="hideCard">Скрыть карточку</button>';
+        if (isAdminNow()) html += '<button type="button" class="pg-btn" data-act="backToHost">← Управление игрой</button>';
         return html;
     }
 
@@ -402,6 +407,15 @@
                 case 'flip': flipCard(); break;
                 case 'hideCard': cardOpen[activeMode] = false; render(); break;
                 case 'requestCard': emit('party:getState', { mode: activeMode }); toast('i', TITLES[activeMode], 'Запрос отправлен ведущему'); break;
+                case 'myCard':
+                    page = 'player';
+                    emit('party:getState', { mode: activeMode });
+                    render();
+                    break;
+                case 'backToHost':
+                    page = 'game';
+                    render();
+                    break;
                 case 'reshuffle': emit('party:reshuffle', { mode: activeMode }); break;
                 case 'finish': emit('party:finish', { mode: activeMode }); break;
                 case 'closeRoom':

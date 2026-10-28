@@ -209,8 +209,8 @@
     }
 
     function orbitHtml(list) {
-        // Show only actually connected participants
-        var a = (list || []).filter(function (p) { return p && p.online !== false; }), n = a.length;
+        // Show every joined participant (online and offline) so the waiting-room list stays complete
+        var a = (list || []).filter(function (p) { return p && p.userId; }), n = a.length;
         var density = n >= 14 ? ' very-dense' : (n >= 9 ? ' dense' : '');
         var users = a.map(function (p, i) {
             var ang = (-90 + i * 360 / Math.max(n, 1)) * Math.PI / 180;
@@ -221,7 +221,7 @@
                 + '<i class="mf-online' + (off ? ' off' : '') + '" title="' + (off ? 'Не в сети' : 'На связи') + '"></i></div>'
                 + '<span title="' + esc(p.name) + '">' + esc(p.name) + '</span></div>';
         }).join('');
-        return '<div class="mf-orbit' + density + '"><div class="mf-orbit-core"><b>МАФИЯ</b><small>Ожидание начала игры</small></div>' + users
+        return '<div class="mf-orbit' + density + '"><div class="mf-orbit-core"><b>МАФИЯ</b><small>Ожидание начала игры · ' + n + ' уч.</small></div>' + users
             + (n === 0 ? '<div class="mf-orbit-empty">Пока никого нет</div>' : '')
             + '</div>';
     }
@@ -246,8 +246,12 @@
         var t = state.game.timer || { duration: 90, left: 90, running: false, endAt: 0 };
         var left = timerLeft();
         var players = (state.game && state.game.players) || [];
+        var hm = (state.game && state.game.hostMode) || 'both';
+        var modeNote = hm === 'host' ? 'Вы ведущий без личной карточки.'
+            : hm === 'player' ? 'Вы ведущий этой партии.'
+            : 'Вы ведущий и одновременно участвуете в игре.';
         var out = '<section class="mf-panel"><h2>Управление ведущего</h2>'
-            + '<p class="mf-muted">Вы случайно выбраны ведущим и одновременно участвуете в игре.</p>'
+            + '<p class="mf-muted">' + modeNote + '</p>'
             + '<div class="mf-chips">' + [60, 90, 120].map(function (n) {
                 return '<button type="button" class="mf-chip ' + (t.duration === n ? 'active' : '') + '" data-act="duration" data-val="' + n + '">' + fmt(n) + '</button>';
             }).join('') + '</div>'
@@ -273,6 +277,17 @@
         });
         out += '</section>';
         return out;
+    }
+
+    function hostModeHtml(st) {
+        var hm = (st.config && st.config.hostMode) || 'both';
+        return '<div class="mf-row"><span class="mf-muted">Режим администратора</span></div>'
+            + '<div class="mf-chips">'
+            + '<button type="button" class="mf-chip ' + (hm === 'host' ? 'active' : '') + '" data-act="hostMode" data-val="host">Ведущий</button>'
+            + '<button type="button" class="mf-chip ' + (hm === 'player' ? 'active' : '') + '" data-act="hostMode" data-val="player">Игрок</button>'
+            + '<button type="button" class="mf-chip ' + (hm === 'both' ? 'active' : '') + '" data-act="hostMode" data-val="both">Ведущий + игрок</button>'
+            + '</div>'
+            + '<p class="mf-muted">Ведущий — только управление. Игрок — карточка наравне со всеми. Ведущий + игрок — управление и карточка.</p>';
     }
 
     function adminControlsHtml(st, title) {
@@ -331,6 +346,7 @@
                     + '<div class="mf-chips">' + [60, 90, 120].map(function (n) {
                         return '<button type="button" class="mf-chip ' + ((st.config ? st.config.duration : 90) === n ? 'active' : '') + '" data-act="cfgDuration" data-val="' + n + '">' + fmt(n) + '</button>';
                     }).join('') + '</div>'
+                    + hostModeHtml(st)
                     + '<p class="mf-muted">Мафиози и ведущий выбираются автоматически. Количество игроков — по числу вошедших.</p>'
                     + button('ОТКРЫТЬ КОМНАТУ', 'prepare', 'primary')
                     + '</section>';
@@ -373,6 +389,7 @@
                     + '<div class="mf-chips">' + [60, 90, 120].map(function (n) {
                         return '<button type="button" class="mf-chip ' + ((st.config ? st.config.duration : 90) === n ? 'active' : '') + '" data-act="cfgDuration" data-val="' + n + '">' + fmt(n) + '</button>';
                     }).join('') + '</div>'
+                    + hostModeHtml(st)
                     + '<p class="mf-muted">Комната открыта · участников: ' + (st.joined ? st.joined.length : 0) + '</p>'
                     + button('НАЧАТЬ ПАРТИЮ · РАЗДАТЬ КАРТЫ', 'start', 'primary')
                     + (!joined && u ? button('Присоединиться самому как игрок', 'join') : '')
@@ -414,16 +431,19 @@
         }
         if (!isPlayer) {
             out = heading('СЕКРЕТНЫЕ КАРТЫ')
-                + '<section class="mf-panel mf-center"><h2>Партия уже началась</h2>'
-                + '<p class="mf-muted">Дождитесь следующей раздачи.</p>'
+                + '<section class="mf-panel mf-center"><h2>' + (host ? 'Вы ведущий партии' : 'Партия уже началась') + '</h2>'
+                + '<p class="mf-muted">' + (host ? 'Вы управляете игрой без личной карточки.' : 'Дождитесь следующей раздачи.') + '</p>'
                 + orbitHtml(realPlayers)
                 + '</section>';
+            if (host) out += hostPanelHtml();
             if (admin) {
                 out += '<section class="mf-panel"><h2>Панель администратора</h2>'
                     + '<p class="mf-muted">Вы управляете игрой. Можете завершить партию или сбросить комнату.</p>'
                     + button('Завершить партию и открыть ожидание', 'finish', 'danger')
                     + button('Сбросить комнату', 'resetRoom', 'danger')
                     + '</section>';
+            } else if (host && (!st.config || st.config.allowHostFinish !== false)) {
+                out += button('Завершить партию и открыть ожидание', 'finish', 'danger');
             }
             root.innerHTML = out;
             bind();
@@ -513,6 +533,9 @@
             case 'mafiaCount':
                 emit('mafia:updateConfig', { config: { mafiaCount: Number(b.dataset.val), mafiaMode: 'fixed' } });
                 break;
+            case 'hostMode':
+                emit('mafia:updateConfig', { config: { hostMode: b.dataset.val } });
+                break;
             case 'timerToggle':
                 emit('mafia:timer', { action: 'toggle' });
                 break;
@@ -583,6 +606,8 @@
         if (countBtn) cfg.mafiaCount = Number(countBtn.dataset.val);
         var durBtn = root.querySelector('[data-act="cfgDuration"].active');
         if (durBtn) cfg.duration = Number(durBtn.dataset.val);
+        var hostModeBtn = root.querySelector('[data-act="hostMode"].active');
+        if (hostModeBtn) cfg.hostMode = hostModeBtn.dataset.val;
         return cfg;
     }
 

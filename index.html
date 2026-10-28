@@ -10130,7 +10130,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 @media(max-width:480px){.idle-logo-wrap{width:clamp(110px,32vw,170px);height:clamp(110px,32vw,170px);margin-bottom:24px}.idle-title{letter-spacing:4px;margin-bottom:8px}.idle-subtitle{letter-spacing:2px}}
 @media(orientation:landscape) and (max-height:500px){.idle-screen{padding:20px 24px}.idle-logo-wrap{width:clamp(90px,20vh,160px);height:clamp(90px,20vh,160px);margin-bottom:16px}.idle-title{margin-bottom:6px}}
 html{touch-action:manipulation;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%}
-body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;min-height:100dvh;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain}
+body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;min-height:100dvh;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch}
 body.modal-open{overflow:hidden}
 input,textarea,select{font-size:16px!important}
 @keyframes fadeInUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
@@ -11260,6 +11260,17 @@ textarea.inp{min-height:70px;resize:vertical;font-family:inherit}
 .savings-goal-card .goal-pct{font-size:13px;font-weight:700;color:var(--accent);min-width:40px;text-align:right}
 
 /* Bottom Navigation (Mobile) */
+.home-mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.home-mini-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:14px 12px;cursor:pointer;transition:.2s;-webkit-tap-highlight-color:transparent;min-height:96px;display:flex;flex-direction:column;gap:4px}
+.home-mini-card:hover,.home-mini-card:active{border-color:var(--accent);transform:translateY(-1px)}
+.home-mini-card .hm-icon{font-size:20px;line-height:1}
+.home-mini-card .hm-label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.home-mini-card .hm-value{font-size:20px;font-weight:800;color:var(--accent);line-height:1.1}
+.home-mini-card .hm-sub{font-size:11px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+@media(max-width:380px){.home-mini-grid{grid-template-columns:1fr}.home-mini-card{min-height:80px}}
+/* Keep page scrollable with mouse wheel: do NOT set overflow on html */
+.mob-header{position:relative;z-index:120}
+.mob-header .hamburger-btn{position:relative;z-index:121}
 .mob-bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;height:64px;background:rgba(13,13,20,0.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--border);z-index:100;padding:0 8px;padding-bottom:env(safe-area-inset-bottom,0);align-items:center;justify-content:space-around}
 .mob-bottom-nav .bnav-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 0;min-width:48px;color:var(--muted);font-size:10px;font-weight:600;cursor:pointer;transition:.2s;-webkit-tap-highlight-color:transparent;position:relative}
 .mob-bottom-nav .bnav-item svg{width:20px;height:20px}
@@ -11519,8 +11530,12 @@ body.dict-fullscreen .dict-title{color:#fff}
     <img src="logo.jpg" alt="Logo" class="logo" onerror="this.style.display='none'">
     <h1>BANK MANDARIN PRO</h1><p>Игровой персональный банк</p>
     <div id="authStep1">
-        <input type="text" id="authName" class="inp" placeholder="Имя пользователя (логин)" maxlength="20" autocomplete="username" style="margin-bottom:12px">
+        <div style="display:flex;gap:8px;align-items:stretch;margin-bottom:12px">
+            <input type="text" id="authName" class="inp" placeholder="Имя пользователя (логин)" maxlength="20" autocomplete="username" style="margin-bottom:0;flex:1;min-width:0">
+            <button type="button" class="btn btn-ghost" onclick="openGuestQrScanner()" title="Войти по QR-коду" aria-label="Войти по QR-коду" style="min-width:48px;min-height:48px;padding:8px;flex-shrink:0"><i data-lucide="qr-code" style="width:22px;height:22px"></i></button>
+        </div>
         <button class="btn btn-accent btn-full" onclick="doAuth()"><i data-lucide="log-in" style="width:16px;height:16px"></i> Продолжить</button>
+        <button class="btn btn-ghost btn-full mt-12" id="guestLoginBtn" onclick="doGuestLogin()" style="display:none"><i data-lucide="user-plus" style="width:16px;height:16px"></i> Войти как гость</button>
         <div style="text-align:center;margin-top:14px;display:flex;flex-direction:column;gap:8px">
             <a href="#" onclick="showNoAccount();return false;" style="color:var(--dim);font-size:13px;text-decoration:underline">Нет аккаунта?</a>
         </div>
@@ -11592,8 +11607,7 @@ body.dict-fullscreen .dict-title{color:#fff}
             <div class="nav-i" data-s="tasks" onclick="go('tasks')"><i data-lucide="clipboard-list" style="width:16px;height:16px"></i>📋 Задания</div>
             <div class="nav-i" data-s="duels" onclick="go('duels')"><i data-lucide="swords" style="width:16px;height:16px"></i>⚔️ Дуэли</div>
             <div class="nav-i" data-s="mafia" onclick="go('mafia')"><i data-lucide="venetian-mask" style="width:16px;height:16px"></i>🎭 МАФИЯ</div>
-            <div class="nav-i" data-s="croc" onclick="go('croc')"><i data-lucide="smile" style="width:16px;height:16px"></i>🐊 Крокодил</div>
-            <div class="nav-i" data-s="bunker" onclick="go('bunker')"><i data-lucide="vault" style="width:16px;height:16px"></i>🚀 Бункер</div>
+            <div class="nav-i" data-s="games" onclick="go('games')"><i data-lucide="gamepad-2" style="width:16px;height:16px"></i>🎮 Игры</div>
             <div class="nav-i" data-s="mybanks" onclick="go('mybanks')"><i data-lucide="landmark" style="width:16px;height:16px"></i>🏦 Мои банки</div>
             <div class="nav-i" data-s="battlepass" onclick="go('battlepass')"><i data-lucide="award" style="width:16px;height:16px"></i>🐉 Сезонный путь</div>
             <div class="nav-i" data-s="myqr" onclick="go('myqr')"><i data-lucide="qr-code" style="width:16px;height:16px"></i>📱 Мой QR</div>
@@ -11626,16 +11640,25 @@ body.dict-fullscreen .dict-title{color:#fff}
 
         <!-- HOME -->
         <div class="sec on" id="secHome">
-            <div style="text-align:left;margin-bottom:20px;padding:20px;background:linear-gradient(135deg,rgba(201,168,76,0.1),rgba(251,146,60,0.05));border:1px solid rgba(201,168,76,0.2);border-radius:var(--r)"><div style="display:flex;align-items:center;gap:12px;margin-bottom:12px"><img src="logo.jpg" alt="Logo" style="width:40px;height:40px;border-radius:10px;object-fit:cover;border:2px solid var(--accent)"><div style="font-size:16px;font-weight:800;color:var(--accent);letter-spacing:1px">BANK MANDARIN PRO</div></div><div style="display:flex;align-items:center;gap:12px;margin-bottom:4px"><div class="av" id="homeAvatar" style="width:48px;height:48px;font-size:20px;flex-shrink:0;border-radius:50%;overflow:hidden"></div><div><div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:2px">Добро пожаловать, <span id="uName" style="color:var(--text);font-weight:700"></span> <span id="homeLevelBadge"></span></div><div id="homeTitle" style="font-size:14px;color:var(--accent);font-weight:600;margin-bottom:2px"></div><div id="homeXPBar" style="max-width:200px;margin:6px 0 0"></div></div></div></div>
-            <div style="display:flex;justify-content:center;gap:8px;margin-bottom:12px"><button class="btn btn-accent btn-sm" id="langRu" onclick="setMoneyLang('ru')">Русский</button><button class="btn btn-ghost btn-sm" id="langZh" onclick="setMoneyLang('zh')">中文</button></div>
+            <div style="text-align:left;margin-bottom:14px;padding:16px;background:linear-gradient(135deg,rgba(201,168,76,0.1),rgba(251,146,60,0.05));border:1px solid rgba(201,168,76,0.2);border-radius:var(--r)"><div style="display:flex;align-items:center;gap:12px;margin-bottom:4px"><div class="av" id="homeAvatar" style="width:48px;height:48px;font-size:20px;flex-shrink:0;border-radius:50%;overflow:hidden"></div><div style="min-width:0"><div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:2px">Добро пожаловать, <span id="uName" style="color:var(--text);font-weight:700"></span> <span id="homeLevelBadge"></span></div><div id="homeTitle" style="font-size:14px;color:var(--accent);font-weight:600;margin-bottom:2px"></div><div id="homeXPBar" style="max-width:200px;margin:6px 0 0"></div></div></div></div>
+            <div style="display:flex;justify-content:center;gap:8px;margin-bottom:10px"><button class="btn btn-accent btn-sm" id="langRu" onclick="setMoneyLang('ru')">Русский</button><button class="btn btn-ghost btn-sm" id="langZh" onclick="setMoneyLang('zh')">中文</button></div>
             <div class="bal-card"><div class="bal-label">Текущий баланс</div><div class="bal-val"><span id="balVal">0</span></div></div>
-            <div class="actions">
-                <div class="act-btn" onclick="showTransfer()"><div class="ic" style="background:rgba(201,168,76,.12);color:var(--accent)"><i data-lucide="send" style="width:18px;height:18px"></i></div>Перевести</div>
-                <div class="act-btn" onclick="showPurchase()"><div class="ic" style="background:rgba(139,92,246,.12);color:#a78bfa"><i data-lucide="shopping-bag" style="width:18px;height:18px"></i></div>Покупка</div>
-                <div class="act-btn" onclick="showInvestments()"><div class="ic" style="background:rgba(245,158,11,.12);color:#f59e0b"><i data-lucide="trending-up" style="width:18px;height:18px"></i></div>Инвестиции</div>
+            <div class="home-mini-grid" id="homeMiniBlocks">
+                <div class="home-mini-card" onclick="go('diary')">
+                    <div class="hm-icon">⭐</div>
+                    <div class="hm-label">Оценка за урок</div>
+                    <div class="hm-value" id="homeGradeVal">—</div>
+                    <div class="hm-sub" id="homeGradeSub">Нет данных</div>
+                </div>
+                <div class="home-mini-card" onclick="go('homework')">
+                    <div class="hm-icon">📝</div>
+                    <div class="hm-label">Домашнее задание</div>
+                    <div class="hm-value" id="homeHwVal">—</div>
+                    <div class="hm-sub" id="homeHwSub">Нет заданий</div>
+                </div>
             </div>
-            <div style="display:flex;justify-content:center;margin-top:24px;margin-bottom:8px">
-                <button class="btn btn-accent" onclick="toggleSlideMenu()" style="min-width:200px;min-height:48px;border-radius:24px;font-size:15px;gap:10px"><i data-lucide="menu" style="width:20px;height:20px"></i> Меню</button>
+            <div style="display:flex;justify-content:center;margin-top:18px;margin-bottom:8px">
+                <button class="btn btn-accent" onclick="toggleSlideMenu()" style="min-width:180px;min-height:48px;border-radius:24px;font-size:15px;gap:10px"><i data-lucide="menu" style="width:20px;height:20px"></i> Меню</button>
             </div>
         </div>
 
@@ -11700,6 +11723,9 @@ body.dict-fullscreen .dict-title{color:#fff}
 
         <!-- PROFILE -->
         <div class="sec" id="secProfile">
+            <div style="display:flex;justify-content:flex-start;margin-bottom:12px">
+                <button class="btn btn-danger btn-sm" onclick="doLogout()" style="min-height:42px;padding:8px 16px;font-weight:700;gap:8px"><i data-lucide="log-out" style="width:16px;height:16px"></i> Выйти</button>
+            </div>
             <div class="profile-card">
                 <div class="av" id="profAv"></div><div class="nm" id="profName"></div>
                 <div class="role" id="profRole">🌱 Новичок</div>
@@ -12051,6 +12077,31 @@ body.dict-fullscreen .dict-title{color:#fff}
                     <button class="btn btn-danger btn-sm" onclick="showA('blockUser')"><i data-lucide="shield-off" style="width:18px;height:18px"></i> Заблокировать пользователя</button>
                     <button class="btn btn-ghost btn-sm" onclick="showA('blockList')"><i data-lucide="list" style="width:18px;height:18px"></i> Список блокировок</button>
                 </div>
+                <div class="stitle mt-12">🛰️ Гостевой режим и техработы</div>
+                <div class="aactions" style="flex-direction:column;align-items:stretch;gap:10px">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 14px">
+                        <div>
+                            <div style="font-weight:700;font-size:13px">Гостевой режим</div>
+                            <div style="font-size:11px;color:var(--dim)">Вход без пароля и PIN на 1 час</div>
+                        </div>
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex-shrink:0">
+                            <input type="checkbox" id="guestModeToggle" onchange="setGuestMode(this.checked)" style="width:20px;height:20px;accent-color:var(--accent)">
+                            <span id="guestModeLabel" style="font-size:12px;font-weight:700">Выкл</span>
+                        </label>
+                    </div>
+                    <button class="btn btn-accent btn-sm" onclick="createGuestQr()"><i data-lucide="qr-code" style="width:18px;height:18px"></i> Создать QR для гостевого входа</button>
+                    <div id="guestQrList" style="font-size:12px;color:var(--dim)"></div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 14px">
+                        <div>
+                            <div style="font-weight:700;font-size:13px">🔧 Технические работы</div>
+                            <div style="font-size:11px;color:var(--dim)">Блокирует доступ для обычных пользователей</div>
+                        </div>
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex-shrink:0">
+                            <input type="checkbox" id="maintenanceToggle" onchange="setMaintenanceMode(this.checked)" style="width:20px;height:20px;accent-color:#ef4444">
+                            <span id="maintenanceLabel" style="font-size:12px;font-weight:700">Выкл</span>
+                        </label>
+                    </div>
+                </div>
                 <div class="stitle mt-12">🐉 Сезонный путь</div>
                 <div class="aactions">
                     <button class="btn btn-accent btn-sm" onclick="showA('bpGrantXP')"><i data-lucide="plus-circle" style="width:18px;height:18px"></i> Начислить XP/баллы</button>
@@ -12228,11 +12279,10 @@ body.dict-fullscreen .dict-title{color:#fff}
             <div id="mafiaRoot" class="mafia-game"></div>
         </div>
 
-        <!-- CROCODILE + BUNKER (party games) -->
-        <div class="sec" id="secCroc">
+        <!-- CROCODILE + BUNKER (party games) — единый раздел «Игры» -->
+        <div class="sec" id="secGames">
             <div id="partyRoot" class="party-game"></div>
         </div>
-        <div class="sec" id="secBunker"></div>
 
         <!-- ADMIN QR CODES MANAGEMENT -->
         <div class="sec" id="secAdminqr">
@@ -12273,7 +12323,7 @@ body.dict-fullscreen .dict-title{color:#fff}
   <div class="bnav-item" data-s="diary" onclick="go('diary')"><i data-lucide="book-open" style="width:20px;height:20px"></i><span>Дневник</span></div>
   <div class="bnav-item center" data-s="qrterminal" onclick="go('qrterminal')"><div class="bnav-center-icon"><i data-lucide="scan" style="width:22px;height:22px"></i></div><span>QR</span></div>
   <div class="bnav-item" data-s="dictionary" onclick="go('dictionary')"><i data-lucide="book-a" style="width:20px;height:20px"></i><span>Словарь</span></div>
-  <div class="bnav-item" data-s="profile" onclick="go('profile')"><i data-lucide="user" style="width:20px;height:20px"></i><span>Ещё</span></div>
+  <div class="bnav-item" data-s="exams" onclick="go('exams')"><i data-lucide="clipboard-check" style="width:20px;height:20px"></i><span>Экзамены</span></div>
 </nav>
 
 <!-- SLIDE MENU (Mobile) -->
@@ -12285,7 +12335,9 @@ body.dict-fullscreen .dict-title{color:#fff}
     </div>
     <div class="sm-item" onclick="go('home');closeSlideMenu()"><i data-lucide="home" style="width:18px;height:18px"></i>Главная</div>
     <div class="sm-item" onclick="go('history');closeSlideMenu()"><i data-lucide="history" style="width:18px;height:18px"></i>История</div>
-    <div class="sm-item" onclick="go('purchases');closeSlideMenu()"><i data-lucide="shopping-bag" style="width:18px;height:18px"></i>Покупки</div>
+    <div class="sm-item" onclick="showPurchase();closeSlideMenu()"><i data-lucide="shopping-bag" style="width:18px;height:18px"></i>Покупка</div>
+    <div class="sm-item" onclick="go('purchases');closeSlideMenu()"><i data-lucide="receipt" style="width:18px;height:18px"></i>Покупки</div>
+    <div class="sm-item" onclick="showTransfer();closeSlideMenu()"><i data-lucide="send" style="width:18px;height:18px"></i>Перевести</div>
     <div class="sm-item" onclick="go('users');closeSlideMenu()"><i data-lucide="users" style="width:18px;height:18px"></i>Пользователи</div>
     <div class="sm-item" onclick="go('profile');closeSlideMenu()"><i data-lucide="user" style="width:18px;height:18px"></i>Профиль</div>
     <div class="sm-sep"></div>
@@ -12296,8 +12348,7 @@ body.dict-fullscreen .dict-title{color:#fff}
     <div class="sm-item" onclick="go('tasks');closeSlideMenu()"><i data-lucide="clipboard-list" style="width:18px;height:18px"></i>📋 Задания</div>
     <div class="sm-item" onclick="go('duels');closeSlideMenu()"><i data-lucide="swords" style="width:18px;height:18px"></i>⚔️ Дуэли</div>
     <div class="sm-item" onclick="go('mafia');closeSlideMenu()"><i data-lucide="venetian-mask" style="width:18px;height:18px"></i>🎭 МАФИЯ</div>
-    <div class="sm-item" onclick="go('croc');closeSlideMenu()"><i data-lucide="smile" style="width:18px;height:18px"></i>🐊 Крокодил</div>
-    <div class="sm-item" onclick="go('bunker');closeSlideMenu()"><i data-lucide="vault" style="width:18px;height:18px"></i>🚀 Бункер</div>
+    <div class="sm-item" data-s="games" onclick="go('games');closeSlideMenu()"><i data-lucide="gamepad-2" style="width:18px;height:18px"></i>🎮 Игры</div>
     <div class="sm-item" onclick="go('mybanks');closeSlideMenu()"><i data-lucide="landmark" style="width:18px;height:18px"></i>🏦 Мои банки</div>
     <div class="sm-item" onclick="go('battlepass');closeSlideMenu()"><i data-lucide="award" style="width:18px;height:18px"></i>🐉 Сезонный путь</div>
     <div class="sm-item" onclick="go('myqr');closeSlideMenu()"><i data-lucide="qr-code" style="width:18px;height:18px"></i>📱 Мой QR</div>
@@ -13746,6 +13797,261 @@ window.showNoAccount=function(){
     openModal('mNoAccount');
 };
 
+// --- Logout (current device only) ---
+window.doLogout=function(){
+    showConfirm('Выйти из аккаунта','Сессия на этом устройстве будет завершена. Данные аккаунта сохранятся. Войти можно под другим аккаунтом.',function(){
+        try{
+            const token=localStorage.getItem('pb_session_token');
+            if(socket&&socket.emit) socket.emit('user:logout',{token});
+        }catch(e){}
+        try{ localStorage.removeItem('pb_session_token'); localStorage.removeItem('pb_uid'); }catch(e){}
+        U=null;
+        const app=$('app'); if(app) app.classList.remove('show');
+        const auth=$('authScreen'); if(auth) auth.style.display='flex';
+        try{ closeSlideMenu(); }catch(e){}
+        const err=$('authErr'); if(err){ err.style.display='none'; }
+        const s1=$('authStep1'); if(s1) s1.classList.remove('hidden');
+        const sPin=$('authStepPin'); if(sPin) sPin.classList.add('hidden');
+        const nm=$('authName'); if(nm) nm.value='';
+        toast('s','Выход','Вы вышли из аккаунта на этом устройстве');
+    });
+};
+
+// --- Guest mode / Maintenance / Guest QR ---
+window.setGuestMode=function(on){
+    try{socket.emit('admin:guestMode:set',{enabled:!!on});}catch(e){}
+};
+window.setMaintenanceMode=function(on){
+    const t=$('maintenanceToggle');
+    if(on){
+        if(t)t.checked=false; // reset until confirmed
+        showConfirm('Включить технические работы?','Обычные пользователи потеряют доступ к программе. Аккаунты и данные не удаляются. Администратор сохранит доступ.',function(){
+            try{socket.emit('admin:maintenance:set',{enabled:true});}catch(e){}
+        });
+    }else{
+        try{socket.emit('admin:maintenance:set',{enabled:false});}catch(e){}
+    }
+};
+window.createGuestQr=function(){
+    try{socket.emit('admin:guestQr:create');}catch(e){}
+};
+window.revokeGuestQr=function(id){
+    try{socket.emit('admin:guestQr:revoke',{id});}catch(e){}
+};
+window.doGuestLogin=function(){
+    const name=($('authName')&&$('authName').value||'').trim();
+    if(!name){showAuthErr('Введите имя для гостевого входа');return;}
+    try{socket.emit('user:guest_login',{name});}catch(e){showAuthErr('Нет соединения с сервером');}
+};
+window.openGuestQrScanner=function(){
+    // Reuse the existing camera scanner; mark mode so scan is treated as guest QR
+    window._guestQrScanMode=true;
+    if(typeof openQrScanner==='function'){
+        openQrScanner();
+    }else{
+        showAuthErr('Камера недоступна в этом браузере. Попробуйте другой браузер или устройство.');
+    }
+};
+function renderGuestQrList(tokens){
+    const el=$('guestQrList'); if(!el)return;
+    const list=(tokens||[]).filter(t=>t&&!t.used&&t.expiresAt>Date.now());
+    if(!list.length){el.innerHTML='Активных QR нет.';return;}
+    el.innerHTML=list.map(t=>{
+        const left=Math.max(0,Math.floor((t.expiresAt-Date.now())/60000));
+        return '<div style="display:flex;gap:8px;align-items:center;margin:6px 0;flex-wrap:wrap">'
+            +'<code style="font-size:10px;word-break:break-all;max-width:180px">'+esc(String(t.token).slice(0,16))+'…</code>'
+            +'<span>осталось ~'+left+' мин</span>'
+            +'<button class="btn btn-danger btn-sm" style="padding:4px 8px;font-size:11px" onclick="revokeGuestQr(\''+esc(t.id)+'\')">Отозвать</button>'
+            +'</div>';
+    }).join('');
+}
+function showMaintenanceScreen(){
+    let overlay=$('maintenanceScreenOverlay');
+    if(!overlay){
+        overlay=document.createElement('div');
+        overlay.id='maintenanceScreenOverlay';
+        overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(10,10,16,.97);z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;padding:24px;text-align:center;';
+        overlay.innerHTML='<div style="font-size:52px">🔧</div>'
+            +'<div style="font-size:22px;font-weight:800;color:#fff;max-width:420px">Ведутся технические работы</div>'
+            +'<div style="font-size:14px;color:#9aa;max-width:380px">Пожалуйста, зайдите позже. Данные и аккаунты сохранены.</div>'
+            +'<button type="button" id="maintAdminBtn" style="margin-top:12px;background:rgba(201,168,76,.15);color:#f5d76e;border:1px solid rgba(201,168,76,.4);padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;min-height:42px">老师 🦁 Вход администратора</button>';
+        document.body.appendChild(overlay);
+        const ab=overlay.querySelector('#maintAdminBtn');
+        if(ab)ab.onclick=function(){
+            if(typeof showAdminLogin==='function')showAdminLogin();
+            else if(typeof openModal==='function')openModal('mAdminLogin');
+        };
+    }
+    overlay.style.display='flex';
+    const app=$('app'); if(app)app.classList.remove('show');
+}
+function hideMaintenanceScreen(){
+    const overlay=$('maintenanceScreenOverlay');
+    if(overlay)overlay.style.display='none';
+}
+
+socket.on('guestMode:state',function(d){
+    const t=$('guestModeToggle'), l=$('guestModeLabel');
+    if(t)t.checked=!!(d&&d.enabled);
+    if(l)l.textContent=(d&&d.enabled)?'Вкл':'Выкл';
+    const gb=$('guestLoginBtn');
+    if(gb)gb.style.display=(d&&d.enabled)?'flex':'none';
+});
+socket.on('guestMode:setResult',function(d){
+    if(d&&d.success){
+        toast('s','Гостевой режим',d.guestMode&&d.guestMode.enabled?'Включён':'Выключен');
+        if(d.guestMode){
+            const t=$('guestModeToggle'), l=$('guestModeLabel');
+            if(t)t.checked=!!d.guestMode.enabled;
+            if(l)l.textContent=d.guestMode.enabled?'Вкл':'Выкл';
+            const gb=$('guestLoginBtn');
+            if(gb)gb.style.display=d.guestMode.enabled?'flex':'none';
+        }
+        try{socket.emit('guestMode:get');socket.emit('admin:guestQr:list');}catch(e){}
+    }else toast('e','Гостевой режим',(d&&d.error)||'Ошибка');
+});
+socket.on('maintenance:state',function(d){
+    const t=$('maintenanceToggle'), l=$('maintenanceLabel');
+    if(t)t.checked=!!(d&&d.enabled);
+    if(l)l.textContent=(d&&d.enabled)?'Вкл':'Выкл';
+    if(d&&d.enabled){
+        if(!isAdmin)showMaintenanceScreen();
+        else hideMaintenanceScreen();
+    }else{
+        hideMaintenanceScreen();
+    }
+});
+socket.on('maintenance:setResult',function(d){
+    if(d&&d.success){
+        toast('s','Техработы',d.maintenanceMode&&d.maintenanceMode.enabled?'Включены':'Выключены');
+        if(d.maintenanceMode){
+            const t=$('maintenanceToggle'), l=$('maintenanceLabel');
+            if(t)t.checked=!!d.maintenanceMode.enabled;
+            if(l)l.textContent=d.maintenanceMode.enabled?'Вкл':'Выкл';
+            if(d.maintenanceMode.enabled){ if(!isAdmin)showMaintenanceScreen(); }
+            else hideMaintenanceScreen();
+        }
+    }else toast('e','Техработы',(d&&d.error)||'Ошибка');
+});
+socket.on('maintenance:blocked',function(d){
+    if(isAdmin){
+        // Admin has a separate panel path; don't trap them on the maintenance page
+        toast('i','Техработы',(d&&d.message)||'Режим техработ активен');
+        return;
+    }
+    showMaintenanceScreen();
+    try{toast('e','Техработы',(d&&d.message)||'Ведутся технические работы');}catch(e){}
+});
+socket.on('admin:guestQr:created',function(d){
+    if(d&&d.success&&d.qr){
+        toast('s','Гостевой QR','Создан. Действует 1 час, одноразовый.');
+        try{
+            const wrap=document.createElement('div');
+            wrap.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100000;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:20px';
+            wrap.id='guestQrModal';
+            const box=document.createElement('div');
+            box.style.cssText='background:#fff;border-radius:16px;padding:18px;max-width:320px;width:100%;text-align:center;color:#111';
+            const qrDiv=document.createElement('div');
+            qrDiv.id='guestQrCanvas';
+            qrDiv.style.cssText='display:flex;justify-content:center;margin:8px 0';
+            const payload=JSON.stringify({type:'mandarin_guest_qr',token:d.qr.token});
+            try{
+                if(typeof QRCode!=='undefined'){
+                    new QRCode(qrDiv,{text:payload,width:220,height:220,correctLevel:QRCode.CorrectLevel?QRCode.CorrectLevel.M:2});
+                }else{
+                    qrDiv.innerHTML='<code style="font-size:10px;word-break:break-all">'+esc(payload)+'</code>';
+                }
+            }catch(e){qrDiv.innerHTML='<code style="font-size:10px;word-break:break-all">'+esc(payload)+'</code>';}
+            box.innerHTML='<div style="font-weight:800;margin-bottom:6px">Гостевой QR-вход</div>';
+            box.appendChild(qrDiv);
+            const info=document.createElement('div');
+            info.style.cssText='font-size:11px;color:#555;margin:8px 0';
+            info.textContent='Одноразовый · истекает через 1 час';
+            box.appendChild(info);
+            const closeBtn=document.createElement('button');
+            closeBtn.className='btn btn-accent btn-full';
+            closeBtn.textContent='Закрыть';
+            closeBtn.onclick=function(){ if(wrap.parentNode)wrap.parentNode.removeChild(wrap); };
+            box.appendChild(closeBtn);
+            wrap.appendChild(box);
+            wrap.addEventListener('click',function(e){ if(e.target===wrap&&wrap.parentNode)wrap.parentNode.removeChild(wrap); });
+            document.body.appendChild(wrap);
+        }catch(e){}
+        try{socket.emit('admin:guestQr:list');}catch(e){}
+    }else toast('e','Гостевой QR',(d&&d.error)||'Ошибка создания');
+});
+socket.on('admin:guestQr:list',function(d){
+    if(d&&d.success)renderGuestQrList(d.tokens);
+});
+socket.on('admin:guestQr:revoked',function(d){
+    if(d&&d.success){toast('s','Гостевой QR','Отозван');try{socket.emit('admin:guestQr:list');}catch(e){}}
+});
+socket.on('user:guest_login_result',function(d){
+    if(d&&d.success){
+        toast('s','Гостевой вход','Добро пожаловать! Сессия на 1 час.');
+        window._guestQrScanMode=false;
+        try{ if(typeof closeQrScanner==='function')closeQrScanner(); }catch(e){}
+    }else{
+        showAuthErr((d&&d.message)||'Гостевой вход не удался');
+        try{toast('e','Гостевой вход',(d&&d.message)||'Ошибка');}catch(e){}
+    }
+});
+
+// Refresh home mini-blocks when journal data arrives
+socket.on('journal:updated',function(){ try{ if(typeof updateHomeMiniBlocks==='function')updateHomeMiniBlocks(); }catch(e){} });
+socket.on('journal:saved',function(){ try{ if(typeof updateHomeMiniBlocks==='function')updateHomeMiniBlocks(); }catch(e){} });
+
+// --- Home mini-blocks: grade + homework ---
+window.updateHomeMiniBlocks=function(){
+    try{
+        const gEl=$('homeGradeVal'), gSub=$('homeGradeSub'), hEl=$('homeHwVal'), hSub=$('homeHwSub');
+        if(!gEl&&!hEl)return;
+        const jdb=(window.Journal&&window.Journal.getData)?window.Journal.getData():null;
+        if(!jdb){ if(gEl)gEl.textContent='—'; if(hEl)hEl.textContent='—'; return; }
+        // find student linked to current user
+        let s=null;
+        if(U){
+            s=(jdb.students||[]).find(x=>x&&(x.userId===U.id||x.id===U.id||x.name===U.name))||null;
+        }
+        if(!s){
+            if(gEl)gEl.textContent='—';
+            if(gSub)gSub.textContent='Нет данных';
+            if(hEl)hEl.textContent='—';
+            if(hSub)hSub.textContent='Нет заданий';
+            return;
+        }
+        // latest grade record
+        const recs=(jdb.records||[]).filter(r=>r&&r.studentId===s.id).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+        const last=recs[0];
+        if(last){
+            if(gEl)gEl.textContent=(last.letter||last.percent+'%');
+            if(gSub)gSub.textContent=(last.percent!=null?last.percent+'% · ':'')+(last.date||'')+(last.subject?' · '+last.subject:'');
+        }else{
+            if(gEl)gEl.textContent='—';
+            if(gSub)gSub.textContent='Оценок пока нет';
+        }
+        // current homework
+        const hws=(jdb.homework||[]).filter(h=>{
+            if(!h)return false;
+            if(h.studentId&&s.id)return h.studentId===s.id;
+            return !h.studentId&&s.groupId&&h.groupId===s.groupId;
+        }).sort((a,b)=>{
+            const da=String(a.date||''), dbb=String(b.date||'');
+            if(da!==dbb)return da<dbb?-1:1;
+            return String(a.createdAt||'')<String(b.createdAt||'')?-1:1;
+        });
+        const hw=hws.length?hws[hws.length-1]:null;
+        if(hw){
+            const txt=String(hw.text||'').replace(/\s+/g,' ').trim();
+            if(hEl)hEl.textContent=txt?(txt.length>28?txt.slice(0,28)+'…':txt):'Есть';
+            if(hSub)hSub.textContent='Назначено: '+(hw.date||'')+(hw.studentId?' · индивидуально':' · группа');
+        }else{
+            if(hEl)hEl.textContent='—';
+            if(hSub)hSub.textContent='Нет заданий';
+        }
+    }catch(e){ /* mini-blocks must never break home */ }
+};
+
 window.submitNoAccount=function(){
     const name=($('naName')&&$('naName').value||'').trim();
     const comment=($('naComment')&&$('naComment').value||'').trim();
@@ -13793,7 +14099,9 @@ function updateAdminUI(){
         if($('sideAdminBadge'))$('sideAdminBadge').textContent=teacherLabel;
         if($('mobAdminBadge'))$('mobAdminBadge').textContent='老师 🦁';
     }
-    if(show){$('adminLoginView')?.classList.add('hidden');$('adminPanelView')?.classList.remove('hidden');}
+    if(show){$('adminLoginView')?.classList.add('hidden');$('adminPanelView')?.classList.remove('hidden');
+        try{socket.emit('guestMode:get');socket.emit('maintenance:get');socket.emit('admin:guestQr:list');}catch(e){}
+    }
     else{$('adminLoginView')?.classList.remove('hidden');$('adminPanelView')?.classList.add('hidden');}
 }
 
@@ -13824,6 +14132,7 @@ socket.on('connect',()=>{setConn(true);
     else if(U){socket.emit('user:login',{userId:U.id,pinCached:true});}
     const adminToken=localStorage.getItem('pb_admin_token');
     if(adminToken){socket.emit('admin:resume',{adminToken});}
+    try{socket.emit('guestMode:get');socket.emit('maintenance:get');}catch(e){}
 });
 socket.on('disconnect',()=>setConn(false));
 
@@ -13863,7 +14172,14 @@ socket.on('user:logged_in',d=>{
     // Request approval requests
     socket.emit('approval:getList');
     socket.emit('globalMode:get');
+    socket.emit('guestMode:get');
+    socket.emit('maintenance:get');
     if(typeof enforceGlobalMode==='function')setTimeout(function(){enforceGlobalMode(true);},300);
+    // Guest: limited session notice + restrict to games
+    if(U&&U.isGuest){
+        toast('i','Гостевой режим','Сессия гостя на 1 час. Доступны игры и комнаты.');
+        setTimeout(function(){ try{go('games');}catch(e){} },400);
+    }
 });
 
 socket.on('admin:authenticated',d=>{
@@ -13872,7 +14188,11 @@ socket.on('admin:authenticated',d=>{
     if(d.adminToken){try{localStorage.setItem('pb_admin_token',d.adminToken);}catch(e){}}
     if(adminSessionTimer)clearInterval(adminSessionTimer);
     adminSessionTimer=setInterval(checkAdminSession,30000);
-    cm('mAdminLogin');updateAdminUI();go('admin');
+    cm('mAdminLogin');updateAdminUI();
+    // Admin keeps panel access even during maintenance
+    hideMaintenanceScreen();
+    const app=$('app'); if(app)app.classList.add('show');
+    go('admin');
     toast('s','Админ-доступ',d.firstTime?'PIN установлен. Добро пожаловать!':'Вы вошли как администратор');
     renderAdmin();lucide.createIcons();
     if(window.Mafia&&window.Mafia.reload){try{window.Mafia.reload();}catch(e){}}
@@ -14180,6 +14500,13 @@ socket.on('session:invalid',()=>{
     U=null;
     $('authScreen').style.display='flex';
     $('app').classList.remove('show');
+});
+
+socket.on('user:logged_out',function(){
+    try{localStorage.removeItem('pb_session_token');localStorage.removeItem('pb_uid');}catch(e){}
+    U=null;
+    const app=$('app'); if(app)app.classList.remove('show');
+    const auth=$('authScreen'); if(auth)auth.style.display='flex';
 });
 
 socket.on('error',d=>{
@@ -18637,6 +18964,8 @@ socket.on('globalMode:setResult',function(d){
 });
 // Pull state + periodic re-check (returns temp-exited users)
 socket.emit('globalMode:get');
+socket.emit('guestMode:get');
+socket.emit('maintenance:get');
 try{const cached=localStorage.getItem('pb_global_mode');if(cached)applyGlobalModeState(JSON.parse(cached));}catch(e){}
 _gmTimer=setInterval(function(){
     if(globalModeState.enabled&&!isAdmin){
@@ -18650,6 +18979,8 @@ setInterval(function(){try{socket.emit('globalMode:get');}catch(e){}},30000);
 // Override go() to handle new sections
 const _origGo2=window.go;
 window.go=function(s){
+    // Unified games section: croc/bunker aliases point to «Игры»
+    if(s==='croc'||s==='bunker'||s==='games')s='games';
     // Global mode: lock non-admin users into forced section (кроме явного закрытия словаря)
     if(!window._dictClosing&&globalModeState&&globalModeState.enabled&&!isAdmin&&globalModeState.section&&s!==globalModeState.section){
         if(Date.now()>=_gmTempExitUntil){
@@ -18682,6 +19013,7 @@ window.go=function(s){
     if(s==='qrterminal'){socket.emit('qr:generateData');socket.emit('qr:getUsers');socket.emit('qr:getHistory');generateMyQR();}
     if(s==='mybanks'){currentBankView=null;$('bankListView').classList.remove('hidden');$('bankDetailView').classList.add('hidden');socket.emit('bank:getAll');socket.emit('bank:getDeposits');socket.emit('bank:getHistory');renderMyBanks();}
     if(s==='homework'){if(window.Journal&&window.Journal.renderHomework)window.Journal.renderHomework();}
+    if(s==='home'){try{socket.emit('journal:get');}catch(e){} setTimeout(function(){if(typeof updateHomeMiniBlocks==='function')updateHomeMiniBlocks();},80);}
     if(s==='exams'){if(window.Exams&&window.Exams.onNavigate)window.Exams.onNavigate(s);}
     if(s==='dictionary'){
         document.body.classList.add('dict-fullscreen');
@@ -18719,13 +19051,13 @@ window.go=function(s){
     if(s==='tests'){renderTestResults();}
     if(s==='adminqr'){renderAdminQrCodes();}
     if(s==='mafia'){if(window.Mafia&&window.Mafia.onNavigate)window.Mafia.onNavigate(s);}
-    if(s==='croc'||s==='bunker'){
+    if(s==='games'||s==='croc'||s==='bunker'){
         const pr=document.getElementById('partyRoot');
-        const host=document.getElementById(s==='bunker'?'secBunker':'secCroc');
+        const host=document.getElementById('secGames');
         if(pr&&host&&pr.parentNode!==host)host.appendChild(pr);
         if(window.Party){
             if(window.Party.setMode)window.Party.setMode(s==='bunker'?'bunker':'croc');
-            if(window.Party.onNavigate)window.Party.onNavigate(s);
+            if(window.Party.onNavigate)window.Party.onNavigate('games');
         }
     }
     // Bottom nav highlighting
@@ -19872,6 +20204,12 @@ document.addEventListener('DOMContentLoaded', function(){
         let data;
         try{ data=JSON.parse(rawValue); }catch(e){ data=null; }
         if(!data){
+            // Plain token scanned from the login screen → try guest QR
+            if(window._guestQrScanMode){
+                socket.emit('user:guestQr_login',{token:rawValue});
+                if(qrStatus)qrStatus.textContent='Гостевой вход...';
+                return;
+            }
             toast('e','QR-код','Неверный QR-код');
             qrScanning=true;qrScanTimeout=setTimeout(qrScanLoop,100);return;
         }
@@ -19879,6 +20217,12 @@ document.addEventListener('DOMContentLoaded', function(){
         if(data.type==='mandarin_qr'&&data.qrId&&data.token){
             socket.emit('qr:executeAction',{qrId:data.qrId,token:data.token});
             if(qrStatus)qrStatus.textContent='Обработка QR-кода...';
+            return;
+        }
+        // Guest QR login (one-time temporary session)
+        if(data.type==='mandarin_guest_qr'&&data.token){
+            socket.emit('user:guestQr_login',{token:data.token});
+            if(qrStatus)qrStatus.textContent='Гостевой вход...';
             return;
         }
         // User payment QR code

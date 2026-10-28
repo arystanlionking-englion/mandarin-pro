@@ -109,7 +109,12 @@
         + '.mpexams .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}'
         + '.mpexams .tabs button.active{background:#eaf2eb;color:#216c58;font-weight:700}'
         + '@media(max-width:900px){.mpexams .grid{grid-template-columns:repeat(2,minmax(0,1fr))}.mpexams .split{grid-template-columns:1fr}}'
-        + '@media(max-width:700px){.mpexams{padding:12px 10px 28px}.mpexams .grid,.mpexams .two{grid-template-columns:1fr}.mpexams .metrics{grid-template-columns:repeat(2,1fr)}.mpexams h1{font-size:24px}.mpexams .hero{padding:18px}.mpexams .panel,.mpexams .card{padding:16px}.mpexams .row>*{max-width:100%}.mpexams .table{margin:0 -8px}}';
+        + '@media(max-width:700px){.mpexams{padding:12px 10px 28px}.mpexams .grid,.mpexams .two{grid-template-columns:1fr}.mpexams .metrics{grid-template-columns:repeat(2,1fr)}.mpexams h1{font-size:24px}.mpexams .hero{padding:18px}.mpexams .panel,.mpexams .card{padding:16px}.mpexams .row>*{max-width:100%}.mpexams .table{margin:0 -8px}}'
+        + '.mpexams .exam-save-bar{position:sticky;bottom:12px;z-index:20;display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;background:rgba(244,246,242,.96);border:1px solid #cdd9d0;border-radius:14px;padding:12px;margin-top:18px;box-shadow:0 8px 28px rgba(25,59,54,.12)}'
+        + '.mpexams .exam-float-down{position:fixed;right:16px;bottom:88px;z-index:50;width:52px;height:52px;border-radius:50%;background:#216c58;color:#fff;border:none;box-shadow:0 8px 24px rgba(33,108,88,.4);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s}'
+        + '.mpexams .exam-float-down:hover{transform:translateY(2px)}'
+        + '.mpexams .exam-float-down.hidden{display:none}'
+        + '@media(max-width:700px){.mpexams .exam-float-down{bottom:calc(72px + env(safe-area-inset-bottom,0px));right:12px}.mpexams .exam-save-bar{bottom:calc(8px + env(safe-area-inset-bottom,0px))}}';
 
     function ensureStyles() {
         if (document.getElementById('mpexamsStyles')) return;
@@ -565,8 +570,25 @@
                     + '<button class="danger" onclick="Exams.removeQ(' + i + ')">Удалить</button></div></div>';
             }).join('') : '<div class="empty">Добавьте вопрос или импортируйте CSV.</div>')
             + '</div>'
-            + '<div class="row"><button class="primary" onclick="Exams.saveExam()">Сохранить экзамен</button>'
+            + '<div class="exam-save-bar" id="examSaveBar"><button class="primary" onclick="Exams.saveExam()">Сохранить экзамен</button>'
             + '<button onclick="Exams.go(\'exams\')">Отмена</button></div>');
+        // Floating "scroll to save" button
+        try {
+            var oldFloat = document.getElementById('examFloatDown');
+            if (oldFloat && oldFloat.parentNode) oldFloat.parentNode.removeChild(oldFloat);
+            var fbtn = document.createElement('button');
+            fbtn.type = 'button';
+            fbtn.id = 'examFloatDown';
+            fbtn.className = 'exam-float-down';
+            fbtn.title = 'К кнопке сохранения';
+            fbtn.setAttribute('aria-label', 'Перейти к кнопке сохранения');
+            fbtn.innerHTML = '↓';
+            fbtn.onclick = function () {
+                var bar = document.getElementById('examSaveBar');
+                if (bar) bar.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            };
+            document.body.appendChild(fbtn);
+        } catch (e) { }
         var fa = $('exForAll');
         if (fa) {
             fa.addEventListener('change', function () {
@@ -865,6 +887,10 @@
         closeModal();
         editor();
         toast('Добавлено вопросов: ' + qs.length + (data.errors && data.errors.length ? ' (предупреждений: ' + data.errors.length + ')' : '') + '. Сохраните экзамен.');
+        setTimeout(function () {
+            var bar = document.getElementById('examSaveBar');
+            if (bar) bar.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }, 120);
     }
 
     function exportQuestions() {
@@ -998,7 +1024,11 @@
         pendingImport = [];
         closeModal();
         editor();
-        toast('Вопросы добавлены. Сохраните экзамен.');
+        toast('Вопросы добавлены (' + (draft.questions || []).length + '). Сохраните экзамен.');
+        setTimeout(function () {
+            var bar = document.getElementById('examSaveBar');
+            if (bar) bar.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }, 120);
     }
 
     /* ---------- run exam ---------- */
@@ -1430,6 +1460,10 @@
         draft = null;
         page = p;
         filter = '';
+        try {
+            var fl = document.getElementById('examFloatDown');
+            if (fl && fl.parentNode) fl.parentNode.removeChild(fl);
+        } catch (e) { }
         render();
     }
 
@@ -1470,6 +1504,11 @@
             if (s === 'exams') {
                 pull();
                 render();
+            } else {
+                try {
+                    var fl = document.getElementById('examFloatDown');
+                    if (fl && fl.parentNode) fl.parentNode.removeChild(fl);
+                } catch (e) { }
             }
         },
         render: render,
