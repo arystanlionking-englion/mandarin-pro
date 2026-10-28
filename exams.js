@@ -57,11 +57,19 @@
     var STYLES = ''
         + '.mpexams{font:15px/1.55 system-ui,-apple-system,sans-serif;color:#193b36;background:#f4f6f2;padding:16px 14px 40px;min-height:60vh;border-radius:16px}'
         + '.mpexams *{box-sizing:border-box}'
-        + '.mpexams button{cursor:pointer;border:1px solid #e0e7df;background:#fff;color:#193b36;border-radius:12px;padding:11px 16px;min-height:44px;font:inherit}'
-        + '.mpexams button:hover{border-color:#216c58}'
-        + '.mpexams button.primary{background:#216c58;color:#fff;border-color:#216c58}'
-        + '.mpexams button.danger{color:#b34438}'
-        + '.mpexams button:disabled{opacity:.45;cursor:default}'
+        + '.mpexams button{cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-align:center;border:1px solid #d5e0d9;background:#fff;color:#193b36;border-radius:14px;padding:12px 18px;min-height:46px;font:inherit;font-weight:600;letter-spacing:.01em;box-shadow:0 1px 2px rgba(25,59,54,.06);transition:transform .12s ease,box-shadow .12s ease,background .15s ease,border-color .15s ease,color .15s ease;-webkit-tap-highlight-color:transparent;user-select:none}'
+        + '.mpexams button:hover{border-color:#216c58;background:#f7fbf8;box-shadow:0 4px 12px rgba(25,59,54,.1)}'
+        + '.mpexams button:active{transform:scale(.97);box-shadow:0 1px 2px rgba(25,59,54,.08)}'
+        + '.mpexams button.primary{background:linear-gradient(180deg,#278266,#1c6b52);color:#fff;border-color:#1c6b52;box-shadow:0 4px 14px rgba(33,108,88,.28)}'
+        + '.mpexams button.primary:hover{background:linear-gradient(180deg,#2d9272,#216c58);border-color:#216c58;box-shadow:0 6px 18px rgba(33,108,88,.35)}'
+        + '.mpexams button.primary:active{background:linear-gradient(180deg,#1c6b52,#175842);transform:scale(.97);box-shadow:0 2px 8px rgba(33,108,88,.25)}'
+        + '.mpexams button.danger{color:#c23b32;border-color:#efc5c1;background:#fff8f7}'
+        + '.mpexams button.danger:hover{background:#ffefed;border-color:#e5a29b;color:#b3342c;box-shadow:0 4px 12px rgba(179,68,56,.12)}'
+        + '.mpexams button.danger:active{background:#ffe6e2;transform:scale(.97)}'
+        + '.mpexams button.ghost{background:transparent;border-color:transparent;box-shadow:none;color:#4e7564;font-weight:600}'
+        + '.mpexams button.ghost:hover{background:rgba(33,108,88,.1);border-color:transparent;box-shadow:none;color:#216c58}'
+        + '.mpexams button.ghost:active{background:rgba(33,108,88,.16);transform:scale(.97)}'
+        + '.mpexams button:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}'
         + '.mpexams input,.mpexams select,.mpexams textarea{width:100%;border:1px solid #cdd9d0;border-radius:10px;background:#fff;padding:11px;color:#193b36;font:inherit}'
         + '.mpexams textarea{min-height:90px;resize:vertical}'
         + '.mpexams input[type=checkbox],.mpexams input[type=radio]{width:auto;accent-color:#216c58}'
@@ -94,9 +102,9 @@
         + '.mpexams .option:has(input:checked){border-color:#216c58;background:#edf5ee}'
         + '.mpexams .progress{height:7px;background:#e8eee7;border-radius:9px;overflow:hidden}'
         + '.mpexams .progress i{display:block;height:100%;background:#216c58}'
-        + '.mpexams .qnav button{min-width:44px;padding:9px}'
-        + '.mpexams .qnav .done{background:#e3f0e5}'
-        + '.mpexams .qnav .current{border:2px solid #216c58}'
+        + '.mpexams .qnav button{min-width:44px;height:44px;min-height:44px;padding:0 10px;border-radius:12px;font-weight:700;font-size:14px}'
+        + '.mpexams .qnav .done{background:#dff0e4;border-color:#b7d9c2;color:#1c6b52}'
+        + '.mpexams .qnav .current{border-color:#216c58;background:#fff;box-shadow:0 0 0 3px rgba(33,108,88,.18)}'
         + '.mpexams .timer{font:700 24px ui-monospace,monospace}'
         + '.mpexams .table{overflow:auto}'
         + '.mpexams table{width:100%;border-collapse:collapse;font-size:13px}'
@@ -107,14 +115,21 @@
         + '.mpexams .split{display:grid;grid-template-columns:minmax(0,1fr) 240px;gap:18px}'
         + '.mpexams .detail{white-space:pre-wrap;overflow-wrap:anywhere}'
         + '.mpexams .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}'
-        + '.mpexams .tabs button.active{background:#eaf2eb;color:#216c58;font-weight:700}'
+        + '.mpexams .tabs button{border-radius:999px;padding:11px 18px;min-height:42px;font-weight:600;background:#e7eee8;border-color:transparent;box-shadow:none}'
+        + '.mpexams .tabs button:hover{background:#dce8de;border-color:transparent;box-shadow:none}'
+        + '.mpexams .tabs button.active{background:linear-gradient(180deg,#278266,#1c6b52);color:#fff;border-color:#1c6b52;font-weight:700;box-shadow:0 4px 12px rgba(33,108,88,.28)}'
+        + '.mpexams .tabs button.active:hover{background:linear-gradient(180deg,#2d9272,#216c58)}'
         + '@media(max-width:900px){.mpexams .grid{grid-template-columns:repeat(2,minmax(0,1fr))}.mpexams .split{grid-template-columns:1fr}}'
         + '@media(max-width:700px){.mpexams{padding:12px 10px 28px}.mpexams .grid,.mpexams .two{grid-template-columns:1fr}.mpexams .metrics{grid-template-columns:repeat(2,1fr)}.mpexams h1{font-size:24px}.mpexams .hero{padding:18px}.mpexams .panel,.mpexams .card{padding:16px}.mpexams .row>*{max-width:100%}.mpexams .table{margin:0 -8px}}'
-        + '.mpexams .exam-save-bar{position:sticky;bottom:12px;z-index:20;display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;background:rgba(244,246,242,.96);border:1px solid #cdd9d0;border-radius:14px;padding:12px;margin-top:18px;box-shadow:0 8px 28px rgba(25,59,54,.12)}'
-        + '.mpexams .exam-float-down{position:fixed;right:16px;bottom:88px;z-index:50;width:52px;height:52px;border-radius:50%;background:#216c58;color:#fff;border:none;box-shadow:0 8px 24px rgba(33,108,88,.4);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s}'
-        + '.mpexams .exam-float-down:hover{transform:translateY(2px)}'
-        + '.mpexams .exam-float-down.hidden{display:none}'
-        + '@media(max-width:700px){.mpexams .exam-float-down{bottom:calc(72px + env(safe-area-inset-bottom,0px));right:12px}.mpexams .exam-save-bar{bottom:calc(8px + env(safe-area-inset-bottom,0px))}}';
+        + '.mpexams .exam-save-bar{position:sticky;bottom:12px;z-index:20;display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;background:rgba(244,246,242,.96);border:1px solid #cdd9d0;border-radius:16px;padding:12px;margin-top:18px;box-shadow:0 8px 28px rgba(25,59,54,.12)}'
+        + '.mpexams .exam-float-down,#examFloatDown{position:fixed;right:16px;bottom:88px;z-index:50;width:54px;height:54px;min-height:54px;border-radius:50%;background:linear-gradient(180deg,#278266,#1c6b52);color:#fff;border:1px solid #1c6b52;box-shadow:0 8px 24px rgba(33,108,88,.4);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .15s ease,box-shadow .15s ease,background .15s ease}'
+        + '.mpexams .exam-float-down:hover,#examFloatDown:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(33,108,88,.45);background:linear-gradient(180deg,#2d9272,#216c58)}'
+        + '.mpexams .exam-float-down:active,#examFloatDown:active{transform:scale(.95)}'
+        + '.mpexams .exam-float-down.hidden,#examFloatDown.hidden{display:none}'
+        + '#examsModal .mpexams{min-height:0;background:transparent;padding:0}'
+        + '.mpexams .card .foot{display:flex;flex-wrap:wrap;gap:8px}'
+        + '.mpexams .card .foot button{flex:1 1 auto;min-width:110px}'
+        + '@media(max-width:700px){.mpexams .exam-float-down,#examFloatDown{bottom:calc(72px + env(safe-area-inset-bottom,0px));right:12px}.mpexams .exam-save-bar{bottom:calc(8px + env(safe-area-inset-bottom,0px))}}';
 
     function ensureStyles() {
         if (document.getElementById('mpexamsStyles')) return;
@@ -336,9 +351,9 @@
             m.style.cssText = 'position:fixed;inset:0;background:rgba(16,44,39,.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:12px';
             document.body.appendChild(m);
         }
-        m.innerHTML = '<div style="background:#f4f6f2;color:#193b36;border-radius:18px;max-width:860px;width:96%;max-height:90dvh;overflow:auto;padding:20px">'
+        m.innerHTML = '<div class="mpexams" style="background:#f4f6f2;color:#193b36;border-radius:18px;max-width:860px;width:96%;max-height:90dvh;overflow:auto;padding:20px">'
             + '<div class="row between" style="margin-bottom:14px"><span class="tag">MANDARIN PRO · ЭКЗАМЕНЫ</span>'
-            + '<button onclick="Exams.closeModal()">Закрыть</button></div>'
+            + '<button class="ghost" onclick="Exams.closeModal()">Закрыть</button></div>'
             + html + '</div>';
         m.style.display = 'flex';
     }
@@ -446,7 +461,7 @@
             + '<div class="note">Черновик видит только преподаватель. Опубликованный экзамен доступен согласно назначению.</div>'
             + '<div class="row" style="margin-top:14px">'
             + '<button class="primary" onclick="Exams.saveAssign(\'' + id + '\')">Сохранить назначение</button>'
-            + '<button onclick="Exams.closeModal()">Отмена</button></div>');
+            + '<button class="ghost" onclick="Exams.closeModal()">Отмена</button></div>');
         var fa = $('asgForAll');
         if (fa) {
             fa.addEventListener('change', function () {
@@ -571,7 +586,7 @@
             }).join('') : '<div class="empty">Добавьте вопрос или импортируйте CSV.</div>')
             + '</div>'
             + '<div class="exam-save-bar" id="examSaveBar"><button class="primary" onclick="Exams.saveExam()">Сохранить экзамен</button>'
-            + '<button onclick="Exams.go(\'exams\')">Отмена</button></div>');
+            + '<button class="ghost" onclick="Exams.go(\'exams\')">Отмена</button></div>');
         // Floating "scroll to save" button
         try {
             var oldFloat = document.getElementById('examFloatDown');
@@ -1131,7 +1146,7 @@
                     + ' onchange="Exams.answer(\'' + letter + '\')"><span><b>' + letter + '.</b> ' + esc(x) + '</span></label>';
             }).join('')
             + '<div class="row between" style="margin-top:22px">'
-            + (qi > 0 && snap.navigate !== false ? '<button onclick="Exams.goQ(' + (qi - 1) + ')">← Назад</button>' : '<span></span>')
+            + (qi > 0 && snap.navigate !== false ? '<button class="ghost" onclick="Exams.goQ(' + (qi - 1) + ')">← Назад</button>' : '<span></span>')
             + (qi < questions.length - 1
                 ? '<button class="primary" onclick="Exams.goQ(' + (qi + 1) + ')">Далее →</button>'
                 : '<button class="primary" onclick="Exams.submitAttempt()">Завершить экзамен</button>')
@@ -1148,8 +1163,8 @@
                     + ' onclick="Exams.goQ(' + i + ')">' + (i + 1) + '</button>';
             }).join('')
             + '</div>'
-            + '<button onclick="Exams.submitAttempt()">Завершить</button> '
-            + '<button onclick="Exams.leaveAttempt()">Выйти и продолжить позже</button>'
+            + '<button class="ghost" onclick="Exams.submitAttempt()">Завершить</button> '
+            + '<button class="ghost" onclick="Exams.leaveAttempt()">Выйти и продолжить позже</button>'
             + '</div>'
             + '<small class="muted">Таймер не останавливается при выходе. Результаты доступны на всех устройствах.</small>'
             + '</div></div>');
