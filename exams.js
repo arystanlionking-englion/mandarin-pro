@@ -15,13 +15,11 @@
     var filter = '';
     var editingQ = null;
     var editingIndex = null;
-    var pendingImport = [];
     var tickTimer = null;
     var warned = {};
     var _inDiaryPull = false;
 
     var STATES = ['Черновик', 'Опубликован', 'Открыт', 'Закрыт', 'Архив'];
-    var CSV_COLS = ['Question', 'A', 'B', 'C', 'D', 'Answer'];
 
     /* ---------- utils ---------- */
     function $(id) { return document.getElementById(id); }
@@ -331,7 +329,7 @@
         if (!root) return;
         var tabs = [];
         if (isAdminMode) {
-            tabs = [['exams', 'Экзамены'], ['results', 'Результаты'], ['stats', 'Статистика'], ['help', 'Шаблон CSV']];
+            tabs = [['exams', 'Экзамены'], ['results', 'Результаты'], ['stats', 'Статистика'], ['help', 'Помощь']];
         } else {
             tabs = [['exams', 'Доступные'], ['progress', 'В процессе'], ['results', 'Мои результаты'], ['help', 'Помощь']];
         }
@@ -353,7 +351,7 @@
         }
         m.innerHTML = '<div class="mpexams" style="background:#f4f6f2;color:#193b36;border-radius:18px;max-width:860px;width:96%;max-height:90dvh;overflow:auto;padding:20px">'
             + '<div class="row between" style="margin-bottom:14px"><span class="tag">MANDARIN PRO · ЭКЗАМЕНЫ</span>'
-            + '<button class="ghost" onclick="Exams.closeModal()">Закрыть</button></div>'
+            + '<button class="ghost" style="min-height:62px;padding:18px 42px;font-size:18px" onclick="Exams.closeModal()">Закрыть</button></div>'
             + html + '</div>';
         m.style.display = 'flex';
     }
@@ -372,7 +370,7 @@
         var finished = db.attempts.filter(function (a) { return a && a.end; });
         shell('<div class="hero"><span class="tag">Проверяйте знания</span>'
             + '<h1>' + (isAdminMode ? 'Экзамены и тесты' : 'Твои экзамены') + '</h1>'
-            + '<p>' + (isAdminMode ? 'Создавайте экзамены, импортируйте вопросы из CSV и следите за результатами учеников.' : 'Выбери экзамен, прочитай инструкцию и покажи, чему ты научился.') + '</p></div>'
+            + '<p>' + (isAdminMode ? 'Создавайте экзамены и следите за результатами учеников.' : 'Выбери экзамен, прочитай инструкцию и покажи, чему ты научился.') + '</p></div>'
             + '<div class="metrics">'
             + '<div><span class="muted">' + (isAdminMode ? 'Экзаменов' : 'Доступно') + '</span><div class="stat">' + exams.length + '</div></div>'
             + '<div><span class="muted">Завершено</span><div class="stat">' + finished.length + '</div></div>'
@@ -395,7 +393,7 @@
         });
         if (!list.length) {
             box.innerHTML = '<div class="panel empty" style="grid-column:1/-1">Здесь пока нет экзаменов.<br>'
-                + (isAdminMode ? 'Создайте первый экзамен или импортируйте вопросы из CSV.' : 'Преподаватель должен открыть экзамен.') + '</div>';
+                + (isAdminMode ? 'Создайте первый экзамен.' : 'Преподаватель должен открыть экзамен.') + '</div>';
             return;
         }
         box.innerHTML = list.map(function (e) {
@@ -419,7 +417,7 @@
                 + '<div class="row between"><span class="pill">' + esc(e.level || '—') + '</span><span class="muted" style="font-size:12px">' + esc(e.state || '') + '</span></div>'
                 + '<h3 style="margin:18px 0 8px">' + esc(e.title) + '</h3>'
                 + '<p class="muted">' + esc(e.description || 'Проверьте свои знания.') + '</p>'
-                + '<div class="row muted"><span>' + (e.questions || []).length + ' заданий</span> · <span>' + e.minutes + ' мин</span> · <span>' + maxScore(e) + ' баллов</span></div>'
+                + '<div class="row muted">' + (isAdminMode ? '<span>' + (e.questions || []).length + ' заданий</span> · ' : '') + '<span>' + e.minutes + ' мин</span> · <span>' + maxScore(e) + ' баллов</span></div>'
                 + '<div style="font-size:12px;margin-top:12px">Порог ' + e.pass + '% · Попыток: ' + e.limit + '</div>'
                 + (isAdminMode ? '<div style="font-size:12px;margin-top:8px" class="muted">' + esc(assignLabel(e)) + '</div>' : '')
                 + '<div class="foot row">' + foot + '</div></article>';
@@ -569,13 +567,9 @@
             + '<button class="primary" onclick="Exams.questionEditor()">+ Добавить вопрос</button></div>'
             + '<div class="row">'
             + '<button class="primary" onclick="Exams.importTemplate()">📥 Импорт по шаблону (DOCX / текст)</button>'
-            + '<button onclick="Exams.downloadTemplate()">Скачать шаблон CSV</button>'
-            + '<button onclick="Exams.chooseImport()">Импортировать CSV</button>'
-            + '<button onclick="Exams.exportQuestions()">Экспорт вопросов</button>'
             + '<button onclick="Exams.previewDraft()">Предпросмотр</button>'
             + '</div>'
-            + '<div class="note">Импорт по шаблону: <b>1. вопрос → A. … B. … C. … D. … → «Правильный ответ: B. …»</b>. Файл .docx или вставьте текст. CSV: колонки <b>Question, A, B, C, D, Answer</b>.</div>'
-            + '<div id="importStatus"></div>'
+            + '<div class="note">Импорт по шаблону: <b>1. вопрос → A. … B. … C. … D. … → «Правильный ответ: B. …»</b>. Файл .docx или вставьте текст.</div>'
             + (q.length ? q.map(function (qq, i) {
                 return '<div class="question"><div class="row between"><span class="pill">' + (i + 1) + ' · один ответ</span><span>' + qq.points + ' б.</span></div>'
                     + '<h3 style="margin-top:12px">' + esc(qq.text || '—') + '</h3>'
@@ -583,7 +577,7 @@
                     + '<button onclick="Exams.moveQ(' + i + ',-1)">↑</button>'
                     + '<button onclick="Exams.moveQ(' + i + ',1)">↓</button>'
                     + '<button class="danger" onclick="Exams.removeQ(' + i + ')">Удалить</button></div></div>';
-            }).join('') : '<div class="empty">Добавьте вопрос или импортируйте CSV.</div>')
+            }).join('') : '<div class="empty">Добавьте вопрос или импортируйте по шаблону.</div>')
             + '</div>'
             + '<div class="exam-save-bar" id="examSaveBar"><button class="primary" onclick="Exams.saveExam()">Сохранить экзамен</button>'
             + '<button class="ghost" onclick="Exams.go(\'exams\')">Отмена</button></div>');
@@ -780,41 +774,6 @@
             return r.map(function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }).join(';');
         }).join('\r\n');
     }
-    function parseCSV(text) {
-        text = text.replace(/^\uFEFF/, '');
-        var delim = text.split('\n')[0].indexOf(';') >= 0 ? ';' : ',';
-        var rows = [], row = [], value = '', quote = false;
-        for (var i = 0; i < text.length; i++) {
-            var c = text[i];
-            if (c === '"') {
-                if (quote && text[i + 1] === '"') { value += '"'; i++; }
-                else quote = !quote;
-            } else if (c === delim && !quote) {
-                row.push(value); value = '';
-            } else if (c === '\n' && !quote) {
-                row.push(value.replace(/\r$/, ''));
-                if (row.some(function (x) { return x.trim(); })) rows.push(row);
-                row = []; value = '';
-            } else value += c;
-        }
-        if (quote) throw new Error('Незакрытая кавычка в CSV.');
-        row.push(value.replace(/\r$/, ''));
-        if (row.some(function (x) { return x.trim(); })) rows.push(row);
-        return rows;
-    }
-
-    function downloadTemplate() {
-        var rows = [CSV_COLS,
-            ['法律', 'журналистика', 'право', 'характер', 'причина', 'B'],
-            ['俩', 'двое', 'один раз', 'все', 'половина', 'A'],
-            ['印象', 'привычка', 'впечатление', 'интерес', 'свадьба', 'впечатление'],
-            ['Как переводится 你好?', 'Здравствуйте', 'Спасибо', 'До свидания', 'Пока', 'A'],
-            ['Выберите слово для пропуска: 我对他印象很____。', '深', '刚', '亮', '够', 'A']
-        ];
-        download('Mandarin_Exam_Template.csv', csv(rows), 'text/csv;charset=utf-8');
-        toast('Шаблон скачан. Заполните колонки Question, A, B, C, D, Answer.');
-    }
-
     /* ---------- импорт по шаблону HSK (DOCX / текст) ---------- */
     function importTemplate() {
         captureExam();
@@ -908,144 +867,6 @@
         }, 120);
     }
 
-    function exportQuestions() {
-        captureExam();
-        var rows = [CSV_COLS];
-        (draft.questions || []).forEach(function (q) {
-            var opts = q.options || [];
-            var ans = q.answer || '';
-            if (/^[A-D]$/.test(String(ans).toUpperCase())) {
-                // keep letter
-            } else {
-                var idx = opts.indexOf(ans);
-                if (idx >= 0) ans = 'ABCD'.charAt(idx);
-            }
-            rows.push([q.text, opts[0] || '', opts[1] || '', opts[2] || '', opts[3] || '', ans]);
-        });
-        download('Mandarin_Questions.csv', csv(rows), 'text/csv;charset=utf-8');
-    }
-
-    function chooseImport() {
-        captureExam();
-        var f = $('examsFile');
-        if (!f) {
-            f = document.createElement('input');
-            f.type = 'file';
-            f.id = 'examsFile';
-            f.accept = '.csv,text/csv';
-            f.style.display = 'none';
-            document.body.appendChild(f);
-        }
-        f.value = '';
-        f.onchange = function () {
-            var file = f.files[0];
-            if (!file) return;
-            var reader = new FileReader();
-            reader.onload = function () {
-                try { doImport(String(reader.result || '')); }
-                catch (e) { toast('Ошибка: ' + e.message); }
-            };
-            reader.readAsText(file, 'utf-8');
-        };
-        f.click();
-    }
-
-    function doImport(text) {
-        var rows = parseCSV(text);
-        var head = (rows.shift() || []).map(function (h) { return String(h || '').trim(); });
-        var lower = head.map(function (h) { return h.toLowerCase(); });
-        function col(name) {
-            var i = lower.indexOf(name.toLowerCase());
-            return i;
-        }
-        var iQ = col('Question') >= 0 ? col('Question') : col('question');
-        var iA = col('A');
-        var iB = col('B');
-        var iC = col('C');
-        var iD = col('D');
-        var iAns = col('Answer') >= 0 ? col('Answer') : col('answer');
-        var errors = [];
-        if (iQ < 0) errors.push('Нет колонки Question.');
-        if (iA < 0 || iB < 0 || iC < 0 || iD < 0) errors.push('Нет колонок A, B, C, D.');
-        if (iAns < 0) errors.push('Нет колонки Answer.');
-        if (errors.length) {
-            var st = $('importStatus');
-            if (st) st.innerHTML = '<div class="error">' + esc(errors.join('\n')) + '</div>';
-            toast(errors[0]);
-            return;
-        }
-        pendingImport = [];
-        var skipped = 0;
-        rows.forEach(function (r, ri) {
-            if (r.length < head.length) {
-                errors.push('Строка ' + (ri + 2) + ': число колонок не совпадает.');
-                return;
-            }
-            var textQ = String(r[iQ] || '').trim();
-            var opts = [r[iA], r[iB], r[iC], r[iD]].map(function (x) { return String(x || '').trim(); });
-            var ansRaw = String(r[iAns] || '').trim();
-            if (!textQ) { errors.push('Строка ' + (ri + 2) + ': пустой Question.'); return; }
-            if (opts.filter(Boolean).length < 2) { errors.push('Строка ' + (ri + 2) + ': нужно минимум 2 варианта.'); return; }
-            if (!ansRaw) { errors.push('Строка ' + (ri + 2) + ': пустой Answer.'); return; }
-            // example rows from template
-            if (/example/i.test(textQ) || /example/i.test(ansRaw)) { skipped++; return; }
-            var answer = ansRaw;
-            if (/^[A-Da-d]$/.test(ansRaw)) answer = ansRaw.toUpperCase();
-            else {
-                var m = ansRaw.match(/^([A-Da-d])[.)]\s*(.*)$/);
-                if (m) {
-                    var letter = m[1].toUpperCase();
-                    var byText = opts.indexOf(m[2].trim());
-                    answer = byText >= 0 ? letter : letter;
-                } else {
-                    var ix = opts.indexOf(ansRaw);
-                    if (ix < 0) {
-                        // try case-insensitive
-                        ix = opts.findIndex(function (o) { return o.toLowerCase() === ansRaw.toLowerCase(); });
-                    }
-                    if (ix >= 0) answer = 'ABCD'.charAt(ix);
-                    else {
-                        errors.push('Строка ' + (ri + 2) + ': Answer не совпадает ни с одним вариантом.');
-                        return;
-                    }
-                }
-            }
-            pendingImport.push({
-                id: uid(),
-                text: textQ,
-                options: opts.filter(Boolean),
-                answer: answer,
-                points: 1,
-                explanation: ''
-            });
-        });
-        var st2 = $('importStatus');
-        if (errors.length) {
-            if (st2) st2.innerHTML = '<div class="error">' + esc(errors.join('\n')) + '</div>';
-            toast('Импорт: ' + errors.length + ' ошибок.');
-            return;
-        }
-        if (!pendingImport.length) {
-            if (st2) st2.innerHTML = '<div class="note">Нет вопросов для импорта' + (skipped ? ' (пропущено примеров: ' + skipped + ')' : '') + '</div>';
-            return;
-        }
-        modal('<h2>Импорт CSV</h2><p>Готово к добавлению: <b>' + pendingImport.length + '</b> вопросов.' + (skipped ? ' Пропущено примеров: ' + skipped + '.' : '') + '</p>'
-            + '<button class="primary" onclick="Exams.applyImport()">Добавить в экзамен</button> ');
-    }
-
-    function applyImport() {
-        captureExam();
-        draft.questions = (draft.questions || []).concat(pendingImport);
-        pendingImport = [];
-        closeModal();
-        editor();
-        toast('Вопросы добавлены (' + (draft.questions || []).length + '). Сохраните экзамен.');
-        setTimeout(function () {
-            var bar = document.getElementById('examSaveBar');
-            if (bar) bar.scrollIntoView({ behavior: 'smooth', block: 'end' });
-        }, 120);
-    }
-
     /* ---------- run exam ---------- */
     function availableForMe(e) {
         if (!e) return false;
@@ -1064,7 +885,7 @@
         if (done.length >= (e.limit || 1)) { toast('Доступные попытки использованы.'); return; }
         modal('<span class="tag">ПЕРЕД НАЧАЛОМ</span><h2>' + esc(e.title) + '</h2>'
             + '<p class="detail">' + esc(e.instruction || 'Прочитайте задания и ответьте на вопросы.') + '</p>'
-            + '<div class="note">' + e.minutes + ' минут · ' + (e.questions || []).length + ' вопросов · порог ' + e.pass + '%'
+            + '<div class="note">' + e.minutes + ' минут · порог ' + e.pass + '%'
             + '<br>Таймер продолжает идти после закрытия страницы. ' + (e.navigate ? 'Можно возвращаться к вопросам.' : 'Возврат к предыдущим вопросам запрещён.') + '</div>'
             + '<button class="primary" onclick="Exams.confirmStart(\'' + id + '\')">Подтверждаю, начать</button>');
     }
@@ -1136,8 +957,7 @@
             + '<h2 style="margin:3px 0">' + esc(snap.title || '') + '</h2></div>'
             + '<div><span class="muted">Осталось</span><div class="timer" id="exTimer"></div></div></div>'
             + '<div class="split"><div class="panel">'
-            + '<div class="row between"><span class="pill">Вопрос ' + (qi + 1) + ' из ' + questions.length + '</span>'
-            + '<small class="muted">' + q.points + ' баллов</small></div>'
+            + '<div class="row"><small class="muted">' + q.points + ' баллов</small></div>'
             + '<h2 class="detail" style="margin-top:18px">' + esc(q.text) + '</h2>'
             + opts.map(function (x, j) {
                 var letter = 'ABCD'.charAt(j);
@@ -1151,20 +971,14 @@
                 ? '<button class="primary" onclick="Exams.goQ(' + (qi + 1) + ')">Далее →</button>'
                 : '<button class="primary" onclick="Exams.submitAttempt()">Завершить экзамен</button>')
             + '</div>'
+            + '<div class="row" style="margin-top:12px;gap:12px">'
+            + '<button class="ghost" style="flex:1 1 180px;min-height:54px;padding:15px 22px;font-size:16px" title="Продолжить позже" onclick="Exams.leaveAttempt()">Продолжить</button>'
+            + '<button class="primary" style="flex:1 1 180px;min-height:54px;padding:15px 22px;font-size:16px" onclick="Exams.submitAttempt()">Завершить</button>'
+            + '</div>'
             + '<small class="success" id="exSaved">Ответы сохраняются на сервере</small>'
             + '</div><div>'
             + '<div class="panel"><h3>Твой прогресс</h3>'
-            + '<p id="exProgressText">' + answered + ' из ' + questions.length + ' отвечено</p>'
             + '<div class="progress"><i id="exProgressBar" style="width:' + (answered / questions.length * 100) + '%"></i></div>'
-            + '<div class="row qnav" style="margin:16px 0">'
-            + questions.map(function (qq, i) {
-                return '<button class="' + (i === qi ? 'current ' : '') + (hasAnswer(a.answers[qq.id]) ? 'done' : '') + '" '
-                    + (snap.navigate === false && i !== qi ? 'disabled' : '')
-                    + ' onclick="Exams.goQ(' + i + ')">' + (i + 1) + '</button>';
-            }).join('')
-            + '</div>'
-            + '<button class="ghost" onclick="Exams.submitAttempt()">Завершить</button> '
-            + '<button class="ghost" onclick="Exams.leaveAttempt()">Выйти и продолжить позже</button>'
             + '</div>'
             + '<small class="muted">Таймер не останавливается при выходе. Результаты доступны на всех устройствах.</small>'
             + '</div></div>');
@@ -1188,14 +1002,15 @@
         var answered = questions.filter(function (qq) { return hasAnswer(a.answers[qq.id]); }).length;
         var sv = $('exSaved');
         if (sv) sv.textContent = '✓ Сохранено · ' + new Date().toLocaleTimeString('ru-RU');
-        var pt = $('exProgressText');
-        if (pt) pt.textContent = answered + ' из ' + questions.length + ' отвечено';
         var pb = $('exProgressBar');
         if (pb) pb.style.width = (answered / questions.length * 100) + '%';
-        var btns = document.querySelectorAll('#examsRoot .qnav button');
-        btns.forEach(function (b, j) {
-            if (questions[j]) b.classList.toggle('done', hasAnswer(a.answers[questions[j].id]));
-        });
+        // авто-переход к следующему вопросу после выбора ответа
+        if (qi < questions.length - 1) {
+            qi += 1;
+            a.position = qi;
+            saveAnswerToServer(a.id, a.answers, qi, { examId: a.examId, start: a.start, deadline: a.deadline });
+            runView();
+        }
     }
 
     function goQ(i) {
@@ -1320,7 +1135,7 @@
                 var ansText = g.answerText || opts[ansLetter.charCodeAt(0) - 65] || ansLetter || 'Не дан';
                 var correct = g.correct || '';
                 return '<div class="question"><div class="row between">'
-                    + '<span class="pill">' + (i + 1) + ' · ' + esc(g.status || '—') + '</span>'
+                    + '<span class="pill">' + (isAdminMode ? (i + 1) + ' · ' : '') + esc(g.status || '—') + '</span>'
                     + '<b>' + (g.score != null ? g.score : 0) + ' / ' + q.points + '</b></div>'
                     + '<h3 style="margin-top:12px">' + esc(q.text) + '</h3>'
                     + '<p class="detail">Ответ: ' + esc(ansLetter ? (ansLetter + '. ' + ansText) : ansText) + '</p>'
@@ -1367,17 +1182,6 @@
             + '<li>Разделы «Часть 1…» и служебные строки пропускаются автоматически.</li>'
             + '</ul>'
             + '<div class="row"><button class="primary" onclick="Exams.importTemplate()">📥 Импорт по шаблону</button></div>'
-            + '</div>'
-            + '<div class="panel"><h2>CSV-шаблон</h2>'
-            + '<p>Колонки (через запятую или точку с запятой):</p>'
-            + '<pre style="white-space:pre-wrap;background:#fff;padding:12px;border-radius:10px">Question;A;B;C;D;Answer\n法律;журналистика;право;характер;причина;B\n俩;двое;один раз;все;половина;A</pre>'
-            + '<ul style="padding-left:18px;line-height:1.7">'
-            + '<li><b>Question</b> — текст вопроса.</li>'
-            + '<li><b>A, B, C, D</b> — варианты ответа (минимум два заполненных).</li>'
-            + '<li><b>Answer</b> — буква правильного варианта (A–D) <i>или</i> его точный текст.</li>'
-            + '<li>Совпадение с Answer = верный ответ; любой другой выбор = ошибка.</li>'
-            + '</ul>'
-            + '<div class="row"><button class="primary" onclick="Exams.downloadTemplate()">Скачать шаблон CSV</button></div>'
             + '</div>'
             + '<div class="panel"><h2>Как добавить тест</h2>'
             + '<ol style="padding-left:18px;line-height:1.7">'
@@ -1473,6 +1277,8 @@
     function go(p) {
         if (draft && p !== 'editor' && !confirm('Выйти из редактора? Несохранённые изменения будут потеряны.')) return;
         draft = null;
+        // вкладки должны работать даже во время прохождения экзамена
+        if (active) { active = null; qi = 0; }
         page = p;
         filter = '';
         try {
@@ -1546,12 +1352,8 @@
         saveQuestion: saveQuestion,
         moveQ: moveQ,
         removeQ: removeQ,
-        downloadTemplate: downloadTemplate,
-        exportQuestions: exportQuestions,
-        chooseImport: chooseImport,
         importTemplate: importTemplate,
         runTemplateImport: runTemplateImport,
-        applyImport: applyImport,
         exportResults: exportResults,
         start: start,
         confirmStart: confirmStart,

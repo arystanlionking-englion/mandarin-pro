@@ -1985,6 +1985,9 @@ function publicAttemptForStudent(a) {
     return {
         id: a.id,
         examId: a.examId,
+        userId: a.userId || null,
+        studentId: a.studentId || null,
+        studentName: a.studentName || '',
         examSnapshot: {
             id: snap.id,
             title: snap.title,
