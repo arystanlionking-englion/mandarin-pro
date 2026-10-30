@@ -285,7 +285,10 @@
         var u = meUser();
         var uid = u ? u.id : null;
         return db.attempts.filter(function (a) {
-            return a && a.examId === examId && (uid ? a.userId === uid : true);
+            if (!a || a.examId !== examId) return false;
+            if (uid && a.userId === uid) return true;
+            if (!a.userId && a.studentName && a.studentName === myName()) return true;
+            return false;
         });
     }
     function hasAnswer(v) {
@@ -329,9 +332,9 @@
         if (!root) return;
         var tabs = [];
         if (isAdminMode) {
-            tabs = [['exams', 'Экзамены'], ['results', 'Результаты'], ['stats', 'Статистика'], ['help', 'Помощь']];
+            tabs = [['exams', 'Экзамены'], ['results', 'Результаты']];
         } else {
-            tabs = [['exams', 'Доступные'], ['progress', 'В процессе'], ['results', 'Мои результаты'], ['help', 'Помощь']];
+            tabs = [['exams', 'Доступные'], ['progress', 'В процессе'], ['results', 'Мои результаты']];
         }
         root.innerHTML = '<div class="mpexams">'
             + '<div class="tabs">' + tabs.map(function (t) {
@@ -1084,10 +1087,15 @@
 
     /* ---------- results ---------- */
     function results() {
-        var arr = db.attempts.filter(function (a) { return a && a.end && a.end !== a.start; });
+        var arr = db.attempts.filter(function (a) { return a && a.end; });
         if (!isAdminMode) {
             var u = meUser();
-            arr = arr.filter(function (a) { return u && a.userId === u.id; });
+            arr = arr.filter(function (a) {
+                if (!u) return false;
+                if (a.userId && a.userId === u.id) return true;
+                if (!a.userId && a.studentName && a.studentName === myName()) return true;
+                return false;
+            });
         }
         arr = arr.slice().sort(function (x, y) { return (y.end || 0) - (x.end || 0); });
         shell('<div class="row between"><h1>' + (isAdminMode ? 'Результаты' : 'Мои результаты') + '</h1>'
@@ -1155,7 +1163,7 @@
 
     /* ---------- stats / help / preview ---------- */
     function stats() {
-        var ended = db.attempts.filter(function (a) { return a && a.end && a.end !== a.start; });
+        var ended = db.attempts.filter(function (a) { return a && a.end; });
         shell('<h1>Статистика</h1><p class="muted">По сохранённым попыткам на сервере.</p>'
             + '<div class="metrics">'
             + '<div>Начали<div class="stat">' + db.attempts.length + '</div></div>'
@@ -1223,7 +1231,7 @@
         var u = meUser();
         if (!u) return [];
         return db.attempts.filter(function (a) {
-            return a && a.end && a.end !== a.start && (a.userId === u.id || (!a.userId && a.studentName === myName()));
+            return a && a.end && (a.userId === u.id || (!a.userId && a.studentName === myName()));
         }).sort(function (x, y) { return (y.end || 0) - (x.end || 0); });
     }
 
@@ -1289,8 +1297,11 @@
     }
 
     /* ---------- public API ---------- */
+    var _inited = false;
     window.Exams = {
         init: function (bridge) {
+            if (_inited) { BP = bridge || window.BP || BP; return; }
+            _inited = true;
             BP = bridge || window.BP || null;
             ensureStyles();
             if (!db.groups || !db.groups.length) db.groups = fetchGroupsFromJournal();

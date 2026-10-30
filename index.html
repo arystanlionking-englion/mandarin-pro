@@ -11501,7 +11501,20 @@ body.dict-fullscreen .dict-title{color:#fff}
   .jr-right{text-align:left}
   .jr-group-cards{grid-template-columns:1fr}
 }
-
+/* Mobile scroll & modal fixes */
+@media(max-width:768px){
+    .modal{max-height:95vh!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch;padding-bottom:calc(20px + env(safe-area-inset-bottom,0))!important}
+    .modal .btn-full{position:sticky;bottom:0;z-index:10;background:var(--accent)}
+    .slide-menu{padding-bottom:calc(20px + env(safe-area-inset-bottom,0))}
+    .main{padding-bottom:calc(100px + env(safe-area-inset-bottom,0))}
+    .form-g{margin-bottom:12px}
+    .form-g input,.form-g select,.form-g textarea{font-size:16px!important}
+}
+@media(max-width:480px){
+    .modal{border-radius:12px 12px 0 0;max-height:92vh!important}
+    .aactions{flex-direction:column;align-items:stretch}
+    .aactions .btn{width:100%;justify-content:center}
+}
 </style>
 <script>
 // Remove dynamically injected Netlify badges
@@ -11567,23 +11580,25 @@ body.dict-fullscreen .dict-title{color:#fff}
 </div></div>
 
 <!-- Admin: Create user -->
-<div class="modal-bg" id="mCreateUser" onclick="cm('mCreateUser')"><div class="modal" onclick="event.stopPropagation()" style="max-width:480px">
+<div class="modal-bg" id="mCreateUser" onclick="cm('mCreateUser')"><div class="modal" onclick="event.stopPropagation()" style="max-width:480px;max-height:90vh;overflow-y:auto">
     <div class="modal-h"><h2>Создать пользователя</h2><button class="modal-x" onclick="cm('mCreateUser')">Назад</button></div>
     <div class="form-g"><label>Логин *</label><input type="text" class="inp" id="cuLogin" maxlength="20" placeholder="Уникальный логин" autocomplete="off"></div>
     <div class="form-g"><label>PIN-код * (4 цифры)</label><input type="tel" class="inp" id="cuPin" maxlength="4" inputmode="numeric" placeholder="Обязательно для входа"></div>
-    <div class="form-g"><label>Пароль (необязательно)</label><input type="password" class="inp" id="cuPassword" maxlength="72" placeholder="Не нужен — вход по PIN" autocomplete="new-password"></div>
-    <div class="form-g"><label>Отображаемое имя (необязательно)</label><input type="text" class="inp" id="cuDisplay" maxlength="40" placeholder="Как показывать в системе"></div>
-    <div class="form-g"><label>Статус</label>
-        <select class="inp" id="cuStatus">
-            <option value="active" selected>Активен</option>
-            <option value="blocked">Заблокирован</option>
-        </select>
-    </div>
     <button class="btn btn-accent btn-full" onclick="doCreateUser()"><i data-lucide="user-plus" style="width:16px;height:16px"></i> Создать аккаунт</button>
     <div id="cuResult" style="margin-top:12px"></div>
 </div></div>
 
 <!-- Admin: Reset user password -->
+<div class="modal-bg" id="mSetGroup" onclick="cm('mSetGroup')"><div class="modal" onclick="event.stopPropagation()" style="max-width:420px">
+    <div class="modal-h"><h2>Назначить группу</h2><button class="modal-x" onclick="cm('mSetGroup')">Назад</button></div>
+    <div id="sgContent"></div>
+</div></div>
+
+<div class="modal-bg" id="mResetPin" onclick="cm('mResetPin')"><div class="modal" onclick="event.stopPropagation()" style="max-width:420px">
+    <div class="modal-h"><h2>Сменить PIN</h2><button class="modal-x" onclick="cm('mResetPin')">Назад</button></div>
+    <div id="rpContent"></div>
+</div></div>
+
 <div class="modal-bg" id="mResetPassword" onclick="cm('mResetPassword')"><div class="modal" onclick="event.stopPropagation()" style="max-width:420px">
     <div class="modal-h"><h2>Сброс пароля</h2><button class="modal-x" onclick="cm('mResetPassword')">Назад</button></div>
     <div id="rpUserName" style="font-size:13px;color:var(--dim);margin-bottom:12px"></div>
@@ -12036,12 +12051,7 @@ body.dict-fullscreen .dict-title{color:#fff}
                 <div class="astats">
                     <div class="astat" onclick="showStatDetail('users')"><div class="v" id="aUsers">0</div><div class="l">Пользователей</div></div>
                     <div class="astat" onclick="showStatDetail('online')"><div class="v" id="aOnline">0</div><div class="l">Онлайн</div></div>
-                    <div class="astat" onclick="showStatDetail('balance')"><div class="v" id="aMoney">0</div><div class="l">Общий баланс</div></div>
-                </div>
-                <div class="astats">
                     <div class="astat" onclick="showStatDetail('transactions')"><div class="v" id="aTx">0</div><div class="l">Транзакций</div></div>
-                    <div class="astat" onclick="showStatDetail('fines')"><div class="v" id="aFines">0</div><div class="l">Штрафов</div></div>
-                    <div class="astat" onclick="showStatDetail('adds')"><div class="v" id="aAdds">0</div><div class="l">Начислений</div></div>
                 </div>
                 <div class="stitle mt-12">Действия</div>
                 <div class="aactions">
@@ -12053,6 +12063,7 @@ body.dict-fullscreen .dict-title{color:#fff}
                     <button class="btn btn-success btn-sm" onclick="showA('startCap')"><i data-lucide="gift" style="width:18px;height:18px"></i> Стартовые 1000</button>
                     <button class="btn btn-accent btn-sm" onclick="showA('sendNotif')"><i data-lucide="bell" style="width:18px;height:18px"></i> Уведомление</button>
                     <button class="btn btn-ghost btn-sm" onclick="showA('backup')"><i data-lucide="database" style="width:18px;height:18px"></i> Резервная копия</button>
+                    <button class="btn btn-accent btn-sm" onclick="go('users')"><i data-lucide="users" style="width:18px;height:18px"></i> Пользователи</button>
                     <button class="btn btn-accent btn-sm" onclick="showA('startRest')"><i data-lucide="moon" style="width:18px;height:18px"></i> 😴 Отдых (Alt+5)</button>
                     <button class="btn btn-warning btn-sm" onclick="showA('globalMode')"><i data-lucide="globe" style="width:18px;height:18px"></i> 🌐 Глобальное управление</button>
                     <button class="btn btn-accent btn-sm" onclick="openAdminQrTerminal()" style="background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:700"><i data-lucide="scan" style="width:18px;height:18px"></i> ⚡ QR-ТЕРМИНАЛ (Shift+9)</button>
@@ -12091,6 +12102,7 @@ body.dict-fullscreen .dict-title{color:#fff}
                     </div>
                     <button class="btn btn-accent btn-sm" onclick="createGuestQr()"><i data-lucide="qr-code" style="width:18px;height:18px"></i> Создать QR для гостевого входа</button>
                     <div id="guestQrList" style="font-size:12px;color:var(--dim)"></div>
+                    <button class="btn btn-warning btn-sm" onclick="forceUpdateAll()"><i data-lucide="refresh-cw" style="width:18px;height:18px"></i> 🔄 Принудительное обновление для всех</button>
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 14px">
                         <div>
                             <div style="font-weight:700;font-size:13px">🔧 Технические работы</div>
@@ -12196,6 +12208,7 @@ body.dict-fullscreen .dict-title{color:#fff}
                     <button class="btn btn-ghost btn-sm" id="btnAccountReq" onclick="toggleAccountRequests()"><i data-lucide="bell" style="width:16px;height:16px"></i> Запросы на аккаунт <span id="accReqBadge" class="hidden" style="background:var(--error);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px"></span></button>
                 </div>
                 <div id="accountRequestsList" class="hidden" style="margin-bottom:12px"></div>
+                <div class="search-bar" style="margin-bottom:10px"><input type="text" class="inp" id="adminUserSearch" placeholder="Поиск по имени или логину..." oninput="renderAdminCards()"></div>
                 <div id="adminUserCards"></div>
                 <div class="stitle mt-12" onclick="toggleAdminHist()"><span class="toggle" id="adminHistToggle">+</span> История операций</div>
                 <div class="hlist hidden" id="adminHistList"><div class="empty">Операций пока нет</div></div>
@@ -12320,7 +12333,7 @@ body.dict-fullscreen .dict-title{color:#fff}
 <!-- BOTTOM NAVIGATION (Mobile) -->
 <nav class="mob-bottom-nav" id="mobBottomNav">
   <div class="bnav-item on" data-s="home" onclick="go('home')"><i data-lucide="home" style="width:20px;height:20px"></i><span>Главная</span></div>
-  <div class="bnav-item" data-s="diary" onclick="go('diary')"><i data-lucide="book-open" style="width:20px;height:20px"></i><span>Дневник</span></div>
+  <div class="bnav-item" data-s="diary" id="bnavDiary" onclick="go(isAdmin?'journal':'diary')"><i data-lucide="book-open" style="width:20px;height:20px"></i><span id="bnavDiaryLabel">Дневник</span></div>
   <div class="bnav-item center" data-s="qrterminal" onclick="go('qrterminal')"><div class="bnav-center-icon"><i data-lucide="scan" style="width:22px;height:22px"></i></div><span>QR</span></div>
   <div class="bnav-item" data-s="dictionary" onclick="go('dictionary')"><i data-lucide="book-a" style="width:20px;height:20px"></i><span>Словарь</span></div>
   <div class="bnav-item" data-s="exams" onclick="go('exams')"><i data-lucide="clipboard-check" style="width:20px;height:20px"></i><span>Экзамены</span></div>
@@ -12334,15 +12347,10 @@ body.dict-fullscreen .dict-title{color:#fff}
         <button class="sm-close" onclick="closeSlideMenu()">&times;</button>
     </div>
     <div class="sm-item" onclick="go('home');closeSlideMenu()"><i data-lucide="home" style="width:18px;height:18px"></i>Главная</div>
-    <div class="sm-item" onclick="go('history');closeSlideMenu()"><i data-lucide="history" style="width:18px;height:18px"></i>История</div>
     <div class="sm-item" onclick="showPurchase();closeSlideMenu()"><i data-lucide="shopping-bag" style="width:18px;height:18px"></i>Покупка</div>
-    <div class="sm-item" onclick="go('purchases');closeSlideMenu()"><i data-lucide="receipt" style="width:18px;height:18px"></i>Покупки</div>
-    <div class="sm-item" onclick="showTransfer();closeSlideMenu()"><i data-lucide="send" style="width:18px;height:18px"></i>Перевести</div>
-    <div class="sm-item" onclick="go('users');closeSlideMenu()"><i data-lucide="users" style="width:18px;height:18px"></i>Пользователи</div>
-    <div class="sm-item" onclick="go('profile');closeSlideMenu()"><i data-lucide="user" style="width:18px;height:18px"></i>Профиль</div>
+    <div class="sm-item" onclick="showTransfer();closeSlideMenu()"><i data-lucide="send" style="width:18px;height:18px"></i>Перевод</div>
+    <div class="sm-item" onclick="go('messages');closeSlideMenu()"><i data-lucide="message-circle" style="width:18px;height:18px"></i>Сообщения и уведомления<span class="badge hidden" id="slideMsgBadge"></span></div>
     <div class="sm-sep"></div>
-    <div class="sm-item" onclick="go('messages');closeSlideMenu()"><i data-lucide="message-circle" style="width:18px;height:18px"></i>Сообщения<span class="badge hidden" id="slideMsgBadge"></span></div>
-    <div class="sm-item" onclick="go('notifications');closeSlideMenu()"><i data-lucide="bell" style="width:18px;height:18px"></i>Уведомления<span class="badge hidden" id="slideNotifBadge"></span></div>
     <div class="sm-item" onclick="go('coupons');closeSlideMenu()"><i data-lucide="ticket" style="width:18px;height:18px"></i>🎟️ Купоны</div>
     <div class="sm-item" onclick="go('quests');closeSlideMenu()"><i data-lucide="sword" style="width:18px;height:18px"></i>🎯 Квесты</div>
     <div class="sm-item" onclick="go('tasks');closeSlideMenu()"><i data-lucide="clipboard-list" style="width:18px;height:18px"></i>📋 Задания</div>
@@ -12360,9 +12368,11 @@ body.dict-fullscreen .dict-title{color:#fff}
     <div class="sm-item hidden" id="slideHwBtn" data-s="homework" onclick="go('homework');closeSlideMenu()"><i data-lucide="book-open-check" style="width:18px;height:18px"></i>📝 ДЗ</div>
     <div class="sm-sep"></div>
     <div class="sm-item" onclick="showInvestments();closeSlideMenu()"><i data-lucide="trending-up" style="width:18px;height:18px"></i>Инвестиции</div>
-    <div class="sm-sep"></div>
-    <div class="sm-item hidden" id="slideAdminBtn" onclick="go('admin');closeSlideMenu()"><i data-lucide="shield" style="width:18px;height:18px"></i>老师 🦁 Панель</div>
-    <div class="sm-item hidden" id="slideAdminQrBtn" onclick="go('adminqr');closeSlideMenu()"><i data-lucide="qr-code" style="width:18px;height:18px"></i>📊 QR-Коды</div>
+    <div class="sm-foot">
+        <div class="sm-item" onclick="go('profile');closeSlideMenu()"><i data-lucide="user" style="width:18px;height:18px"></i>Профиль</div>
+        <div class="sm-item hidden" id="slideAdminBtn" onclick="go('admin');closeSlideMenu()"><i data-lucide="shield" style="width:18px;height:18px"></i>老师 🦁 Панель</div>
+        <div class="sm-item hidden" id="slideAdminQrBtn" onclick="go('adminqr');closeSlideMenu()"><i data-lucide="qr-code" style="width:18px;height:18px"></i>📊 QR-Коды</div>
+    </div>
     <div class="sm-foot">
         <div class="st"><span class="dot on" id="sDot2"></span><span id="sStatus2">Подключено</span></div>
         <div class="st"><i data-lucide="users" style="width:12px;height:12px"></i><span id="sOnline2">0 в сети</span></div>
@@ -13818,6 +13828,17 @@ window.doLogout=function(){
 };
 
 // --- Guest mode / Maintenance / Guest QR ---
+window.forceUpdateAll=function(){
+    showConfirm('Принудительное обновление','Отправить сигнал обновления всем подключённым пользователям? Интерфейс перезагрузится без потери данных.',function(){
+        socket.emit('admin:forceUpdate');
+        toast('s','Обновление','Сигнал обновления отправлен всем пользователям');
+    });
+};
+socket.on('app:forceUpdate',function(){
+    try{localStorage.setItem('pb_last_update',Date.now());}catch(e){}
+    location.reload();
+});
+
 window.setGuestMode=function(on){
     try{socket.emit('admin:guestMode:set',{enabled:!!on});}catch(e){}
 };
@@ -13870,11 +13891,12 @@ function showMaintenanceScreen(){
     if(!overlay){
         overlay=document.createElement('div');
         overlay.id='maintenanceScreenOverlay';
-        overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(10,10,16,.97);z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;padding:24px;text-align:center;';
-        overlay.innerHTML='<div style="font-size:52px">🔧</div>'
-            +'<div style="font-size:22px;font-weight:800;color:#fff;max-width:420px">Ведутся технические работы</div>'
-            +'<div style="font-size:14px;color:#9aa;max-width:380px">Пожалуйста, зайдите позже. Данные и аккаунты сохранены.</div>'
-            +'<button type="button" id="maintAdminBtn" style="margin-top:12px;background:rgba(201,168,76,.15);color:#f5d76e;border:1px solid rgba(201,168,76,.4);padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;min-height:42px">老师 🦁 Вход администратора</button>';
+        overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,#0a0a16 0%,#12122a 50%,#0a0a16 100%);z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;padding:24px;text-align:center;';
+        overlay.innerHTML='<div style="width:80px;height:80px;border-radius:50%;background:rgba(201,168,76,.12);border:2px solid rgba(201,168,76,.4);display:flex;align-items:center;justify-content:center;font-size:40px;box-shadow:0 0 30px rgba(201,168,76,.3),0 0 60px rgba(201,168,76,.1)">⚙️</div>'
+            +'<div style="font-size:24px;font-weight:800;color:#fff;max-width:420px;text-shadow:0 0 20px rgba(201,168,76,.4)">Технические работы</div>'
+            +'<div style="font-size:14px;color:#9aa;max-width:380px">Извините за временные неудобства. Данные и аккаунты сохранены.</div>'
+            +'<div style="width:60px;height:2px;background:linear-gradient(90deg,transparent,rgba(201,168,76,.5),transparent);margin:4px 0"></div>'
+            +'<button type="button" id="maintAdminBtn" style="margin-top:8px;background:rgba(201,168,76,.15);color:#f5d76e;border:1px solid rgba(201,168,76,.4);padding:12px 24px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;min-height:44px;box-shadow:0 0 20px rgba(201,168,76,.2);transition:.2s">老师 🦁 Вход администратора</button>';
         document.body.appendChild(overlay);
         const ab=overlay.querySelector('#maintAdminBtn');
         if(ab)ab.onclick=function(){
@@ -14094,6 +14116,7 @@ function updateAdminUI(){
     $('slideHwBtn')?.classList.toggle('hidden',!show);
     $('sideAdminBadge')?.classList.toggle('show',show);
     $('mobAdminBadge')?.classList.toggle('show',show);
+    const bnavLabel=$('bnavDiaryLabel');if(bnavLabel)bnavLabel.textContent=show?'Журнал':'Дневник';
     if(show&&U){
         const teacherLabel=U.name+' 老师 🦁';
         if($('sideAdminBadge'))$('sideAdminBadge').textContent=teacherLabel;
@@ -14723,6 +14746,8 @@ function showCtxMenu(x,y,uid){
     html+=`<div class="ctx-item" data-ctx="editBal" data-uid="${uid}"><i data-lucide="edit" style="width:14px;height:14px"></i> Корректировка</div>`;
     html+=`<div class="ctx-sep"></div>`;
     html+=`<div class="ctx-item" data-ctx="sendNotif" data-uid="${uid}"><i data-lucide="bell" style="width:14px;height:14px"></i> Уведомление</div>`;
+    html+=`<div class="ctx-item" data-ctx="setGroup" data-uid="${uid}"><i data-lucide="users" style="width:14px;height:14px"></i> Назначить группу</div>`;
+    html+=`<div class="ctx-item" data-ctx="resetPin" data-uid="${uid}"><i data-lucide="key" style="width:14px;height:14px"></i> Сменить PIN</div>`;
     html+=`<div class="ctx-sep"></div>`;
     if(u.archived){
         html+=`<div class="ctx-item" data-ctx="restore" data-uid="${uid}"><i data-lucide="archive-restore" style="width:14px;height:14px"></i> Восстановить</div>`;
@@ -14759,6 +14784,8 @@ function runCtxAction(action,uid){
             case 'fine': window.showAUser('fine',uid); break;
             case 'editBal': window.showAUser('editBal',uid); break;
             case 'sendNotif': window.showAUser('sendNotif',uid); break;
+            case 'setGroup': window.showSetGroupModal(uid); break;
+            case 'resetPin': window.showResetPinModal(uid); break;
             case 'archive': window.doArchiveUser(uid); break;
             case 'restore': window.doRestoreUser(uid); break;
             case 'delete': window.doDeleteUser(uid); break;
@@ -14779,6 +14806,43 @@ window.showStatUserBal=function(uid){
     window.showUD(uid);
 };
 window.showStatUserHist=function(uid){window.showUD(uid);};
+
+window.showSetGroupModal=function(uid){
+    const u=users.find(x=>x.id===uid);if(!u)return;
+    let groupOpts='<option value="">— Без группы —</option>';
+    (window._journalGroups||groups||[]).forEach(g=>{groupOpts+=`<option value="${g.id}" ${u.groupId===g.id?'selected':''}>${esc(g.name)}</option>`;});
+    openModal('mSetGroup');
+    const cont=$('sgContent');if(!cont)return;
+    cont.innerHTML=`<div style="font-size:13px;color:var(--dim);margin-bottom:12px">${esc(u.name)}</div>
+        <div class="form-g"><label>Группа</label><select class="inp" id="sgGroupSelect">${groupOpts}</select></div>
+        <button class="btn btn-accent btn-full" onclick="doSetGroup('${uid}')">Назначить группу</button>
+        <div id="sgResult" style="margin-top:10px"></div>`;
+};
+window.doSetGroup=function(uid){
+    const sel=$('sgGroupSelect');if(!sel)return;
+    const groupId=sel.value||null;
+    if(groupId)socket.emit('admin:moveToGroup',{userId:uid,groupId});
+    else socket.emit('admin:removeFromGroup',{userId:uid});
+    setTimeout(()=>{cm('mSetGroup');renderAdminCards();if(curSec==='users')renderUsers();},300);
+    toast('s','Группа','Группа обновлена');
+};
+
+window.showResetPinModal=function(uid){
+    const u=users.find(x=>x.id===uid);if(!u)return;
+    openModal('mResetPin');
+    const cont=$('rpContent');if(!cont)return;
+    cont.innerHTML=`<div style="font-size:13px;color:var(--dim);margin-bottom:12px">${esc(u.name)}</div>
+        <div class="form-g"><label>Новый PIN (4 цифры)</label><input type="tel" class="inp" id="rpNewPin" maxlength="4" inputmode="numeric" placeholder="0000"></div>
+        <button class="btn btn-accent btn-full" onclick="doResetPin('${uid}')">Установить PIN</button>
+        <div id="rpResult" style="margin-top:10px"></div>`;
+};
+window.doResetPin=function(uid){
+    const pin=($('rpNewPin')?.value||'').trim();
+    if(!pin||!/^\d{4}$/.test(pin)){toast('e','Ошибка','PIN: ровно 4 цифры');return;}
+    socket.emit('admin:resetUserPin',{userId:uid,newPin:pin});
+    cm('mResetPin');
+    toast('s','PIN','PIN-код обновлён');
+};
 
 // --- Collapsible Sections ---
 window.toggleRecent=function(){
@@ -15155,7 +15219,7 @@ function renderUsers(){
         const titleBadge=getUserTitleBadge(u);
         const avHtml=getUserAvatarHtml(u,42);
         const colorStyle=getNickColorStyle(u)||getUserColorStyle(u);
-        el.innerHTML=`${menuBtn}<div class="ucard-top">${avHtml}<div class="info"><div class="nm" ${colorStyle?'style="'+colorStyle+'"':''}>${esc(u.name)} ${lvlBadge}${titleBadge}${groupBadge}</div><div class="id">ID: ${u.id.substring(0,8)}...</div></div><span class="ust ${u.online?'on':'off'}">${u.online?'Онлайн':'Офлайн'}</span></div>${showBal?'<div class="ucard-bal">'+formatN(u.balance)+' 分</div>':''}`;
+        el.innerHTML=`${menuBtn}<div class="ucard-top">${avHtml}<div class="info"><div class="nm" ${colorStyle?'style="'+colorStyle+'"':''}>${esc(u.name)} ${lvlBadge}${titleBadge}${groupBadge}</div><div class="id">${u.login?'Логин: '+esc(u.login)+' · ':''}ID: ${u.id.substring(0,8)}...</div></div><span class="ust ${u.online?'on':'off'}">${u.online?'Онлайн':'Офлайн'}</span></div>${showBal?'<div class="ucard-bal">'+formatN(u.balance)+' 分</div>':''}`;
         cont.appendChild(el);
     });
 }
@@ -15357,28 +15421,22 @@ window.doResetUDPIN=function(uid){
 // --- Admin: account provisioning ---
 let _resetPasswordUserId=null;
 window.showCreateUserModal=function(){
-    $('cuLogin').value='';$('cuPassword').value='';$('cuPin').value='';$('cuDisplay').value='';
-    $('cuStatus').value='active';
+    $('cuLogin').value='';$('cuPin').value='';
     $('cuResult').innerHTML='';
     openModal('mCreateUser');
 };
 window.doCreateUser=function(){
     const login=($('cuLogin').value||'').trim();
-    const password=$('cuPassword').value||'';
     const pin=($('cuPin').value||'').trim();
-    const displayName=($('cuDisplay').value||'').trim();
-    const status=$('cuStatus').value||'active';
     if(!login){toast('e','Ошибка','Введите логин');return;}
     if(!pin||!/^\d{4}$/.test(pin)){toast('e','Ошибка','PIN: ровно 4 цифры (обязательно)');return;}
-    if(password&&password.length<4){toast('e','Ошибка','Пароль: минимум 4 символа');return;}
-    socket.emit('admin:createUser',{login,password,pin,displayName,status});
+    socket.emit('admin:createUser',{login,pin});
 };
 socket.on('admin:createUserResult',d=>{
     if(!d)return;
     if(!d.success){toast('e','Ошибка',d.message||'Не удалось создать');return;}
     const u=d.user||{};
     const pinVal=$('cuPin')?$('cuPin').value:'';
-    const pwVal=$('cuPassword')?$('cuPassword').value:'';
     const creds='Логин: '+u.login+'\nPIN: '+pinVal;
     const res=$('cuResult');
     if(res){
@@ -15386,13 +15444,10 @@ socket.on('admin:createUserResult',d=>{
             +'<div style="font-weight:700;color:#22c55e;margin-bottom:6px">✅ Аккаунт создан</div>'
             +'<div>Логин: <b>'+esc(u.login)+'</b></div>'
             +'<div>PIN: <b>'+esc(pinVal)+'</b></div>'
-            +(pwVal?'<div>Пароль: <b>'+esc(pwVal)+'</b></div>':'')
-            +(u.displayName?'<div>Имя: '+esc(u.displayName)+'</div>':'')
             +'<button class="btn btn-ghost btn-sm mt-12" onclick="navigator.clipboard&&navigator.clipboard.writeText('+JSON.stringify(creds).replace(/"/g,'&quot;')+')">📋 Скопировать данные</button>'
             +'</div>';
     }
     toast('s','Готово','Аккаунт «'+u.login+'» создан. Передайте пользователю логин и PIN.');
-    if(status==='blocked'&&u.id){socket.emit('admin:blockUser',{targetId:u.id,mode:'standard',duration:'forever',reason:'Заблокирован при создании'});}
     renderAdminCards();
 });
 
@@ -15869,8 +15924,7 @@ function renderAdmin(){
     if(!isAdmin||curSec!=='admin')return;
     const visibleUsers=getVisibleUsers();
     $('aUsers').textContent=visibleUsers.length;$('aOnline').textContent=visibleUsers.filter(u=>u.online).length;
-    $('aMoney').textContent=formatN(visibleUsers.reduce((s,u)=>s+u.balance,0))+' 分';
-    $('aTx').textContent=hist.length;$('aFines').textContent=hist.filter(t=>t.type==='fine').length;$('aAdds').textContent=hist.filter(t=>t.type==='add'||t.type==='start_capital').length;
+    $('aTx').textContent=hist.length;
     renderAdminCards();renderAdminHist();renderAdminGroups();renderGroupPerms();renderAdminInvestmentControls();
     updateCouponNotifBadge();
     if(window.fillSelfStats)fillSelfStats();
@@ -15879,9 +15933,10 @@ function renderAdmin(){
 function renderAdminCards(){
     const cont=$('adminUserCards');if(!cont)return;cont.innerHTML='';
     const showArchive=window._adminUserView==='archive';
+    const q=($('adminUserSearch')?.value||'').toLowerCase();
     let list=users;
-    if(U&&U.groupId)list=list.filter(u=>u.groupId===U.groupId);
     list=list.filter(u=>showArchive?!!u.archived:!u.archived);
+    if(q)list=list.filter(u=>(u.name||'').toLowerCase().includes(q)||(u.login||'').toLowerCase().includes(q)||(u.displayName||'').toLowerCase().includes(q));
     if(!list.length){
         cont.innerHTML='<div class="empty">'+(showArchive?'Архив пуст':'Нет активных учеников')+'</div>';
         return;
@@ -15898,7 +15953,7 @@ function renderAdminCards(){
         const archiveBtns=showArchive
             ?`<button class="btn btn-success btn-sm" onclick="doRestoreUser('${u.id}')">♻️ Восстановить</button><button class="btn btn-danger btn-sm" onclick="doDeleteUser('${u.id}')">🗑 Удалить</button>`
             :`<button class="btn btn-ghost btn-sm" onclick="doArchiveUser('${u.id}')">📦 В архив</button>`;
-        el.innerHTML=`<div class="ucard-top"><div class="av" ${colorStyle?'style="'+colorStyle+'"':''}>${avHtml}</div><div class="info"><div class="nm" ${colorStyle?'style="'+colorStyle+'"':''}>${esc(u.name)} ${lvlBadge}${titleBadgeAdmin}${groupBadge}</div><div class="id">ID: ${u.id.substring(0,8)}...</div></div><span class="ust ${u.online?'on':'off'}">${u.online?'Онлайн':'Офлайн'}</span></div><div class="ucard-bal">${formatN(u.balance)} 分</div>${userCouponCount>0?'<div style="font-size:11px;color:var(--accent);margin-top:4px">🎟️ Активных купонов: '+userCouponCount+'</div>':''}<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">${archiveBtns}<button class="btn btn-accent btn-sm" onclick="showUD('${u.id}')">Подробнее</button></div>`;
+        el.innerHTML=`<div class="ucard-top"><div class="av" ${colorStyle?'style="'+colorStyle+'"':''}>${avHtml}</div><div class="info"><div class="nm" ${colorStyle?'style="'+colorStyle+'"':''}>${esc(u.name)} ${lvlBadge}${titleBadgeAdmin}${groupBadge}</div><div class="id">${u.login?'Логин: '+esc(u.login)+' · ':''}ID: ${u.id.substring(0,8)}...</div></div><span class="ust ${u.online?'on':'off'}">${u.online?'Онлайн':'Офлайн'}</span></div><div class="ucard-bal">${formatN(u.balance)} 分</div>${userCouponCount>0?'<div style="font-size:11px;color:var(--accent);margin-top:4px">🎟️ Активных купонов: '+userCouponCount+'</div>':''}<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">${archiveBtns}<button class="btn btn-accent btn-sm" onclick="showUD('${u.id}')">Подробнее</button></div>`;
         cont.appendChild(el);
     });
 }
