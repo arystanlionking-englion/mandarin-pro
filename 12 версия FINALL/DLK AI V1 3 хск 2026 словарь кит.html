@@ -2842,10 +2842,20 @@ function animateStroke(el){
   const char=el.dataset.char;const id=el.dataset.id;if(!char||!id)return;
   if(!el._writer){
     el.innerHTML="";
-    try{el._writer=HanziWriter.create(el,char,{width:54,height:54,padding:3,showCharacter:false,showOutline:true,strokeAnimationSpeed:1,delayBetweenStrokes:200})}
+    try{el._writer=HanziWriter.create(el,char,{width:54,height:54,padding:3,showCharacter:false,showOutline:true,strokeAnimationSpeed:0.4,delayBetweenStrokes:500})}
     catch(_){el.textContent=char;return}
+    el._playing=false;el._paused=false;
   }
-  el._writer.animateCharacter();
+  if(el._playing){
+    el._playing=false;el._paused=true;
+    try{el._writer.pauseAnimation()}catch(e){}
+  }else{
+    el._playing=true;
+    try{
+      if(el._paused){el._paused=false;el._writer.resumeAnimation()}
+      else{el._writer.animateCharacter({onComplete:function(){el._playing=false;el._paused=false}})}
+    }catch(e){el._playing=false;el._paused=false}
+  }
 }
 
 // ===== RENDER: LESSONS =====
@@ -4048,7 +4058,7 @@ function showStrokesUpTo(idx,upTo){
     sc.writer=HanziWriter.create(canvasEl,sc.char,{
       width:200,height:200,padding:5,
       showCharacter:false,showOutline:true,
-      strokeAnimationSpeed:1,delayBetweenStrokes:0
+      strokeAnimationSpeed:0.4,delayBetweenStrokes:0
     });
     if(upTo>0&&sc.totalStrokes>0){
       let shown=0;
@@ -4077,7 +4087,7 @@ function handleStrokeAction(action,idx){
           sc.writer=HanziWriter.create(canvasEl,sc.char,{
             width:200,height:200,padding:5,
             showCharacter:false,showOutline:true,
-            strokeAnimationSpeed:1,delayBetweenStrokes:300
+            strokeAnimationSpeed:0.4,delayBetweenStrokes:700
           });
           // Draw strokes already shown
           for(let s=0;s<sc.currentStroke;s++){
@@ -4104,7 +4114,7 @@ function handleStrokeAction(action,idx){
           sc.writer=HanziWriter.create(canvasEl,sc.char,{
             width:200,height:200,padding:5,
             showCharacter:false,showOutline:true,
-            strokeAnimationSpeed:1,delayBetweenStrokes:300
+            strokeAnimationSpeed:0.4,delayBetweenStrokes:700
           });
           function playNext(){
             if(!sc.animating||sc.currentStroke>=sc.totalStrokes){
@@ -4305,7 +4315,7 @@ function initHanziWriterForChar(box,char,idx){
     var writer=HanziWriter.create(canvas,char,{
       width:200,height:200,padding:5,
       showCharacter:false,showOutline:true,
-      strokeAnimationSpeed:1,delayBetweenStrokes:300
+      strokeAnimationSpeed:0.4,delayBetweenStrokes:700
     });
     var charData={writer:writer,char:char,totalStrokes:0,currentStroke:0,animating:false,statusEl:box.querySelector("#strokeStatus"+idx)};
     strokeChars[idx]=charData;
@@ -4400,7 +4410,7 @@ function revealGuessStroke(idx){
     sc.writer=HanziWriter.create(canvasEl,sc.char,{
       width:200,height:200,padding:5,
       showCharacter:false,showOutline:true,
-      strokeAnimationSpeed:1,delayBetweenStrokes:0
+      strokeAnimationSpeed:0.4,delayBetweenStrokes:0
     });
     var shown=0;
     function showNext(){
@@ -4560,7 +4570,7 @@ function buildGhostMode(chars){
             HanziWriter.create(ghostCharEl,currentStrokeChars[idx],{
               width:200,height:200,padding:5,
               showCharacter:true,showOutline:true,
-              strokeAnimationSpeed:1,delayBetweenStrokes:300
+              strokeAnimationSpeed:0.4,delayBetweenStrokes:700
             }).animateCharacter();
           }catch(e){ghostCharEl.textContent=currentStrokeChars[idx]}
         }

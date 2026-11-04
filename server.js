@@ -1370,7 +1370,7 @@ function emitBankUpdate() {
             users: usersList,
             onlineCount: getOnlineCount(),
             me: publicUserFull(user, onlineIds),
-            groups: db.groups,
+            groups: getAllGroups(),
             groupPermissions: db.groupPermissions,
             globalMode: publicGlobalMode()
         });
@@ -1383,7 +1383,7 @@ function emitBankUpdate() {
                 users: usersList,
                 onlineCount: getOnlineCount(),
                 me: null,
-                groups: db.groups,
+                groups: getAllGroups(),
                 groupPermissions: db.groupPermissions,
                 globalMode: publicGlobalMode()
             });
@@ -1799,6 +1799,14 @@ function checkAllMaturedDeposits() {
 setInterval(checkAllMaturedDeposits, 60000);
 
 // --- Journal helpers (module-level: used by socket handlers AND startup backfill) ---
+function getAllGroups() {
+    const j = getJournalData();
+    const seen = new Map();
+    for (const g of (j.groups || [])) { if (g && g.id) seen.set(g.id, g); }
+    for (const g of (db.groups || [])) { if (g && g.id && !seen.has(g.id)) seen.set(g.id, g); }
+    return Array.from(seen.values());
+}
+
 function getJournalData() {
     if (!db.journal || typeof db.journal !== 'object') {
         db.journal = { groups: [], students: [], records: [], attendance: [], settings: { reward: 300 } };
@@ -1991,6 +1999,9 @@ function publicAttemptForStudent(a) {
     return {
         id: a.id,
         examId: a.examId,
+        userId: a.userId || null,
+        studentId: a.studentId || null,
+        studentName: a.studentName || '',
         examSnapshot: {
             id: snap.id,
             title: snap.title,
@@ -2057,7 +2068,7 @@ function filterGradesForStudent(grades, reveal) {
 function emitExamsUpdate() {
     const ex = getExamsData();
     const adminStudents = getJournalData().students.map(s => ({ id: s.id, name: s.name, groupId: s.groupId, userId: s.userId || null }));
-    const adminGroups = (getJournalData().groups || []).map(g => ({ id: g.id, name: g.name }));
+    const adminGroups = getAllGroups().map(g => ({ id: g.id, name: g.name }));
     for (const socketId of socketUserMap.keys()) {
         const userId = socketUserMap.get(socketId);
         const admin = isAdmin(socketId);
@@ -2994,6 +3005,17 @@ io.on('connection', (socket) => {
     });
 
     // --- Maintenance mode toggle (admin) ---
+    socket.on('admin:forceUpdate', () => {
+        if (!isAdmin(socket.id)) return;
+        for (const socketId of socketUserMap.keys()) {
+            io.to(socketId).emit('app:forceUpdate');
+        }
+        for (const sid of adminSockets) {
+            io.to(sid).emit('app:forceUpdate');
+        }
+        logAdminAction('force_update', null, null, null, null, 'Принудительное обновление для всех пользователей');
+    });
+
     socket.on('admin:maintenance:set', (data) => {
         if (!isAdmin(socket.id)) { socket.emit('maintenance:setResult', { success: false, error: 'Доступ запрещён' }); return; }
         ensureGuestState();
@@ -3242,7 +3264,7 @@ io.on('connection', (socket) => {
             history: db.history,
             adminHistory: db.adminHistory,
             onlineCount: getOnlineCount(),
-            groups: db.groups,
+            groups: getAllGroups(),
             groupPermissions: db.groupPermissions,
             coupons: db.coupons,
             userCoupons: db.userCoupons,
@@ -3273,7 +3295,7 @@ io.on('connection', (socket) => {
             history: db.history,
             adminHistory: db.adminHistory,
             onlineCount: getOnlineCount(),
-            groups: db.groups,
+            groups: getAllGroups(),
             groupPermissions: db.groupPermissions,
             coupons: db.coupons,
             userCoupons: db.userCoupons,
@@ -3330,7 +3352,7 @@ io.on('connection', (socket) => {
             history: db.history,
             adminHistory: db.adminHistory,
             onlineCount: getOnlineCount(),
-            groups: db.groups,
+            groups: getAllGroups(),
             groupPermissions: db.groupPermissions,
             coupons: db.coupons,
             userCoupons: db.userCoupons,
@@ -3357,7 +3379,7 @@ io.on('connection', (socket) => {
         socket.emit('admin:full_data', {
             users: db.users.map(u => publicUserAdmin(u, getOnlineUserIds())),
             history: db.history, adminHistory: db.adminHistory,
-            onlineCount: getOnlineCount(), groups: db.groups,
+            onlineCount: getOnlineCount(), groups: getAllGroups(),
             groupPermissions: db.groupPermissions, coupons: db.coupons,
             userCoupons: db.userCoupons, couponNotifications: db.couponNotifications,
             purchaseRequests: db.purchaseRequests, quests: db.quests,
@@ -3379,7 +3401,7 @@ io.on('connection', (socket) => {
         socket.emit('admin:full_data', {
             users: db.users.map(u => publicUserAdmin(u, getOnlineUserIds())),
             history: db.history, adminHistory: db.adminHistory,
-            onlineCount: getOnlineCount(), groups: db.groups,
+            onlineCount: getOnlineCount(), groups: getAllGroups(),
             groupPermissions: db.groupPermissions, coupons: db.coupons,
             userCoupons: db.userCoupons, couponNotifications: db.couponNotifications,
             purchaseRequests: db.purchaseRequests, quests: db.quests,
@@ -3403,7 +3425,7 @@ io.on('connection', (socket) => {
         socket.emit('admin:full_data', {
             users: db.users.map(u => publicUserAdmin(u, getOnlineUserIds())),
             history: db.history, adminHistory: db.adminHistory,
-            onlineCount: getOnlineCount(), groups: db.groups,
+            onlineCount: getOnlineCount(), groups: getAllGroups(),
             groupPermissions: db.groupPermissions, coupons: db.coupons,
             userCoupons: db.userCoupons, couponNotifications: db.couponNotifications,
             purchaseRequests: db.purchaseRequests, quests: db.quests,
@@ -3431,7 +3453,7 @@ io.on('connection', (socket) => {
         socket.emit('admin:full_data', {
             users: db.users.map(u => publicUserAdmin(u, getOnlineUserIds())),
             history: db.history, adminHistory: db.adminHistory,
-            onlineCount: getOnlineCount(), groups: db.groups,
+            onlineCount: getOnlineCount(), groups: getAllGroups(),
             groupPermissions: db.groupPermissions, coupons: db.coupons,
             userCoupons: db.userCoupons, couponNotifications: db.couponNotifications,
             purchaseRequests: db.purchaseRequests, quests: db.quests,
@@ -3468,19 +3490,19 @@ io.on('connection', (socket) => {
             socket.emit('admin:createUserResult', { success: false, message: 'Логин: от 2 до 20 символов.' });
             return;
         }
-        if (!password || password.length < 4 || password.length > 72) {
-            socket.emit('admin:createUserResult', { success: false, message: 'Пароль: от 4 до 72 символов.' });
+        if (!pin || !/^\d{4}$/.test(pin)) {
+            socket.emit('admin:createUserResult', { success: false, message: 'PIN: ровно 4 цифры (обязательно).' });
             return;
         }
-        if (pin && !/^\d{4}$/.test(pin)) {
-            socket.emit('admin:createUserResult', { success: false, message: 'PIN: ровно 4 цифры (или оставьте пустым).' });
+        if (password && (password.length < 4 || password.length > 72)) {
+            socket.emit('admin:createUserResult', { success: false, message: 'Пароль: от 4 до 72 символов.' });
             return;
         }
         if (findUserByName(login)) {
             socket.emit('admin:createUserResult', { success: false, message: 'Пользователь с таким логином уже существует.' });
             return;
         }
-        const pw = hashPassword(password);
+        const pw = password ? hashPassword(password) : null;
         const user = {
             id: genId(),
             name: login,
@@ -3490,15 +3512,13 @@ io.on('connection', (socket) => {
             lastActive: Date.now(),
             pinHash: null,
             salt: null,
-            passwordHash: pw.hash,
-            passwordSalt: pw.salt,
+            passwordHash: pw ? pw.hash : null,
+            passwordSalt: pw ? pw.salt : null,
             archived: false
         };
-        if (pin) {
-            const p = hashPin(pin);
-            user.pinHash = p.hash;
-            user.salt = p.salt;
-        }
+        const p = hashPin(pin);
+        user.pinHash = p.hash;
+        user.salt = p.salt;
         db.users.push(user);
         db.favorites[user.id] = [];
         saveDB();
@@ -4191,13 +4211,13 @@ io.on('connection', (socket) => {
         const backup = {
             version: '2.2',
             timestamp: Date.now(),
-            users: db.users.map(u => ({ ...u })), // Preserve pinHash and salt so PINs survive restore
+            users: db.users.map(u => ({ ...u, passwordHash: u.passwordHash || null, passwordSalt: u.passwordSalt || null })), // Preserve pinHash and salt so PINs survive restore
             history: db.history,
             messages: db.messages,
             favorites: db.favorites,
             notifications: db.notifications,
             adminHistory: db.adminHistory,
-            groups: db.groups,
+            groups: getAllGroups(),
             groupPermissions: db.groupPermissions,
             coupons: db.coupons,
             userCoupons: db.userCoupons,
@@ -4208,7 +4228,6 @@ io.on('connection', (socket) => {
             taskAssignments: db.taskAssignments,
             duels: db.duels,
             userXP: db.userXP,
-            sessions: db.sessions,
             approvalRequests: db.approvalRequests,
             rests: db.rests,
             userBlocks: db.userBlocks,
@@ -4315,6 +4334,26 @@ io.on('connection', (socket) => {
         if (typeof backup.investmentPrices === 'object' && backup.investmentPrices) db.investmentPrices = backup.investmentPrices;
         db.promocodes = Array.isArray(backup.promocodes) ? backup.promocodes : [];
         db.userPromoActivations = Array.isArray(backup.userPromoActivations) ? backup.userPromoActivations : [];
+        // Restore new fields (v2.2+)
+        if (backup.journal && typeof backup.journal === 'object') db.journal = backup.journal;
+        if (backup.exams && typeof backup.exams === 'object') db.exams = backup.exams;
+        if (Array.isArray(backup.testResults)) db.testResults = backup.testResults;
+        if (Array.isArray(backup.accountRequests)) db.accountRequests = backup.accountRequests;
+        if (Array.isArray(backup.securityLog)) db.securityLog = backup.securityLog;
+        if (Array.isArray(backup.auditLog)) db.auditLog = backup.auditLog;
+        if (backup.globalMode && typeof backup.globalMode === 'object') db.globalMode = backup.globalMode;
+        if (backup.maintenanceMode && typeof backup.maintenanceMode === 'object') db.maintenanceMode = backup.maintenanceMode;
+        if (backup.guestMode && typeof backup.guestMode === 'object') db.guestMode = backup.guestMode;
+        if (Array.isArray(backup.savingsGoals)) db.savingsGoals = backup.savingsGoals;
+        if (Array.isArray(backup.bankQuests)) db.bankQuests = backup.bankQuests;
+        if (backup.virtualBanks !== undefined) db.virtualBanks = backup.virtualBanks;
+        if (Array.isArray(backup.userBankDeposits)) db.userBankDeposits = backup.userBankDeposits;
+        if (Array.isArray(backup.userBankInvestments)) db.userBankInvestments = backup.userBankInvestments;
+        if (Array.isArray(backup.bankHistory)) db.bankHistory = backup.bankHistory;
+        if (Array.isArray(backup.qrCodes)) db.qrCodes = backup.qrCodes;
+        if (Array.isArray(backup.qrAccounts)) db.qrAccounts = backup.qrAccounts;
+        if (Array.isArray(backup.qrCodeScans)) db.qrCodeScans = backup.qrCodeScans;
+        if (typeof backup.couponPricesHalved === 'boolean') db.couponPricesHalved = backup.couponPricesHalved;
 
         // v2.2 fields: restore only when present in backup — old v2.0/v2.1 backups must not wipe exams/journal/results
         if (typeof backup.userLists === 'object' && backup.userLists) db.userLists = backup.userLists;
@@ -4392,27 +4431,39 @@ io.on('connection', (socket) => {
         const name = sanitizeName(data?.name);
         const number = Number(data?.number);
         if (!name) { socket.emit('error', { message: 'Введите название группы.' }); return; }
-        if (!Number.isInteger(number) || number < 1) { socket.emit('error', { message: 'Некорректный номер группы.' }); return; }
-        const group = { id: genId(), name, number, createdAt: Date.now() };
+        const group = { id: genId(), name, number: Number.isInteger(number) && number >= 1 ? number : undefined, createdAt: Date.now() };
+        // Unified: save to journal groups (single source of truth)
+        const j = getJournalData();
+        j.groups.push(group);
+        // Also mirror to legacy db.groups for backward compatibility
         db.groups.push(group);
-        logAdminAction('create_group', null, name, null, null, `Группа #${number}`);
+        logAdminAction('create_group', null, name, null, null, number ? `Группа #${number}` : 'Группа создана');
         saveDB();
         emitBankUpdate();
+        emitJournalUpdate();
         socket.emit('admin:groupCreated', { group });
     });
 
     // --- Admin: Rename Group ---
     socket.on('admin:renameGroup', (data) => {
         if (!isAdmin(socket.id)) { socket.emit('error', { message: 'Требуется доступ администратора.' }); return; }
-        const group = db.groups.find(g => g.id === data?.groupId);
+        const j = getJournalData();
+        let group = j.groups.find(g => g.id === data?.groupId);
+        if (!group) group = db.groups.find(g => g.id === data?.groupId);
         if (!group) { socket.emit('error', { message: 'Группа не найдена.' }); return; }
         const name = sanitizeName(data?.name);
         if (!name) { socket.emit('error', { message: 'Введите название.' }); return; }
         group.name = name;
         if (data?.number !== undefined) group.number = Number(data.number);
+        // Sync both stores
+        const legacy = db.groups.find(g => g.id === group.id);
+        if (legacy) { legacy.name = name; if (data?.number !== undefined) legacy.number = Number(data.number); }
+        const jg = j.groups.find(g => g.id === group.id);
+        if (jg) { jg.name = name; if (data?.number !== undefined) jg.number = Number(data.number); }
         logAdminAction('rename_group', null, name, null, null, null);
         saveDB();
         emitBankUpdate();
+        emitJournalUpdate();
     });
 
     // --- Admin: Delete Group ---
@@ -4420,11 +4471,14 @@ io.on('connection', (socket) => {
         if (!isAdmin(socket.id)) { socket.emit('error', { message: 'Требуется доступ администратора.' }); return; }
         const groupId = data?.groupId;
         db.groups = db.groups.filter(g => g.id !== groupId);
+        const j = getJournalData();
+        j.groups = j.groups.filter(g => g.id !== groupId);
         db.users.forEach(u => { if (u.groupId === groupId) u.groupId = null; });
         delete db.groupPermissions[groupId];
         logAdminAction('delete_group', null, null, null, null, null);
         saveDB();
         emitBankUpdate();
+        emitJournalUpdate();
     });
 
     // --- Admin: Add User to Group ---
@@ -4484,7 +4538,7 @@ io.on('connection', (socket) => {
 
     // --- User: Get Group Permissions (for filtering) ---
     socket.on('user:getGroupPermissions', () => {
-        socket.emit('admin:groupPermissions', { groupPermissions: db.groupPermissions, groups: db.groups });
+        socket.emit('admin:groupPermissions', { groupPermissions: db.groupPermissions, groups: getAllGroups() });
     });
 
     // ==================== INVESTMENT OPERATIONS ====================
@@ -8035,7 +8089,7 @@ io.on('connection', (socket) => {
                 exams: ex.exams,
                 attempts: ex.attempts,
                 students: getJournalData().students.map(s => ({ id: s.id, name: s.name, groupId: s.groupId, userId: s.userId || null })),
-                groups: (getJournalData().groups || []).map(g => ({ id: g.id, name: g.name })),
+                groups: getAllGroups().map(g => ({ id: g.id, name: g.name })),
                 isAdmin: true
             });
             return;
