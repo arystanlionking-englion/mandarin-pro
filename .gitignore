@@ -6,3 +6,6 @@ database.json.corrupted.*
 backup_*.json
 *.log
 .env
+.chrome_diag/
+_e2e_exam_check/
+_backup_before_exam_restore_2026-11-04/

@@ -1,0 +1,10 @@
+const fs = require('fs');
+const s = fs.readFileSync('C:/Users/狮子/qwerty/personal-bank 72 03,11,2026 18,31/index.html', 'utf8');
+const i = s.indexOf('id="adminModalPinFields"');
+console.log(s.slice(i - 100, i + 500));
+console.log('---');
+const j = s.indexOf('function getPinFromFields');
+console.log(s.slice(j, j + 420));
+console.log('--- setupPinFields');
+const k = s.indexOf('function setupPinFields');
+console.log(s.slice(k, k + 500));

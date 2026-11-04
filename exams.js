@@ -19,6 +19,7 @@
     var tickTimer = null;
     var warned = {};
     var _inDiaryPull = false;
+    var specialSaving = false;
 
     var STATES = ['Черновик', 'Опубликован', 'Открыт', 'Закрыт', 'Архив'];
     var CSV_COLS = ['Question', 'A', 'B', 'C', 'D', 'Answer'];
@@ -331,7 +332,7 @@
         if (!root) return;
         var tabs = [];
         if (isAdminMode) {
-            tabs = [['exams', 'Экзамены'], ['results', 'Результаты'], ['stats', 'Статистика'], ['help', 'Шаблон CSV']];
+            tabs = [['exams', 'Экзамены'], ['old', 'Старые тесты'], ['results', 'Результаты'], ['special', 'Спецрезультаты'], ['stats', 'Статистика'], ['help', 'Шаблон CSV']];
         } else {
             tabs = [['exams', 'Доступные'], ['progress', 'В процессе'], ['results', 'Мои результаты'], ['help', 'Помощь']];
         }
@@ -364,7 +365,9 @@
 
     /* ---------- catalog ---------- */
     function catalog() {
-        var exams = isAdminMode ? db.exams : db.exams.filter(function (e) { return e && (e.state === 'Открыт' || e.state === 'Опубликован'); });
+        var exams = isAdminMode
+            ? db.exams.filter(function (e) { return e && !isOld(e); })
+            : db.exams.filter(function (e) { return e && (e.state === 'Открыт' || e.state === 'Опубликован') && !isExpired(e); });
         if (page === 'progress') {
             var inProg = db.attempts.filter(function (a) { return a && !a.end; });
             exams = inProg.map(function (a) { return findExam(a.examId) || a.examSnapshot; }).filter(Boolean);
@@ -376,7 +379,7 @@
             + '<div class="metrics">'
             + '<div><span class="muted">' + (isAdminMode ? 'Экзаменов' : 'Доступно') + '</span><div class="stat">' + exams.length + '</div></div>'
             + '<div><span class="muted">Завершено</span><div class="stat">' + finished.length + '</div></div>'
-            + '<div><span class="muted">Учеников</span><div class="stat">' + (isAdminMode ? db.students.length : myAttempts('').length) + '</div></div>'
+            + '<div><span class="muted">Учеников</span><div class="stat">' + (isAdminMode ? db.students.length : myAttempts('').filter(function (a) { return a && !a.isSpecial; }).length) + '</div></div>'
             + '<div><span class="muted">' + (isAdminMode ? 'Попыток' : 'В процессе') + '</span><div class="stat">' + (isAdminMode ? db.attempts.length : db.attempts.filter(function (a) { return a && !a.end; }).length) + '</div></div>'
             + '</div>'
             + '<div class="row between" style="margin-bottom:16px"><h2 style="margin:0">' + (page === 'progress' ? 'В процессе' : 'Экзамены') + '</h2>'
@@ -437,6 +440,18 @@
         return 'Назначение не задано · доступен всем';
     }
 
+    /* ---------- old tests (expired / closed exams — data kept) ---------- */
+    function oldTests() {
+        var exams = db.exams.filter(function (e) { return e && isOld(e); });
+        shell('<div class="hero"><span class="tag">Архив</span>'
+            + '<h1>Старые тесты</h1>'
+            + '<p>Экзамены с истёкшим сроком доступа или закрытые. Вопросы, ответы и настройки полностью сохранены. Повторное назначение (новая дата закрытия) возвращает экзамен во вкладку «Экзамены» — без создания дубликата.</p></div>'
+            + '<div class="row between" style="margin-bottom:16px"><h2 style="margin:0">Старые тесты (' + exams.length + ')</h2></div>'
+            + '<input placeholder="Поиск по названию или уровню…" value="' + esc(filter) + '" oninput="Exams.setFilter(this.value)" style="margin-bottom:16px">'
+            + '<div class="grid" id="examsCards"></div>');
+        drawCards(exams);
+    }
+
     function assignExam(id) {
         var e = findExam(id);
         if (!e) return;
@@ -453,6 +468,8 @@
                 return '<option value="' + s + '" ' + (e.state === s ? 'selected' : '') + '>' + s + '</option>';
             }).join('')
             + '</select></label>'
+            + '<label>Открытие<input type="datetime-local" id="asgOpen" value="' + esc(e.open || '') + '"></label>'
+            + '<label>Закрытие (срок доступа)<input type="datetime-local" id="asgClose" value="' + esc(e.close || '') + '"></label>'
             + '<label style="font-weight:600;margin-top:12px"><input type="checkbox" id="asgForAll" ' + ((e.forAll !== false && !(e.groupIds || []).length) ? 'checked' : '') + '> Для всех учеников</label>'
             + '<div id="asgGroupWrap" style="margin-top:10px;' + ((e.forAll !== false && !(e.groupIds || []).length) ? 'opacity:.45;pointer-events:none' : '') + '">'
             + '<label>Группы (все участники выбранных групп получат доступ)</label>'
@@ -478,6 +495,8 @@
         if (!e) return;
         var updated = clone(e);
         updated.state = $('asgState') ? $('asgState').value : e.state;
+        if ($('asgOpen')) updated.open = $('asgOpen').value || '';
+        if ($('asgClose')) updated.close = $('asgClose').value || '';
         var forAll = $('asgForAll') ? $('asgForAll').checked : true;
         updated.forAll = forAll;
         updated.groupIds = forAll ? [] : Array.prototype.slice.call(document.querySelectorAll('#asgGroupWrap .exGroup:checked')).map(function (x) { return x.value; });
@@ -1047,6 +1066,22 @@
     }
 
     /* ---------- run exam ---------- */
+    // Exam availability deadline passed (close date) — the exam is no longer open to students.
+    function isExpired(e) {
+        if (!e) return false;
+        if (e.close) {
+            var t = new Date(e.close).getTime();
+            if (isFinite(t) && now() > t) return true;
+        }
+        return false;
+    }
+    // «Старые тесты»: expired by deadline or manually closed/archived. Data is kept intact.
+    function isOld(e) {
+        if (!e) return false;
+        if (isExpired(e)) return true;
+        return e.state === 'Закрыт' || e.state === 'Архив';
+    }
+
     function availableForMe(e) {
         if (!e) return false;
         if (e.state !== 'Открыт' && e.state !== 'Опубликован') return false;
@@ -1196,6 +1231,20 @@
         btns.forEach(function (b, j) {
             if (questions[j]) b.classList.toggle('done', hasAnswer(a.answers[questions[j].id]));
         });
+        // Auto-advance: save happened above — move to the next question without «Далее».
+        // The last question finishes the exam and submits the result.
+        var fromQi = qi;
+        setTimeout(function () {
+            if (active !== a.id) return;
+            var cur = findAttempt(a.id);
+            if (!cur || cur.end) return;
+            if (qi !== fromQi) return; // already advanced — no double jump
+            if (fromQi < questions.length - 1) {
+                goQ(fromQi + 1);
+            } else {
+                finish(cur, false);
+            }
+        }, fromQi < questions.length - 1 ? 250 : 500);
     }
 
     function goQ(i) {
@@ -1267,12 +1316,30 @@
         }, 1000);
     }
 
+    function gradeCounts(a) {
+        var c = { ok: 0, bad: 0, skip: 0 };
+        Object.keys(a.grades || {}).forEach(function (k) {
+            var st = ((a.grades || {})[k] || {}).status;
+            if (st === 'Правильно') c.ok++;
+            else if (st === 'Пропущено') c.skip++;
+            else if (st) c.bad++;
+        });
+        return c;
+    }
+
+    function isMyAttempt(a, u) {
+        if (!u) return false;
+        if (a.userId && a.userId === u.id) return true;
+        if (!a.userId && a.studentName && a.studentName === myName()) return true;
+        return false;
+    }
+
     /* ---------- results ---------- */
     function results() {
-        var arr = db.attempts.filter(function (a) { return a && a.end && a.end !== a.start; });
+        var arr = db.attempts.filter(function (a) { return a && a.end; });
         if (!isAdminMode) {
             var u = meUser();
-            arr = arr.filter(function (a) { return u && a.userId === u.id; });
+            arr = arr.filter(function (a) { return isMyAttempt(a, u); });
         }
         arr = arr.slice().sort(function (x, y) { return (y.end || 0) - (x.end || 0); });
         shell('<div class="row between"><h1>' + (isAdminMode ? 'Результаты' : 'Мои результаты') + '</h1>'
@@ -1280,10 +1347,16 @@
             + '<p class="muted">' + (isAdminMode ? 'Все сохранённые попытки. Откройте результат, чтобы проверить ответы.' : 'Твои достижения и ответы на задания.') + '</p>'
             + (arr.length ? arr.map(function (a) {
                 var title = (a.examSnapshot && a.examSnapshot.title) || (findExam(a.examId) || {}).title || 'Экзамен';
+                var c = gradeCounts(a);
+                var countsLine = a.isSpecial
+                    ? 'Верных: ' + (a.correctCount || 0)
+                    : 'Верных: ' + c.ok + ' · Ошибок: ' + c.bad + ' · Пропущено: ' + c.skip;
                 return '<div class="panel"><div class="row between"><div>'
                     + '<span class="pill">' + esc(a.status || '') + '</span>'
+                    + (a.isSpecial && isAdminMode ? ' <span class="pill">Спец</span>' : '')
                     + '<h3 style="margin:10px 0 4px">' + esc(title) + '</h3>'
                     + '<small class="muted">' + esc(a.studentName || '') + ' · попытка ' + (a.number || 1) + ' · ' + fmtDate(a.start) + '</small>'
+                    + '<small class="muted" style="display:block;margin-top:4px">' + countsLine + '</small>'
                     + '</div><div class="row"><div><div class="stat">' + a.percent + '%</div>'
                     + '<small class="muted">' + a.score + ' / ' + a.maxScore + ' баллов</small></div>'
                     + '<button onclick="Exams.showResult(\'' + a.id + '\')">Подробнее</button></div></div></div>';
@@ -1294,6 +1367,23 @@
         var a = findAttempt(id);
         if (!a) { toast('Результат не найден.'); return; }
         var snap = a.examSnapshot || findExam(a.examId) || {};
+        if (a.isSpecial) {
+            modal('<span class="tag">РЕЗУЛЬТАТ</span>'
+                + '<h2>' + esc(snap.title || 'Экзамен') + '</h2>'
+                + '<p>' + esc(a.studentName || myName()) + '</p>'
+                + '<div class="hero"><div class="stat">' + a.percent + '% <span style="font-size:16px">' + esc(a.status || '') + '</span></div>'
+                + '<p>' + a.score + ' / ' + (a.maxScore || 0) + ' баллов · Верных: ' + (a.correctCount || 0) + '</p>'
+                + ((a.walletPoints || 0) ? '<p class="muted">Начислено в кошелёк: +' + (a.walletPoints || 0) + ' баллов</p>' : '')
+                + '</div>'
+                + '<small class="muted">Дата: ' + fmtDate(a.end || a.createdAt) + '<br>Результат введён преподавателем.</small>'
+                + (isAdminMode
+                    ? '<small class="muted" style="display:block;margin-top:8px">Начислено фактически: ' + (a.creditedPoints || 0) + ' баллов</small>'
+                    + '<div class="row" style="margin-top:14px">'
+                    + '<button class="primary" onclick="Exams.editSpecial(\'' + a.id + '\')">Изменить</button>'
+                    + '<button class="danger" onclick="Exams.deleteSpecial(\'' + a.id + '\')">Удалить</button></div>'
+                    : ''));
+            return;
+        }
         var questions = snap.questions || [];
         var reveal = true;
         if (snap.reveal === 'never') reveal = isAdminMode;
@@ -1323,8 +1413,9 @@
                     + '<span class="pill">' + (i + 1) + ' · ' + esc(g.status || '—') + '</span>'
                     + '<b>' + (g.score != null ? g.score : 0) + ' / ' + q.points + '</b></div>'
                     + '<h3 style="margin-top:12px">' + esc(q.text) + '</h3>'
-                    + '<p class="detail">Ответ: ' + esc(ansLetter ? (ansLetter + '. ' + ansText) : ansText) + '</p>'
-                    + (reveal && correct ? '<p class="detail muted">Эталон: ' + esc(correct) + (q.explanation ? ' · ' + esc(q.explanation) : '') + '</p>' : '')
+                    + '<p class="detail">Твой ответ: ' + esc(ansLetter ? (ansLetter + '. ' + ansText) : ansText) + '</p>'
+                    + (reveal && correct ? '<p class="detail ' + (g.status === 'Правильно' ? 'muted' : 'error') + '">Правильный ответ: ' + esc(correct) + '</p>' : '')
+                    + (reveal && g.status !== 'Правильно' && q.explanation ? '<p class="detail muted">Разбор: ' + esc(q.explanation) + '</p>' : '')
                     + '</div>';
             }).join(''));
     }
@@ -1338,9 +1429,109 @@
         download('Mandarin_Exam_Results.csv', csv(rows), 'text/csv;charset=utf-8');
     }
 
+    /* ---------- special (manual) results ---------- */
+    function specialList() {
+        return db.attempts.filter(function (a) { return a && a.isSpecial && a.end; })
+            .slice().sort(function (x, y) { return (y.end || 0) - (x.end || 0); });
+    }
+
+    function specialResults() {
+        if (!isAdminMode) { page = 'results'; results(); return; }
+        var arr = specialList();
+        shell('<div class="row between"><h1>Спецрезультаты</h1>'
+            + '<button class="primary" onclick="Exams.editSpecial()">+ Создать спецрезультат</button></div>'
+            + '<p class="muted">Ручной ввод итогов экзаменов. Результат появляется у ученика во вкладке «Мои результаты» и в общем списке. Баллы в кошелёк начисляются один раз при сохранении; при изменении и удалении баланс корректируется автоматически.</p>'
+            + (arr.length ? arr.map(function (a) {
+                return '<div class="panel"><div class="row between"><div>'
+                    + '<span class="pill">' + esc(a.status || '') + '</span> <span class="pill">Спец</span>'
+                    + '<h3 style="margin:10px 0 4px">' + esc((a.examSnapshot && a.examSnapshot.title) || 'Экзамен') + '</h3>'
+                    + '<small class="muted">' + esc(a.studentName || '') + ' · ' + fmtDate(a.end || a.createdAt) + '</small>'
+                    + '<small class="muted" style="display:block;margin-top:4px">Верных: ' + (a.correctCount || 0) + ' · В кошелёк: ' + (a.walletPoints || 0) + ' · Начислено: ' + (a.creditedPoints || 0) + '</small>'
+                    + '</div><div class="row"><div><div class="stat">' + a.percent + '%</div>'
+                    + '<small class="muted">' + a.score + ' / ' + a.maxScore + ' баллов</small></div>'
+                    + '<button onclick="Exams.showResult(\'' + a.id + '\')">Подробнее</button>'
+                    + '<button onclick="Exams.editSpecial(\'' + a.id + '\')">Изменить</button>'
+                    + '<button class="danger" onclick="Exams.deleteSpecial(\'' + a.id + '\')">Удалить</button>'
+                    + '</div></div></div>';
+            }).join('') : '<div class="panel empty">Спецрезультатов пока нет.</div>'));
+    }
+
+    function editSpecial(id) {
+        var a = id ? findAttempt(id) : null;
+        if (id && (!a || !a.isSpecial)) { toast('Спецрезультат не найден.'); return; }
+        var students = db.students || [];
+        if (!students.length) { toast('Сначала добавьте учеников в разделе «Журнал».'); return; }
+        var groups = allGroups();
+        function groupName(gid) {
+            var g = groups.filter(function (x) { return x && x.id === gid; })[0];
+            return g ? g.name : '';
+        }
+        modal('<span class="tag">СПЕЦРЕЗУЛЬТАТ</span><h2>' + (a ? 'Изменение спецрезультата' : 'Новый спецрезультат') + '</h2>'
+            + sel('spStudent', 'Ученик', students.map(function (s) {
+                return [s.id, s.name + (s.groupId && groupName(s.groupId) ? ' · ' + groupName(s.groupId) : '')];
+            }), a ? a.studentId : students[0].id)
+            + field('spTitle', 'Название экзамена', a && a.examSnapshot ? (a.examSnapshot.title || '') : '', 'text', 'maxlength="200"')
+            + '<div class="two">'
+            + field('spCorrect', 'Количество правильных ответов', a ? (a.correctCount || 0) : 0, 'number', 'min="0" step="1"')
+            + field('spScore', 'Итоговый балл', a ? (a.score || 0) : 0, 'number', 'min="0" step="0.5"')
+            + field('spMax', 'Максимум баллов', a ? (a.maxScore || 100) : 100, 'number', 'min="1" step="0.5"')
+            + sel('spStatus', 'Итоговая оценка', [['Сдан', 'Сдан'], ['Не сдан', 'Не сдан']], a ? a.status : 'Сдан')
+            + field('spPoints', 'Баллы в кошелёк', a ? (a.walletPoints || 0) : 0, 'number', 'min="0" step="1"')
+            + '</div>'
+            + '<div class="note">Процент выводится из баллов автоматически. Начисление в кошелёк происходит один раз при сохранении — без повторного начисления при обновлении страницы. При изменении или удалении разница автоматически корректирует баланс ученика.</div>'
+            + '<div class="row" style="margin-top:14px">'
+            + '<button class="primary" id="spSaveBtn" onclick="Exams.saveSpecial(\'' + (a ? a.id : '') + '\')">' + (a ? 'Сохранить изменения' : 'Создать результат') + '</button>'
+            + '<button class="ghost" onclick="Exams.closeModal()">Отмена</button></div>');
+    }
+
+    function saveSpecial(id) {
+        if (specialSaving) return;
+        var studentId = $('spStudent') ? $('spStudent').value : '';
+        var title = $('spTitle') ? String($('spTitle').value || '').trim() : '';
+        var correctCount = Number($('spCorrect') ? $('spCorrect').value : 0) || 0;
+        var score = Number($('spScore') ? $('spScore').value : NaN);
+        var maxScore = Number($('spMax') ? $('spMax').value : 100) || 100;
+        var status = $('spStatus') ? $('spStatus').value : 'Сдан';
+        var walletPoints = Number($('spPoints') ? $('spPoints').value : 0) || 0;
+        if (!studentId) { toast('Выберите ученика.'); return; }
+        if (!title) { toast('Укажите название экзамена.'); return; }
+        if (!Number.isFinite(score) || score < 0) { toast('Укажите итоговый балл.'); return; }
+        if (maxScore < 1) maxScore = 1;
+        if (walletPoints < 0) walletPoints = 0;
+        specialSaving = true;
+        var btn = $('spSaveBtn');
+        if (btn) btn.disabled = true;
+        if (BP && BP.examsSpecialSave) {
+            BP.examsSpecialSave({
+                id: id || '',
+                studentId: studentId,
+                title: title,
+                correctCount: Math.max(0, Math.round(correctCount)),
+                score: score,
+                maxScore: maxScore,
+                status: status,
+                walletPoints: walletPoints
+            });
+        } else {
+            specialSaving = false;
+            if (btn) btn.disabled = false;
+            toast('Нет соединения с сервером.');
+        }
+    }
+
+    function deleteSpecial(id) {
+        var a = findAttempt(id);
+        if (!a || !a.isSpecial) return;
+        var credited = Number(a.creditedPoints) || 0;
+        var msg = 'Удалить спецрезультат?';
+        if (credited > 0) msg += '\nС кошелька ученика будет снято ' + credited + ' начисленных баллов.';
+        if (!confirm(msg)) return;
+        if (BP && BP.examsSpecialDelete) BP.examsSpecialDelete({ id: id });
+    }
+
     /* ---------- stats / help / preview ---------- */
     function stats() {
-        var ended = db.attempts.filter(function (a) { return a && a.end && a.end !== a.start; });
+        var ended = db.attempts.filter(function (a) { return a && a.end; });
         shell('<h1>Статистика</h1><p class="muted">По сохранённым попыткам на сервере.</p>'
             + '<div class="metrics">'
             + '<div>Начали<div class="stat">' + db.attempts.length + '</div></div>'
@@ -1419,7 +1610,7 @@
         var u = meUser();
         if (!u) return [];
         return db.attempts.filter(function (a) {
-            return a && a.end && a.end !== a.start && (a.userId === u.id || (!a.userId && a.studentName === myName()));
+            return a && a.end && (a.userId === u.id || (!a.userId && a.studentName === myName()));
         }).sort(function (x, y) { return (y.end || 0) - (x.end || 0); });
     }
 
@@ -1464,7 +1655,9 @@
         if (!$('examsRoot')) return;
         if (active) { runView(); return; }
         if (page === 'editor' && draft) { editor(); return; }
+        if (page === 'old') { oldTests(); return; }
         if (page === 'results') { results(); return; }
+        if (page === 'special') { specialResults(); return; }
         if (page === 'stats') { stats(); return; }
         if (page === 'help') { helpPage(); return; }
         catalog();
@@ -1473,6 +1666,9 @@
     function go(p) {
         if (draft && p !== 'editor' && !confirm('Выйти из редактора? Несохранённые изменения будут потеряны.')) return;
         draft = null;
+        // Leave any in-progress attempt view so tab navigation works; the attempt
+        // stays saved (status «В процессе») and can be resumed from the «В процессе» tab.
+        active = null;
         page = p;
         filter = '';
         try {
@@ -1509,6 +1705,29 @@
             if (BP && BP.onExamsResultSaved) {
                 BP.onExamsResultSaved(function (data) {
                     onResultSaved(data);
+                });
+            }
+            if (BP && BP.onExamsSpecialSaved) {
+                BP.onExamsSpecialSaved(function (data) {
+                    specialSaving = false;
+                    if (data && data.ok) {
+                        toast(data.created ? 'Спецрезультат создан.' : 'Спецрезультат сохранён.');
+                        closeModal();
+                    } else if (data && data.error) {
+                        toast(data.error);
+                        var btn = $('spSaveBtn');
+                        if (btn) btn.disabled = false;
+                    }
+                });
+            }
+            if (BP && BP.onExamsSpecialDeleted) {
+                BP.onExamsSpecialDeleted(function (data) {
+                    if (data && data.ok) {
+                        closeModal();
+                        toast('Спецрезультат удалён.');
+                    } else if (data && data.error) {
+                        toast(data.error);
+                    }
                 });
             }
         },
@@ -1561,6 +1780,9 @@
         goQ: goQ,
         submitAttempt: submitAttempt,
         showResult: showResult,
+        editSpecial: editSpecial,
+        saveSpecial: saveSpecial,
+        deleteSpecial: deleteSpecial,
         closeModal: closeModal,
         getMyFinished: getMyFinished,
         renderDiaryBlock: renderDiaryBlock,

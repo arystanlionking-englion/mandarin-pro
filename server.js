@@ -406,7 +406,7 @@ const INVESTMENT_TYPES = [
     { id: 'certificates', name: 'Сертификаты', icon: 'award', emoji: '🏅' }
 ];
 
-let db = { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [], journal: { groups: [], students: [], records: [], settings: { reward: 300 } }, accountRequests: [], securityLog: [], auditLog: [], globalMode: { enabled: false, section: null, updatedAt: null }, party: null, guestMode: { enabled: false }, maintenanceMode: { enabled: false }, guestSessions: [], guestQrTokens: [], guestCounter: 0 };
+let db = { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [], journal: { groups: [], students: [], records: [], settings: { reward: 300 } }, accountRequests: [], securityLog: [], auditLog: [], globalMode: { enabled: false, section: null, updatedAt: null }, party: null, guestMode: { enabled: false }, maintenanceMode: { enabled: false }, guestSessions: [], guestQrTokens: [], guestCounter: 0, exams: { exams: [], attempts: [] } };
 
 // True only after loadDB() successfully populated `db` from the real store.
 // Prevents empty in-memory defaults from being flushed over real data on startup.
@@ -498,7 +498,7 @@ async function loadDB() {
 }
 
 function getDefaultDB() {
-    return { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], virtualBanks: null, userBankDeposits: [], userBankInvestments: [], bankHistory: [], couponPricesHalved: false, qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [], journal: { groups: [], students: [], records: [], settings: { reward: 300 } }, mafia: null, accountRequests: [], securityLog: [], auditLog: [], globalMode: { enabled: false, section: null, updatedAt: null }, party: null, guestMode: { enabled: false }, maintenanceMode: { enabled: false }, guestSessions: [], guestQrTokens: [], guestCounter: 0 };
+    return { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], virtualBanks: null, userBankDeposits: [], userBankInvestments: [], bankHistory: [], couponPricesHalved: false, qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [], journal: { groups: [], students: [], records: [], settings: { reward: 300 } }, mafia: null, accountRequests: [], securityLog: [], auditLog: [], globalMode: { enabled: false, section: null, updatedAt: null }, party: null, guestMode: { enabled: false }, maintenanceMode: { enabled: false }, guestSessions: [], guestQrTokens: [], guestCounter: 0, exams: { exams: [], attempts: [] } };
 }
 
 function getDefaultMafia() {
@@ -597,6 +597,10 @@ function _runMigrations() {
         if (!Array.isArray(db.mafia.joined)) db.mafia.joined = [];
         if (db.mafia.version === undefined) db.mafia.version = 0;
     }
+    // Migration: exams module (Mandarin Pro) — keep exams & attempts across restarts
+    if (!db.exams || typeof db.exams !== 'object') db.exams = { exams: [], attempts: [] };
+    if (!Array.isArray(db.exams.exams)) db.exams.exams = [];
+    if (!Array.isArray(db.exams.attempts)) db.exams.attempts = [];
 }
 
 let _saveDirty = false;
@@ -1868,6 +1872,8 @@ function isExamVisibleToStudent(e, userId, st) {
     if (!e) return false;
     // Drafts / closed / archived are never listed for students
     if (e.state !== 'Открыт' && e.state !== 'Опубликован') return false;
+    // Deadline (close date) passed — the exam is no longer available to students
+    if (e.close && Date.now() > new Date(e.close).getTime()) return false;
     const access = Array.isArray(e.access) ? e.access.filter(Boolean) : [];
     const groupIds = Array.isArray(e.groupIds) ? e.groupIds.filter(Boolean) : [];
     // Explicit assignment: only matching groups / individuals
@@ -2003,12 +2009,21 @@ function publicAttemptForStudent(a) {
         end: a.end || null,
         deadline: a.deadline || null,
         durationSec: a.durationSec,
+        userId: a.userId || null,
+        studentId: a.studentId || null,
+        studentName: a.studentName || '',
+        groupId: a.groupId || null,
+        position: a.position || 0,
+        createdAt: a.createdAt || null,
         answers: a.answers || {},
         grades: a.end ? filterGradesForStudent(a.grades || {}, reveal) : {},
         score: a.score,
         maxScore: a.maxScore,
         percent: a.percent,
         status: a.status,
+        isSpecial: !!a.isSpecial,
+        correctCount: Number(a.correctCount) || 0,
+        walletPoints: Number(a.walletPoints) || 0,
         number: a.number
     };
 }
@@ -2076,6 +2091,40 @@ function emitExamsUpdate() {
             });
         }
     }
+}
+
+// --- Спецрезультаты (ручной ввод администратором) ---
+// В attempt хранится creditedPoints — сколько реально начислено в кошелёк за этот
+// результат. Create/edit/delete меняют баланс только на разницу, поэтому повторное
+// начисление (например, при обновлении страницы) невозможно.
+function resolveSpecialUser(a) {
+    if (!a) return null;
+    if (a.userId) {
+        const u = findUser(a.userId);
+        if (u) return u;
+    }
+    if (a.studentName) return db.users.find(u => u.name === a.studentName) || null;
+    return null;
+}
+
+function applySpecialWalletDelta(user, delta, description) {
+    if (!user || !delta) return;
+    const oldBal = user.balance;
+    user.balance += delta;
+    touchUser(user);
+    const tx = {
+        id: genId(),
+        type: 'exam_special_reward',
+        userId: user.id,
+        userName: user.name,
+        amount: delta,
+        timestamp: Date.now(),
+        description: description || '🎓 Спецрезультат',
+        oldBalance: oldBal,
+        newBalance: user.balance
+    };
+    db.history.push(tx);
+    try { emitToUser(user.id, 'transaction:new', tx); } catch (e) { }
 }
 
 // --- Parent token / attendance helpers ---
@@ -3989,6 +4038,7 @@ io.on('connection', (socket) => {
     socket.on('admin:sendNotification', (data) => {
         if (!isAdmin(socket.id)) { socket.emit('error', { message: 'Требуется доступ администратора.' }); return; }
         const targetIds = Array.isArray(data?.targetIds) ? data.targetIds : [];
+        const targetGroupIds = Array.isArray(data?.targetGroupIds) ? data.targetGroupIds.filter(Boolean) : [];
         const title = sanitizeTextNoUrl(data?.title, 80) || '';
         const text = sanitizeTextNoUrl(data?.text, 500);
         if (payloadHasAttachment(data) || text === null) {
@@ -3996,11 +4046,22 @@ io.on('connection', (socket) => {
             socket.emit('error', { message: 'Ссылки и вложения в уведомлениях запрещены. Отправьте обычный текст.' });
             return;
         }
-        if (!targetIds.length) { socket.emit('error', { message: 'Выберите получателей.' }); return; }
+        if (!targetIds.length && !targetGroupIds.length) { socket.emit('error', { message: 'Выберите получателей.' }); return; }
         if (!text) { socket.emit('error', { message: 'Введите текст уведомления.' }); return; }
 
         const allUsers = targetIds.includes('all');
-        const recipients = allUsers ? db.users.map(u => u.id) : targetIds;
+        const recipientSet = new Set(allUsers ? db.users.map(u => u.id) : targetIds.filter(x => x !== 'all'));
+        // Group targeting: only members of the selected groups receive the notification
+        const groupNames = [];
+        const allGroupsList = [...(Array.isArray(db.groups) ? db.groups : []), ...((getJournalData().groups || []))];
+        for (const gid of targetGroupIds) {
+            const g = allGroupsList.find(x => x && x.id === gid);
+            groupNames.push(g ? g.name : gid);
+            for (const u of db.users) if (u && u.groupId === gid) recipientSet.add(u.id);
+            for (const st of (getJournalData().students || [])) if (st && st.groupId === gid && st.userId) recipientSet.add(st.userId);
+        }
+        const recipients = [...recipientSet];
+        if (!recipients.length) { socket.emit('error', { message: 'В выбранных группах нет пользователей.' }); return; }
         const recipientNames = [];
 
         for (const tid of recipients) {
@@ -4020,7 +4081,8 @@ io.on('connection', (socket) => {
             emitToUser(tid, 'notification:push', notif);
         }
 
-        const targetDesc = allUsers ? 'Все пользователи' : recipientNames.join(', ');
+        const targetDesc = allUsers ? 'Все пользователи'
+            : (groupNames.length ? 'Группы: ' + groupNames.join(', ') + ' (' + recipients.length + ' чел.)' : recipientNames.join(', '));
         logAdminAction('send_notification', null, targetDesc, null, title, text);
         saveDB();
         socket.emit('admin:notifSent', { count: recipients.length });
@@ -4127,7 +4189,7 @@ io.on('connection', (socket) => {
     socket.on('admin:backup', () => {
         if (!isAdmin(socket.id)) { socket.emit('error', { message: 'Требуется доступ администратора.' }); return; }
         const backup = {
-            version: '2.1',
+            version: '2.2',
             timestamp: Date.now(),
             users: db.users.map(u => ({ ...u })), // Preserve pinHash and salt so PINs survive restore
             history: db.history,
@@ -4155,7 +4217,33 @@ io.on('connection', (socket) => {
             btcPrice: db.btcPrice,
             investmentPrices: db.investmentPrices,
             promocodes: db.promocodes,
-            userPromoActivations: db.userPromoActivations
+            userPromoActivations: db.userPromoActivations,
+            // v2.2: exam results, journal and the rest of the DB must survive backup/restore
+            userLists: db.userLists,
+            journal: db.journal,
+            exams: db.exams,
+            testResults: db.testResults,
+            accountRequests: db.accountRequests,
+            securityLog: db.securityLog,
+            auditLog: db.auditLog,
+            globalMode: db.globalMode,
+            maintenanceMode: db.maintenanceMode,
+            guestMode: db.guestMode,
+            savingsGoals: db.savingsGoals,
+            bankQuests: db.bankQuests,
+            virtualBanks: db.virtualBanks,
+            userBankDeposits: db.userBankDeposits,
+            userBankInvestments: db.userBankInvestments,
+            bankHistory: db.bankHistory,
+            qrCodes: db.qrCodes,
+            qrAccounts: db.qrAccounts,
+            qrCodeScans: db.qrCodeScans,
+            couponPricesHalved: db.couponPricesHalved,
+            mafia: db.mafia,
+            party: db.party,
+            guestSessions: db.guestSessions,
+            guestQrTokens: db.guestQrTokens,
+            guestCounter: db.guestCounter
         };
         socket.emit('admin:backup_data', { backup });
         logAdminAction('backup', null, null, null, null, 'Создана резервная копия');
@@ -4227,6 +4315,38 @@ io.on('connection', (socket) => {
         if (typeof backup.investmentPrices === 'object' && backup.investmentPrices) db.investmentPrices = backup.investmentPrices;
         db.promocodes = Array.isArray(backup.promocodes) ? backup.promocodes : [];
         db.userPromoActivations = Array.isArray(backup.userPromoActivations) ? backup.userPromoActivations : [];
+
+        // v2.2 fields: restore only when present in backup — old v2.0/v2.1 backups must not wipe exams/journal/results
+        if (typeof backup.userLists === 'object' && backup.userLists) db.userLists = backup.userLists;
+        if (backup.journal && typeof backup.journal === 'object') db.journal = backup.journal;
+        if (backup.exams && typeof backup.exams === 'object') {
+            db.exams = {
+                exams: Array.isArray(backup.exams.exams) ? backup.exams.exams : (db.exams && db.exams.exams) || [],
+                attempts: Array.isArray(backup.exams.attempts) ? backup.exams.attempts : (db.exams && db.exams.attempts) || []
+            };
+        }
+        if (Array.isArray(backup.testResults)) db.testResults = backup.testResults;
+        if (Array.isArray(backup.accountRequests)) db.accountRequests = backup.accountRequests;
+        if (Array.isArray(backup.securityLog)) db.securityLog = backup.securityLog;
+        if (Array.isArray(backup.auditLog)) db.auditLog = backup.auditLog;
+        if (backup.globalMode && typeof backup.globalMode === 'object') db.globalMode = backup.globalMode;
+        if (backup.maintenanceMode && typeof backup.maintenanceMode === 'object') db.maintenanceMode = backup.maintenanceMode;
+        if (backup.guestMode && typeof backup.guestMode === 'object') db.guestMode = backup.guestMode;
+        if (Array.isArray(backup.savingsGoals)) db.savingsGoals = backup.savingsGoals;
+        if (Array.isArray(backup.bankQuests)) db.bankQuests = backup.bankQuests;
+        if (Array.isArray(backup.virtualBanks)) db.virtualBanks = backup.virtualBanks;
+        if (Array.isArray(backup.userBankDeposits)) db.userBankDeposits = backup.userBankDeposits;
+        if (Array.isArray(backup.userBankInvestments)) db.userBankInvestments = backup.userBankInvestments;
+        if (Array.isArray(backup.bankHistory)) db.bankHistory = backup.bankHistory;
+        if (Array.isArray(backup.qrCodes)) db.qrCodes = backup.qrCodes;
+        if (Array.isArray(backup.qrAccounts)) db.qrAccounts = backup.qrAccounts;
+        if (Array.isArray(backup.qrCodeScans)) db.qrCodeScans = backup.qrCodeScans;
+        if (typeof backup.couponPricesHalved === 'boolean') db.couponPricesHalved = backup.couponPricesHalved;
+        if (backup.mafia && typeof backup.mafia === 'object') db.mafia = backup.mafia;
+        if (backup.party && typeof backup.party === 'object') db.party = backup.party;
+        if (Array.isArray(backup.guestSessions)) db.guestSessions = backup.guestSessions;
+        if (Array.isArray(backup.guestQrTokens)) db.guestQrTokens = backup.guestQrTokens;
+        if (Number.isFinite(backup.guestCounter)) db.guestCounter = backup.guestCounter;
 
         // Restore admin PIN (never overwritten by backup)
         db.adminPinHash = savedAdminPinHash;
@@ -7974,6 +8094,16 @@ io.on('connection', (socket) => {
         const ex = getExamsData();
         const exam = ex.exams.find(e => e && e.id === String(data.examId || ''));
         if (!exam) { socket.emit('exams:resultSaved', { ok: false, error: 'Экзамен не найден.' }); return; }
+        // New attempts are blocked once the availability deadline has passed (existing attempts can still finish)
+        const priorAttempt = data && data.id ? ex.attempts.find(a => a && a.id === String(data.id)) : null;
+        if (priorAttempt && priorAttempt.isSpecial) {
+            socket.emit('exams:resultSaved', { ok: false, error: 'Результат введён вручную администратором и не перезаписывается обычной сдачей.' });
+            return;
+        }
+        if (!priorAttempt && !isAdmin(socket.id) && exam.close && Date.now() > new Date(exam.close).getTime()) {
+            socket.emit('exams:resultSaved', { ok: false, error: 'Срок доступа к экзамену истёк.' });
+            return;
+        }
         const nowMs = Date.now();
         const nowIso = new Date(nowMs).toISOString();
         const st = userId ? findJournalStudentByUser(userId) : null;
@@ -8043,6 +8173,118 @@ io.on('connection', (socket) => {
         socket.emit('exams:resultSaved', { ok: true, attempt: publicAttemptForStudent(attempt), isAdmin: isAdmin(socket.id) });
     });
 
+    // --- Спецрезультаты: ручное создание/изменение итога экзамена (только админ) ---
+    socket.on('exams:saveSpecialResult', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('exams:specialSaved', { ok: false, error: 'Требуется администратор.' }); return; }
+        if (!data || typeof data !== 'object') return;
+        const ex = getExamsData();
+        const st = (getJournalData().students || []).find(s => s && s.id === String(data.studentId || ''));
+        if (!st) { socket.emit('exams:specialSaved', { ok: false, error: 'Ученик не найден.' }); return; }
+        const title = String(data.title == null ? '' : data.title).trim().slice(0, 200);
+        if (!title) { socket.emit('exams:specialSaved', { ok: false, error: 'Укажите название экзамена.' }); return; }
+        const correctCount = Math.max(0, Math.round(Number(data.correctCount) || 0));
+        const score = Number(data.score);
+        if (!Number.isFinite(score) || score < 0) { socket.emit('exams:specialSaved', { ok: false, error: 'Укажите итоговый балл.' }); return; }
+        let maxScore = Number(data.maxScore);
+        if (!Number.isFinite(maxScore) || maxScore <= 0) maxScore = 100;
+        const walletPoints = Number(data.walletPoints) || 0;
+        if (!Number.isFinite(walletPoints) || walletPoints < 0) { socket.emit('exams:specialSaved', { ok: false, error: 'Некорректные баллы в кошелёк.' }); return; }
+        const status = String(data.status || '').trim() === 'Не сдан' ? 'Не сдан' : 'Сдан';
+
+        // User account for wallet crediting — linked by journal student userId, then by name
+        let user = st.userId ? findUser(st.userId) : null;
+        if (!user && st.name) {
+            user = db.users.find(u => u.name === st.name) || null;
+            if (user && !st.userId) st.userId = user.id;
+        }
+
+        const id = data.id ? String(data.id) : genId();
+        const existingIdx = ex.attempts.findIndex(a => a && a.id === id && a.isSpecial);
+        const existing = existingIdx >= 0 ? ex.attempts[existingIdx] : null;
+
+        // If the student changed, return previously credited points to the old user first
+        if (existing) {
+            const prevUser = resolveSpecialUser(existing);
+            const prevCredited = Number(existing.creditedPoints) || 0;
+            const sameOwner = prevUser && user ? prevUser.id === user.id : (!prevUser && !user);
+            if (!sameOwner && prevUser && prevCredited) {
+                applySpecialWalletDelta(prevUser, -prevCredited, '🎓 Возврат спецрезультата (смена ученика): ' + title);
+                existing.creditedPoints = 0;
+            }
+        }
+
+        const nowMs = Date.now();
+        const nowIso = new Date(nowMs).toISOString();
+        const percent = maxScore ? Math.round(score / maxScore * 1000) / 10 : 0;
+        const attempt = {
+            id,
+            isSpecial: true,
+            examId: existing ? existing.examId : '',
+            examSnapshot: {
+                id: '',
+                title,
+                pass: 60,
+                minutes: 0,
+                reveal: 'never',
+                navigate: false,
+                questions: []
+            },
+            userId: user ? user.id : (st.userId || null),
+            studentId: st.id,
+            studentName: st.name,
+            groupId: st.groupId || null,
+            start: existing ? (existing.start || nowMs) : nowMs,
+            end: existing ? (existing.end || nowMs) : nowMs,
+            deadline: null,
+            durationSec: 0,
+            answers: {},
+            grades: {},
+            correctCount,
+            score,
+            maxScore,
+            percent,
+            status,
+            walletPoints,
+            creditedPoints: existing ? (Number(existing.creditedPoints) || 0) : 0,
+            number: existing ? (existing.number || 1) : (ex.attempts.filter(a => a && (a.studentId === st.id || (user && a.userId === user.id))).length + 1),
+            position: 0,
+            createdAt: existing ? (existing.createdAt || nowIso) : nowIso
+        };
+
+        // Credit wallet by delta only (what was already credited stays untouched) — no double-crediting
+        const targetCredited = user ? walletPoints : 0;
+        const delta = targetCredited - attempt.creditedPoints;
+        if (user && delta) {
+            applySpecialWalletDelta(user, delta, (existing ? '🎓 Корректировка спецрезультата: ' : '🎓 Спецрезультат: ') + title);
+        }
+        attempt.creditedPoints = targetCredited;
+
+        if (existingIdx >= 0) ex.attempts[existingIdx] = attempt;
+        else ex.attempts.push(attempt);
+
+        saveDB();
+        emitExamsUpdate();
+        socket.emit('exams:specialSaved', { ok: true, attempt: publicAttemptForStudent(attempt), created: !existing });
+    });
+
+    socket.on('exams:deleteSpecialResult', (data) => {
+        if (!isAdmin(socket.id)) { socket.emit('exams:specialDeleted', { ok: false, error: 'Требуется администратор.' }); return; }
+        const ex = getExamsData();
+        const id = String((data && data.id) || '');
+        const idx = ex.attempts.findIndex(a => a && a.id === id && a.isSpecial);
+        if (idx < 0) { socket.emit('exams:specialDeleted', { ok: false, error: 'Спецрезультат не найден.' }); return; }
+        const attempt = ex.attempts[idx];
+        const credited = Number(attempt.creditedPoints) || 0;
+        const user = resolveSpecialUser(attempt);
+        if (user && credited) {
+            applySpecialWalletDelta(user, -credited, '🎓 Удаление спецрезультата: ' + ((attempt.examSnapshot && attempt.examSnapshot.title) || ''));
+        }
+        ex.attempts.splice(idx, 1);
+        saveDB();
+        emitExamsUpdate();
+        socket.emit('exams:specialDeleted', { ok: true, id });
+    });
+
     socket.on('exams:saveAnswer', (data) => {
         const userId = socketUserMap.get(socket.id);
         if (!userId && !isAdmin(socket.id)) return;
@@ -8054,6 +8296,8 @@ io.on('connection', (socket) => {
         if (!a) {
             // create minimal in-progress attempt so answers are not lost
             const exam = data.examId ? ex.exams.find(e => e && e.id === String(data.examId)) : null;
+            // New attempts are blocked once the availability deadline has passed
+            if (!isAdmin(socket.id) && exam && exam.close && Date.now() > new Date(exam.close).getTime()) return;
             const st = userId ? findJournalStudentByUser(userId) : null;
             const user = findUser(userId);
             a = {

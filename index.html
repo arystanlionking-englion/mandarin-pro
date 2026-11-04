@@ -11726,6 +11726,14 @@ body.dict-fullscreen .dict-title{color:#fff}
             <div style="display:flex;justify-content:flex-start;margin-bottom:12px">
                 <button class="btn btn-danger btn-sm" onclick="doLogout()" style="min-height:42px;padding:8px 16px;font-weight:700;gap:8px"><i data-lucide="log-out" style="width:16px;height:16px"></i> Выйти</button>
             </div>
+            <div class="coupon-subtabs" id="profTabs">
+                <div class="coupon-subtab on" data-ptab="me" onclick="switchProfTab('me')">👤 Мой профиль</div>
+                <div class="coupon-subtab" data-ptab="msgs" onclick="switchProfTab('msgs')">💬 Сообщения</div>
+                <div class="coupon-subtab" data-ptab="notifs" onclick="switchProfTab('notifs')">🔔 Уведомления</div>
+                <div class="coupon-subtab" data-ptab="hist" onclick="switchProfTab('hist')">📜 История</div>
+                <div class="coupon-subtab hidden" id="profTabManageBtn" data-ptab="manage" onclick="switchProfTab('manage')">👥 Управление</div>
+            </div>
+            <div id="profTabMe">
             <div class="profile-card">
                 <div class="av" id="profAv"></div><div class="nm" id="profName"></div>
                 <div class="role" id="profRole">🌱 Новичок</div>
@@ -11798,6 +11806,11 @@ body.dict-fullscreen .dict-title{color:#fff}
                     <div class="prof-chips" id="profIconChips"></div>
                 </div>
             </div>
+            </div>
+            <div id="profTabMsgs" class="hidden"><div class="msg-list" id="profMsgList"></div></div>
+            <div id="profTabNotifs" class="hidden"><div class="notif-center" id="profNotifList"></div></div>
+            <div id="profTabHist" class="hidden"><div class="hlist" id="profHistList"></div></div>
+            <div id="profTabManage" class="hidden"><div id="profManageList"></div></div>
         </div>
 
         <!-- COUPONS -->
@@ -12588,6 +12601,9 @@ body.dict-fullscreen .dict-title{color:#fff}
 <!-- Admin: Send Notification -->
 <div class="modal-bg" id="mSendNotif" onclick="cm('mSendNotif')"><div class="modal" onclick="event.stopPropagation()">
     <div class="modal-h"><h2>Отправить уведомление</h2><button class="modal-x" onclick="cm('mSendNotif')">Назад</button></div>
+    <div class="stitle">Группы</div>
+    <style>#notifGroups .gpill{cursor:pointer;border:1px solid var(--border);border-radius:20px;padding:6px 12px;font-size:12px;font-weight:600;user-select:none}#notifGroups .gpill.sel{background:#22c55e;color:#fff;border-color:#22c55e}</style>
+    <div id="notifGroups" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"></div>
     <div class="stitle">Получатели</div>
     <div class="sel-all" onclick="toggleSelAll('notifUL')"><div class="chk" id="notifAllChk"></div> Выбрать всех</div>
     <div class="search-bar"><input type="text" class="inp" id="notifSearch" placeholder="Поиск..." oninput="filterUL('notifUL','notifSearch')"></div>
@@ -14092,6 +14108,8 @@ function updateAdminUI(){
     $('navAdmin')?.classList.toggle('hidden',!show);
     $('slideAdminBtn')?.classList.toggle('hidden',!show);
     $('slideHwBtn')?.classList.toggle('hidden',!show);
+    const profManageBtn=$('profTabManageBtn');if(profManageBtn)profManageBtn.classList.toggle('hidden',!show);
+    if(typeof updateProfTabs==='function')updateProfTabs();
     $('sideAdminBadge')?.classList.toggle('show',show);
     $('mobAdminBadge')?.classList.toggle('show',show);
     if(show&&U){
@@ -15518,6 +15536,91 @@ socket.on('admin:accountRequestMarked',()=>{
     if(_accReqOpen)socket.emit('admin:getAccountRequests');
 });
 
+// --- Profile tabs ---
+let profTab='me';
+const PROF_TABS={me:'profTabMe',msgs:'profTabMsgs',notifs:'profTabNotifs',hist:'profTabHist',manage:'profTabManage'};
+window.switchProfTab=function(tab){
+    if(!PROF_TABS[tab])return;
+    if(tab==='manage'&&!isAdmin)return;
+    profTab=tab;
+    Object.keys(PROF_TABS).forEach(function(t){
+        const el=$(PROF_TABS[t]);if(el)el.classList.toggle('hidden',t!==tab);
+    });
+    document.querySelectorAll('#profTabs .coupon-subtab').forEach(function(b){b.classList.toggle('on',b.dataset.ptab===tab);});
+    renderProfTab();
+};
+function updateProfTabs(){
+    const mb=$('profTabManageBtn');
+    if(mb)mb.classList.toggle('hidden',!isAdmin);
+    if(profTab==='manage'&&!isAdmin){switchProfTab('me');return;}
+    const el=$(PROF_TABS[profTab]);if(el)el.classList.toggle('hidden',false);
+    document.querySelectorAll('#profTabs .coupon-subtab').forEach(function(b){b.classList.toggle('on',b.dataset.ptab===profTab);});
+}
+function renderProfTab(){
+    if(!U)return;
+    if(profTab==='hist'){
+        const cont=$('profHistList');
+        if(cont)renderHList(cont,hist.filter(tx=>tx.userId===U.id||tx.toId===U.id||tx.fromId===U.id).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0)));
+    }else if(profTab==='msgs'){
+        const cont=$('profMsgList');if(!cont)return;
+        const my=msgs.filter(m=>m.fromId===U.id||m.toId===U.id).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
+        if(!my.length){cont.innerHTML='<div class="empty">Сообщений пока нет</div>';return;}
+        cont.innerHTML='';
+        my.forEach(function(m){
+            const sent=m.fromId===U.id;
+            const el=document.createElement('div');el.className='msg-item'+(sent?' msg-sent':'');
+            const otherUser=sent?users.find(x=>x.id===m.toId):users.find(x=>x.id===m.fromId);
+            const colorStyle=getUserColorStyle(otherUser);
+            const titleBadge=getUserTitleBadge(otherUser);
+            el.innerHTML=`<div class="msg-from" ${colorStyle?'style="'+colorStyle+'"':''}>${esc(sent?'Вы → '+m.to:m.from)}${titleBadge}</div><div class="msg-text">${esc(m.text)}</div><div class="msg-time">${formatDate(m.timestamp)}</div>`;
+            cont.appendChild(el);
+        });
+    }else if(profTab==='notifs'){
+        const cont=$('profNotifList');if(!cont)return;
+        const myNotifs=notifs.filter(n=>n.targetUserId===U.id).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
+        const myReqs=approvalRequests.filter(r=>r.userId===U.id).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+        if(!myNotifs.length&&!myReqs.length){cont.innerHTML='<div class="empty">Уведомлений пока нет</div>';return;}
+        cont.innerHTML='';
+        myReqs.forEach(function(r){
+            const el=document.createElement('div');
+            el.className='hw-item '+(r.status==='approved'?'approved':r.status==='rejected'?'rejected':'pending');
+            const statusMap={pending:['⏳ Ожидает проверки','pending'],approved:['✅ Одобрено','approved'],rejected:['❌ Отказано','rejected']};
+            const st=statusMap[r.status]||[r.status,'pending'];
+            const desc=(typeof getApprovalDesc==='function')?getApprovalDesc(r):'Заявка';
+            el.innerHTML=`<div class="hw-item-head"><div class="hw-item-name">📋 ${esc(desc.split(' — ')[0]||'Заявка')}</div><div class="hw-badge ${st[1]}">${st[0]}</div></div><div class="hw-item-meta"><span>📤 ${esc(formatDate(r.createdAt))}</span></div>`;
+            cont.appendChild(el);
+        });
+        myNotifs.forEach(function(n){
+            const el=document.createElement('div');
+            el.className='hw-item'+(n.read?'':' pending');
+            el.innerHTML=`<div class="hw-item-head"><div class="hw-item-name">${esc(n.title)}</div></div><div class="hw-block"><div class="hw-block-body">${esc(n.text)}</div></div><div class="hw-item-meta"><span>${esc(formatDate(n.timestamp))}</span></div>`;
+            el.onclick=function(){if(!n.read)socket.emit('notifications:read',{notifId:n.id});};
+            cont.appendChild(el);
+        });
+    }else if(profTab==='manage'){
+        renderProfManage();
+    }
+}
+function renderProfManage(){
+    const cont=$('profManageList');if(!cont)return;
+    if(!isAdmin){cont.innerHTML='<div class="empty">Недостаточно прав</div>';return;}
+    const list=getVisibleUsers().filter(u=>!u.archived);
+    if(!list.length){cont.innerHTML='<div class="empty">Нет активных учеников</div>';return;}
+    cont.innerHTML='';
+    list.forEach(function(u){
+        const el=document.createElement('div');el.className='ucard';el.dataset.uid=u.id;
+        const groupName=u.groupId?groups.find(g=>g.id===u.groupId):null;
+        const groupBadge=groupName?`<span style="font-size:10px;padding:2px 8px;border-radius:8px;background:rgba(99,102,241,.12);color:#818cf8;margin-left:6px">${esc(groupName.name)}</span>`:'';
+        const lvlBadge=u.level?getLevelBadgeHTML(u.level):'';
+        const titleBadge=getUserTitleBadge(u);
+        const avHtml=getUserAvatarHtml(u,42);
+        const colorStyle=getNickColorStyle(u)||getUserColorStyle(u);
+        el.innerHTML=`<div class="ucard-top">${avHtml}<div class="info"><div class="nm" ${colorStyle?'style="'+colorStyle+'"':''}>${esc(u.name)} ${lvlBadge}${titleBadge}${groupBadge}</div><div class="id">ID: ${u.id.substring(0,8)}...</div></div><span class="ust ${u.online?'on':'off'}">${u.online?'Онлайн':'Офлайн'}</span></div><div class="ucard-bal">${formatN(u.balance)} 分</div><div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn btn-accent btn-sm" onclick="showUD('${u.id}')">⚙️ Управление</button><button class="btn btn-ghost btn-sm" onclick="showCtxMenu(event.clientX,event.clientY,'${u.id}')">⋯ Ещё</button></div>`;
+        cont.appendChild(el);
+    });
+    lucide.createIcons();
+}
+
 // --- Profile ---
 function renderProfile(){
     if(!U)return;
@@ -15579,6 +15682,8 @@ function renderProfile(){
         renderUserProfileSettings();
     }catch(e){console.warn('Profile settings render error:',e);}
     renderProfileCustomization();
+    updateProfTabs();
+    renderProfTab();
 }
 
 // --- User Profile Settings ---
@@ -15976,7 +16081,7 @@ window.showA=function(type){
     else if(type==='withdraw'){renderUL('wdUL',false);$('wdAmt').value='';$('wdReason').value='';}
     else if(type==='editBal'){renderUL('editUL',false);$('editVal').value='';$('editReason').value='';$('editConfirm').classList.add('hidden');}
     else if(type==='startCap'){renderUL('capUL',true);$('capCalc').textContent='';}
-    else if(type==='sendNotif'){renderUL('notifUL',true);$('notifTitle').value='';$('notifText').value='';}
+    else if(type==='sendNotif'){renderUL('notifUL',true);renderNotifGroups();$('notifTitle').value='';$('notifText').value='';}
     else if(type==='couponManage'){socket.emit('admin:coupon:getAll');}
     else if(type==='couponGift'){renderUL('giftUL',false);renderGiftCouponList();$('giftCount').value='1';$('giftDays').value='0';giftSelCoupon=null;}
     else if(type==='couponIssuePaid'){renderUL('paidUL',false);renderPaidCouponList();$('paidCouponInfo').innerHTML='';paidSelCoupon=null;}
@@ -16101,14 +16206,27 @@ window.doStartCap=function(){
     cm('mStartCap');toast('s','Стартовый капитал','Выдано '+tids.length+' пользователям');
 };
 
+function renderNotifGroups(){
+    const box=$('notifGroups');if(!box)return;
+    let gs=(typeof groups!=='undefined'&&groups&&groups.length)?groups.slice():[];
+    try{
+        if(window.Journal&&window.Journal.getData){
+            const j=window.Journal.getData();
+            if(j&&Array.isArray(j.groups))j.groups.forEach(g=>{if(g&&g.id&&!gs.some(x=>x&&x.id===g.id))gs.push({id:g.id,name:g.name});});
+        }
+    }catch(e){}
+    if(!gs.length){box.innerHTML='<div class="muted" style="font-size:12px">Группы не найдены</div>';return;}
+    box.innerHTML=gs.map(g=>`<div class="gpill" data-gid="${esc(g.id)}" onclick="this.classList.toggle('sel')">${esc(g.name)}</div>`).join('');
+}
+function selNotifGroups(){return Array.from(document.querySelectorAll('#notifGroups .gpill.sel')).map(e=>e.dataset.gid);}
 window.doSendNotif=function(){
-    const tids=selUs('notifUL'),titleRaw=$('notifTitle').value.trim(),textRaw=$('notifText').value.trim();
+    const tids=selUs('notifUL'),gids=selNotifGroups(),titleRaw=$('notifTitle').value.trim(),textRaw=$('notifText').value.trim();
     const title=(window.sanitizeUserTextNoUrl?sanitizeUserTextNoUrl(titleRaw,80):titleRaw)||'';
     const text=(window.sanitizeUserTextNoUrl?sanitizeUserTextNoUrl(textRaw,500):textRaw);
     if(text===null||(titleRaw&&title===null)){toast('e','Запрещено','Ссылки и вложения в уведомлениях запрещены.');return;}
-    if(!tids.length){toast('e','Ошибка','Выберите получателей');return;}
+    if(!tids.length&&!gids.length){toast('e','Ошибка','Выберите получателей или группу');return;}
     if(!text){toast('e','Ошибка','Введите текст');return;}
-    socket.emit('admin:sendNotification',{targetIds:tids,title,text});
+    socket.emit('admin:sendNotification',{targetIds:tids,targetGroupIds:gids,title,text});
 };
 
 window.doBackup=function(){socket.emit('admin:backup');};
@@ -21889,6 +22007,10 @@ window.BP={
     examsDelete:function(id){try{if(socket&&socket.emit)socket.emit('exams:delete',{id:id});}catch(e){}},
     examsSaveResult:function(data){try{if(socket&&socket.emit)socket.emit('exams:saveResult',data);}catch(e){}},
     examsSaveAnswer:function(data){try{if(socket&&socket.emit)socket.emit('exams:saveAnswer',data);}catch(e){}},
+    examsSpecialSave:function(data){try{if(socket&&socket.emit)socket.emit('exams:saveSpecialResult',data);}catch(e){}},
+    examsSpecialDelete:function(data){try{if(socket&&socket.emit)socket.emit('exams:deleteSpecialResult',data);}catch(e){}},
+    onExamsSpecialSaved:function(cb){try{if(socket&&socket.on)socket.on('exams:specialSaved',cb);}catch(e){}},
+    onExamsSpecialDeleted:function(cb){try{if(socket&&socket.on)socket.on('exams:specialDeleted',cb);}catch(e){}},
     onExamsUpdate:function(cb){try{if(socket&&socket.on)socket.on('exams:updated',cb);}catch(e){}},
     onExamsResultSaved:function(cb){try{if(socket&&socket.on)socket.on('exams:resultSaved',cb);}catch(e){}},
     onExamsSaved:function(cb){try{if(socket&&socket.on)socket.on('exams:saved',cb);}catch(e){}}

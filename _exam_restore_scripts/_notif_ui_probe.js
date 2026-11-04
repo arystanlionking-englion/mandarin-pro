@@ -1,0 +1,11 @@
+const fs = require('fs');
+const s = fs.readFileSync('C:/Users/狮子/qwerty/personal-bank 72 03,11,2026 18,31/index.html', 'utf8');
+const i = s.indexOf('window.doSendNotif');
+console.log('--- doSendNotif ---');
+console.log(s.slice(i, i + 500));
+console.log('--- groupQuickAction ---');
+const j = s.indexOf('window.groupQuickAction');
+console.log(s.slice(j, j + 1000));
+console.log('--- sendNotif modal ---');
+const k = s.indexOf('id="notifTitle"');
+console.log(s.slice(k - 500, k + 700));
