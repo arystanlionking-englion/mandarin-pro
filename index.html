@@ -11515,6 +11515,19 @@ body.dict-fullscreen .dict-title{color:#fff}
     .aactions{flex-direction:column;align-items:stretch}
     .aactions .btn{width:100%;justify-content:center}
 }
+/* Уведомления и сообщения: полный экран + SMS-стиль */
+.notif-center{max-height:none!important;overflow:visible!important}
+.msg-list .msg-item{max-width:88%}
+.msg-list .msg-sent{align-self:flex-end}
+.msg-list .msg-item:not(.msg-sent){align-self:flex-start}
+@media(max-width:768px){
+    #mNewMsg .modal{height:100vh;max-height:100vh!important;border-radius:0;display:flex;flex-direction:column}
+    #mNewMsg .modal-h{flex:0 0 auto}
+    #mNewMsg .ulist{flex:1 1 auto;max-height:none!important;min-height:140px;overflow-y:auto}
+    #mNewMsg .form-g{flex:0 0 auto}
+    #profTabMsgs,#profTabNotifs,#profTabHist{width:100%}
+    #profTabMsgs .msg-list,#profTabNotifs .notif-center,#secMessages .msg-list,#secNotifications .notif-center{width:100%;max-width:100%}
+}
 </style>
 <script>
 // Remove dynamically injected Netlify badges
@@ -11615,21 +11628,21 @@ body.dict-fullscreen .dict-title{color:#fff}
             <div class="nav-i on" data-s="home" onclick="go('home')"><i data-lucide="home" style="width:16px;height:16px"></i>Главная</div>
             <div class="nav-i" data-s="history" onclick="go('history')"><i data-lucide="history" style="width:16px;height:16px"></i>История</div>
             <div class="nav-i" data-s="purchases" onclick="go('purchases')"><i data-lucide="shopping-bag" style="width:16px;height:16px"></i>Покупки</div>
-            <div class="nav-i" data-s="messages" onclick="go('messages')"><i data-lucide="message-circle" style="width:16px;height:16px"></i>Сообщения<span class="badge hidden" id="sideMsgBadge"></span></div>
+            <div class="nav-i hidden" data-s="messages" onclick="go('messages')"><i data-lucide="message-circle" style="width:16px;height:16px"></i>Сообщения<span class="badge hidden" id="sideMsgBadge"></span></div>
             <div class="nav-i" data-s="notifications" onclick="go('notifications')"><i data-lucide="bell" style="width:16px;height:16px"></i>Уведомления<span class="badge hidden" id="sideNotifBadge"></span></div>
             <div class="nav-i" data-s="coupons" onclick="go('coupons')"><i data-lucide="ticket" style="width:16px;height:16px"></i>🎟️ Купоны</div>
             <div class="nav-i" data-s="quests" onclick="go('quests')"><i data-lucide="sword" style="width:16px;height:16px"></i>🎯 Квесты</div>
             <div class="nav-i" data-s="tasks" onclick="go('tasks')"><i data-lucide="clipboard-list" style="width:16px;height:16px"></i>📋 Задания</div>
             <div class="nav-i" data-s="duels" onclick="go('duels')"><i data-lucide="swords" style="width:16px;height:16px"></i>⚔️ Дуэли</div>
-            <div class="nav-i" data-s="mafia" onclick="go('mafia')"><i data-lucide="venetian-mask" style="width:16px;height:16px"></i>🎭 МАФИЯ</div>
+            <div class="nav-i hidden" data-s="mafia" onclick="go('mafia')"><i data-lucide="venetian-mask" style="width:16px;height:16px"></i>🎭 МАФИЯ</div>
             <div class="nav-i" data-s="games" onclick="go('games')"><i data-lucide="gamepad-2" style="width:16px;height:16px"></i>🎮 Игры</div>
-            <div class="nav-i" data-s="mybanks" onclick="go('mybanks')"><i data-lucide="landmark" style="width:16px;height:16px"></i>🏦 Мои банки</div>
-            <div class="nav-i" data-s="battlepass" onclick="go('battlepass')"><i data-lucide="award" style="width:16px;height:16px"></i>🐉 Сезонный путь</div>
-            <div class="nav-i" data-s="myqr" onclick="go('myqr')"><i data-lucide="qr-code" style="width:16px;height:16px"></i>📱 Мой QR</div>
+            <div class="nav-i hidden" data-s="battlepass" onclick="go('battlepass')"><i data-lucide="award" style="width:16px;height:16px"></i>🐉 Сезонный путь</div>
+            <div class="nav-i hidden" data-s="myqr" onclick="go('myqr')"><i data-lucide="qr-code" style="width:16px;height:16px"></i>📱 Мой QR</div>
             <div class="nav-i" data-s="qrterminal" onclick="go('qrterminal')"><i data-lucide="scan" style="width:16px;height:16px"></i>📷 QR-Терминал</div>
-            <div class="nav-i" data-s="journal" onclick="go('journal')"><i data-lucide="book-open-check" style="width:16px;height:16px"></i>📖 Журнал</div>
+            <div class="nav-i hidden" data-s="journal" onclick="go('journal')"><i data-lucide="book-open-check" style="width:16px;height:16px"></i>📖 Журнал</div>
             <div class="nav-i" data-s="exams" onclick="go('exams')"><i data-lucide="clipboard-check" style="width:16px;height:16px"></i>📝 Экзамены</div>
             <div class="nav-i" data-s="dictionary" onclick="go('dictionary')"><i data-lucide="book-a" style="width:16px;height:16px"></i>📖 Словарь</div>
+            <div class="nav-i" data-s="mybanks" onclick="go('mybanks')"><i data-lucide="landmark" style="width:16px;height:16px"></i>🏦 Мои банки</div>
             <div class="nav-i" data-s="profile" onclick="go('profile')"><i data-lucide="user" style="width:16px;height:16px"></i>Профиль</div>
             <div class="nav-i hidden" id="navAdmin" data-s="admin" onclick="go('admin')"><i data-lucide="shield" style="width:16px;height:16px"></i>老师 🦁 Панель</div>
             <div class="nav-i hidden" id="navAdminQr" data-s="adminqr" onclick="go('adminqr')"><i data-lucide="qr-code" style="width:16px;height:16px"></i>📊 QR-Коды</div>
@@ -11746,6 +11759,7 @@ body.dict-fullscreen .dict-title{color:#fff}
                 <div class="coupon-subtab" data-ptab="msgs" onclick="switchProfTab('msgs')">💬 Сообщения</div>
                 <div class="coupon-subtab" data-ptab="notifs" onclick="switchProfTab('notifs')">🔔 Уведомления</div>
                 <div class="coupon-subtab" data-ptab="hist" onclick="switchProfTab('hist')">📜 История</div>
+                <div class="coupon-subtab" data-ptab="bp" onclick="switchProfTab('bp')">🐉 Сезонный путь</div>
                 <div class="coupon-subtab hidden" id="profTabManageBtn" data-ptab="manage" onclick="switchProfTab('manage')">👥 Управление</div>
             </div>
             <div id="profTabMe">
@@ -11822,9 +11836,73 @@ body.dict-fullscreen .dict-title{color:#fff}
                 </div>
             </div>
             </div>
-            <div id="profTabMsgs" class="hidden"><div class="msg-list" id="profMsgList"></div></div>
+            <div id="profTabMsgs" class="hidden">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px;flex-wrap:wrap">
+                    <div class="stitle" style="margin-bottom:0">Сообщения</div>
+                    <button class="btn btn-accent btn-sm" onclick="showNewMessage()"><i data-lucide="edit" style="width:14px;height:14px"></i> Новое сообщение</button>
+                </div>
+                <div class="msg-list" id="profMsgList"></div>
+            </div>
             <div id="profTabNotifs" class="hidden"><div class="notif-center" id="profNotifList"></div></div>
             <div id="profTabHist" class="hidden"><div class="hlist" id="profHistList"></div></div>
+            <div id="profTabBp" class="hidden">
+            <div class="coupon-chinese-title">
+                <div class="zh">🐉 赛季之路</div>
+                <div class="ru">Сезонный путь · Путь Дракона</div>
+                <div class="sub">Выполняйте задания, получайте XP и открывайте награды</div>
+            </div>
+            <div class="role-bar" id="bpRoleBar">
+                <div class="rb-left">
+                    <span class="role-tag" id="bpRoleTag">Ученик</span>
+                    <span style="font-family:var(--font-accent);font-size:13px;color:var(--dim)">Сезон 1</span>
+                </div>
+                <div style="text-align:right;font-family:monospace">
+                    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em">До конца сезона</div>
+                    <div style="font-size:18px;font-weight:700;color:var(--accent)" id="bpTimer">—</div>
+                </div>
+            </div>
+            <div class="bal-card" style="margin-bottom:16px">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+                    <div style="font-size:15px;font-weight:700">Уровень <b id="bpLevel" style="color:var(--accent);font-size:20px">1</b></div>
+                    <div style="font-size:12px;color:var(--dim)"><span id="bpXpInLevel">0</span> / <span id="bpXpNeeded">200</span> XP</div>
+                </div>
+                <div class="xp-bar" style="height:10px"><div class="xp-bar-fill" id="bpXpFill" style="height:100%"></div></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <div class="stitle" style="margin-bottom:0">Боевой пропуск</div>
+                <div style="font-size:13px;color:var(--accent);font-weight:700">Баланс: <span id="bpPoints">0</span> баллов</div>
+            </div>
+            <div class="bp-track-wrap" style="overflow-x:auto;padding:6px 0 16px;margin:0 -2px;position:relative">
+                <div id="bpTrack" style="display:flex;gap:0;min-width:max-content"></div>
+            </div>
+            <div class="stitle mt-12">Профиль и кастомизация</div>
+            <div style="display:grid;grid-template-columns:1fr;gap:16px" id="bpProfileGrid">
+                <div class="profile-card" id="bpProfileCard">
+                    <div class="av" id="bpAvatar" style="font-size:34px">🎓</div>
+                    <div class="nm" id="bpUserName">Ученик</div>
+                    <div class="role" id="bpTitleText">Новичок</div>
+                    <div class="profile-stats">
+                        <div class="pstat"><div class="v" id="bpStatLevel">1</div><div class="l">Уровень</div></div>
+                        <div class="pstat"><div class="v" id="bpStatPts">0</div><div class="l">Баллы</div></div>
+                        <div class="pstat"><div class="v" id="bpStatTitles">1</div><div class="l">Титулов</div></div>
+                    </div>
+                </div>
+                <div class="custom-panel" id="bpCustomPanel" style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px">
+                    <div style="margin-bottom:14px">
+                        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">Титул</div>
+                        <div id="bpTitleChips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+                    </div>
+                    <div style="margin-bottom:14px">
+                        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">Цвет никнейма</div>
+                        <div id="bpColorChips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+                    </div>
+                    <div>
+                        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">Иконка профиля</div>
+                        <div id="bpIconChips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+                    </div>
+                </div>
+            </div>
+            </div>
             <div id="profTabManage" class="hidden"><div id="profManageList"></div></div>
         </div>
 
@@ -11904,65 +11982,8 @@ body.dict-fullscreen .dict-title{color:#fff}
             <div id="duelArena" class="hidden"></div>
         </div>
 
-        <!-- BATTLE PASS / SEASON PATH -->
-        <div class="sec" id="secBattlepass">
-            <div class="coupon-chinese-title">
-                <div class="zh">🐉 赛季之路</div>
-                <div class="ru">Сезонный путь · Путь Дракона</div>
-                <div class="sub">Выполняйте задания, получайте XP и открывайте награды</div>
-            </div>
-            <div class="role-bar" id="bpRoleBar">
-                <div class="rb-left">
-                    <span class="role-tag" id="bpRoleTag">Ученик</span>
-                    <span style="font-family:var(--font-accent);font-size:13px;color:var(--dim)">Сезон 1</span>
-                </div>
-                <div style="text-align:right;font-family:monospace">
-                    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em">До конца сезона</div>
-                    <div style="font-size:18px;font-weight:700;color:var(--accent)" id="bpTimer">—</div>
-                </div>
-            </div>
-            <div class="bal-card" style="margin-bottom:16px">
-                <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
-                    <div style="font-size:15px;font-weight:700">Уровень <b id="bpLevel" style="color:var(--accent);font-size:20px">1</b></div>
-                    <div style="font-size:12px;color:var(--dim)"><span id="bpXpInLevel">0</span> / <span id="bpXpNeeded">200</span> XP</div>
-                </div>
-                <div class="xp-bar" style="height:10px"><div class="xp-bar-fill" id="bpXpFill" style="height:100%"></div></div>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-                <div class="stitle" style="margin-bottom:0">Боевой пропуск</div>
-                <div style="font-size:13px;color:var(--accent);font-weight:700">Баланс: <span id="bpPoints">0</span> баллов</div>
-            </div>
-            <div class="bp-track-wrap" style="overflow-x:auto;padding:6px 0 16px;margin:0 -2px;position:relative">
-                <div id="bpTrack" style="display:flex;gap:0;min-width:max-content"></div>
-            </div>
-            <div class="stitle mt-12">Профиль и кастомизация</div>
-            <div style="display:grid;grid-template-columns:1fr;gap:16px" id="bpProfileGrid">
-                <div class="profile-card" id="bpProfileCard">
-                    <div class="av" id="bpAvatar" style="font-size:34px">🎓</div>
-                    <div class="nm" id="bpUserName">Ученик</div>
-                    <div class="role" id="bpTitleText">Новичок</div>
-                    <div class="profile-stats">
-                        <div class="pstat"><div class="v" id="bpStatLevel">1</div><div class="l">Уровень</div></div>
-                        <div class="pstat"><div class="v" id="bpStatPts">0</div><div class="l">Баллы</div></div>
-                        <div class="pstat"><div class="v" id="bpStatTitles">1</div><div class="l">Титулов</div></div>
-                    </div>
-                </div>
-                <div class="custom-panel" id="bpCustomPanel" style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px">
-                    <div style="margin-bottom:14px">
-                        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">Титул</div>
-                        <div id="bpTitleChips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-                    </div>
-                    <div style="margin-bottom:14px">
-                        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">Цвет никнейма</div>
-                        <div id="bpColorChips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-                    </div>
-                    <div>
-                        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">Иконка профиля</div>
-                        <div id="bpIconChips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <!-- BATTLE PASS / SEASON PATH (перенесён в «Мой профиль» — profTabBp) -->
+        <div class="sec" id="secBattlepass"></div>
 
         <!-- MY QR -->
         <div class="sec" id="secMyqr">
@@ -12258,6 +12279,9 @@ body.dict-fullscreen .dict-title{color:#fff}
                 <div class="ru">Мой дневник</div>
                 <div class="sub">Личные оценки, домашнее задание и история занятий</div>
             </div>
+            <div style="margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap">
+                <button type="button" class="btn btn-accent btn-sm" onclick="go('homework')"><i data-lucide="book-open-check" style="width:16px;height:16px"></i> 📝 Домашнее задание</button>
+            </div>
             <div id="diaryRoot"></div>
         </div>
 
@@ -12346,7 +12370,7 @@ body.dict-fullscreen .dict-title{color:#fff}
 <!-- BOTTOM NAVIGATION (Mobile) -->
 <nav class="mob-bottom-nav" id="mobBottomNav">
   <div class="bnav-item on" data-s="home" onclick="go('home')"><i data-lucide="home" style="width:20px;height:20px"></i><span>Главная</span></div>
-  <div class="bnav-item" data-s="diary" id="bnavDiary" onclick="go(isAdmin?'journal':'diary')"><i data-lucide="book-open" style="width:20px;height:20px"></i><span id="bnavDiaryLabel">Дневник</span></div>
+  <div class="bnav-item" data-s="diary" id="bnavDiary" onclick="go('diary')"><i data-lucide="book-open" style="width:20px;height:20px"></i><span id="bnavDiaryLabel">Дневник</span></div>
   <div class="bnav-item center" data-s="qrterminal" onclick="go('qrterminal')"><div class="bnav-center-icon"><i data-lucide="scan" style="width:22px;height:22px"></i></div><span>QR</span></div>
   <div class="bnav-item" data-s="dictionary" onclick="go('dictionary')"><i data-lucide="book-a" style="width:20px;height:20px"></i><span>Словарь</span></div>
   <div class="bnav-item" data-s="exams" onclick="go('exams')"><i data-lucide="clipboard-check" style="width:20px;height:20px"></i><span>Экзамены</span></div>
@@ -12362,26 +12386,27 @@ body.dict-fullscreen .dict-title{color:#fff}
     <div class="sm-item" onclick="go('home');closeSlideMenu()"><i data-lucide="home" style="width:18px;height:18px"></i>Главная</div>
     <div class="sm-item" onclick="showPurchase();closeSlideMenu()"><i data-lucide="shopping-bag" style="width:18px;height:18px"></i>Покупка</div>
     <div class="sm-item" onclick="showTransfer();closeSlideMenu()"><i data-lucide="send" style="width:18px;height:18px"></i>Перевод</div>
-    <div class="sm-item" onclick="go('messages');closeSlideMenu()"><i data-lucide="message-circle" style="width:18px;height:18px"></i>Сообщения и уведомления<span class="badge hidden" id="slideMsgBadge"></span></div>
+    <div class="sm-item" onclick="go('notifications');closeSlideMenu()"><i data-lucide="bell" style="width:18px;height:18px"></i>Уведомления<span class="badge hidden" id="slideNotifBadge"></span></div>
     <div class="sm-sep"></div>
     <div class="sm-item" onclick="go('coupons');closeSlideMenu()"><i data-lucide="ticket" style="width:18px;height:18px"></i>🎟️ Купоны</div>
     <div class="sm-item" onclick="go('quests');closeSlideMenu()"><i data-lucide="sword" style="width:18px;height:18px"></i>🎯 Квесты</div>
     <div class="sm-item" onclick="go('tasks');closeSlideMenu()"><i data-lucide="clipboard-list" style="width:18px;height:18px"></i>📋 Задания</div>
     <div class="sm-item" onclick="go('duels');closeSlideMenu()"><i data-lucide="swords" style="width:18px;height:18px"></i>⚔️ Дуэли</div>
-    <div class="sm-item" onclick="go('mafia');closeSlideMenu()"><i data-lucide="venetian-mask" style="width:18px;height:18px"></i>🎭 МАФИЯ</div>
+    <div class="sm-item hidden" onclick="go('mafia');closeSlideMenu()"><i data-lucide="venetian-mask" style="width:18px;height:18px"></i>🎭 МАФИЯ</div>
     <div class="sm-item" data-s="games" onclick="go('games');closeSlideMenu()"><i data-lucide="gamepad-2" style="width:18px;height:18px"></i>🎮 Игры</div>
-    <div class="sm-item" onclick="go('mybanks');closeSlideMenu()"><i data-lucide="landmark" style="width:18px;height:18px"></i>🏦 Мои банки</div>
-    <div class="sm-item" onclick="go('battlepass');closeSlideMenu()"><i data-lucide="award" style="width:18px;height:18px"></i>🐉 Сезонный путь</div>
-    <div class="sm-item" onclick="go('myqr');closeSlideMenu()"><i data-lucide="qr-code" style="width:18px;height:18px"></i>📱 Мой QR</div>
+    <div class="sm-item hidden" onclick="go('battlepass');closeSlideMenu()"><i data-lucide="award" style="width:18px;height:18px"></i>🐉 Сезонный путь</div>
+    <div class="sm-item hidden" onclick="go('myqr');closeSlideMenu()"><i data-lucide="qr-code" style="width:18px;height:18px"></i>📱 Мой QR</div>
     <div class="sm-item" onclick="go('qrterminal');closeSlideMenu()"><i data-lucide="scan" style="width:18px;height:18px"></i>📷 QR-Терминал</div>
-    <div class="sm-item" data-s="journal" onclick="go('journal');closeSlideMenu()"><i data-lucide="book-open-check" style="width:18px;height:18px"></i>📖 Журнал</div>
+    <div class="sm-item hidden" data-s="journal" onclick="go('journal');closeSlideMenu()"><i data-lucide="book-open-check" style="width:18px;height:18px"></i>📖 Журнал</div>
     <div class="sm-item" data-s="exams" onclick="go('exams');closeSlideMenu()"><i data-lucide="clipboard-check" style="width:18px;height:18px"></i>📝 Экзамены</div>
     <div class="sm-item" data-s="dictionary" onclick="go('dictionary');closeSlideMenu()"><i data-lucide="book-a" style="width:18px;height:18px"></i>📖 Словарь</div>
     <div class="sm-item" data-s="diary" onclick="go('diary');closeSlideMenu()"><i data-lucide="book-open" style="width:18px;height:18px"></i>📔 Дневник</div>
     <div class="sm-item hidden" id="slideHwBtn" data-s="homework" onclick="go('homework');closeSlideMenu()"><i data-lucide="book-open-check" style="width:18px;height:18px"></i>📝 ДЗ</div>
     <div class="sm-sep"></div>
+    <div class="sm-item" onclick="go('mybanks');closeSlideMenu()"><i data-lucide="landmark" style="width:18px;height:18px"></i>🏦 Мои банки</div>
     <div class="sm-item" onclick="showInvestments();closeSlideMenu()"><i data-lucide="trending-up" style="width:18px;height:18px"></i>Инвестиции</div>
     <div class="sm-foot">
+        <div class="sm-item" data-s="users" onclick="go('users');closeSlideMenu()"><i data-lucide="users" style="width:18px;height:18px"></i>👥 Пользователи</div>
         <div class="sm-item" onclick="go('profile');closeSlideMenu()"><i data-lucide="user" style="width:18px;height:18px"></i>Профиль</div>
         <div class="sm-item hidden" id="slideAdminBtn" onclick="go('admin');closeSlideMenu()"><i data-lucide="shield" style="width:18px;height:18px"></i>老师 🦁 Панель</div>
         <div class="sm-item hidden" id="slideAdminQrBtn" onclick="go('adminqr');closeSlideMenu()"><i data-lucide="qr-code" style="width:18px;height:18px"></i>📊 QR-Коды</div>
@@ -14134,7 +14159,6 @@ function updateAdminUI(){
     if(typeof updateProfTabs==='function')updateProfTabs();
     $('sideAdminBadge')?.classList.toggle('show',show);
     $('mobAdminBadge')?.classList.toggle('show',show);
-    const bnavLabel=$('bnavDiaryLabel');if(bnavLabel)bnavLabel.textContent=show?'Журнал':'Дневник';
     if(show&&U){
         const teacherLabel=U.name+' 老师 🦁';
         if($('sideAdminBadge'))$('sideAdminBadge').textContent=teacherLabel;
@@ -14340,7 +14364,7 @@ socket.on('transaction:new',tx=>{
 });
 
 socket.on('message:new',m=>{
-    if(!msgs.find(x=>x.id===m.id)){msgs.unshift(m);if(curSec==='messages')renderMessages();updateMsgBadge();}
+    if(!msgs.find(x=>x.id===m.id)){msgs.unshift(m);if(curSec==='messages')renderMessages();if(curSec==='profile'&&profTab==='msgs')renderProfTab();updateMsgBadge();}
 });
 
 socket.on('transfer:success',d=>{
@@ -14372,6 +14396,7 @@ socket.on('notifications:list',d=>{
     notifs=d.notifications||[];
     updateNotifBadge();
     if(curSec==='notifications')renderNotifications();
+    if(curSec==='profile'&&profTab==='notifs')renderProfTab();
     // Only show special popups for notifications we haven't shown yet this session
     const unreadPoints=notifs.filter(n=>!n.read&&n.type==='points_awarded'&&n.targetUserId===U?.id&&!shownNotifIds.has(n.id));
     if(unreadPoints.length>0){
@@ -14390,6 +14415,7 @@ socket.on('approval:list',d=>{
     approvalRequests=d.requests||[];
     updateApprovalBadge();
     if(curSec==='notifications')renderNotifications();
+    if(curSec==='profile'&&profTab==='notifs')renderProfTab();
 });
 socket.on('approval:new',d=>{
     if(d.request){
@@ -15593,7 +15619,7 @@ socket.on('admin:accountRequestMarked',()=>{
 
 // --- Profile tabs ---
 let profTab='me';
-const PROF_TABS={me:'profTabMe',msgs:'profTabMsgs',notifs:'profTabNotifs',hist:'profTabHist',manage:'profTabManage'};
+const PROF_TABS={me:'profTabMe',msgs:'profTabMsgs',notifs:'profTabNotifs',hist:'profTabHist',bp:'profTabBp',manage:'profTabManage'};
 window.switchProfTab=function(tab){
     if(!PROF_TABS[tab])return;
     if(tab==='manage'&&!isAdmin)return;
@@ -15652,6 +15678,9 @@ function renderProfTab(){
             el.onclick=function(){if(!n.read)socket.emit('notifications:read',{notifId:n.id});};
             cont.appendChild(el);
         });
+    }else if(profTab==='bp'){
+        if(typeof requestBattlePass==='function')requestBattlePass();
+        else if(typeof renderBattlePass==='function')renderBattlePass();
     }else if(profTab==='manage'){
         renderProfManage();
     }
@@ -19164,6 +19193,11 @@ window.go=function(s){
     }
     // Journal is admin-only; block before any section is shown
     if(s==='journal'){/* journal is available from main menu */}
+    // Сезонный путь перенесён в «Мой профиль» — открываем вкладку профиля
+    if(s==='battlepass'){
+        s='profile';
+        if(typeof switchProfTab==='function')switchProfTab('bp');
+    }
     _origGo2(s);
     if(s==='quests'){socket.emit('quest:getList');}
     if(s==='tasks'){socket.emit('task:getList');}
@@ -19181,7 +19215,6 @@ window.go=function(s){
         }
         document.body.classList.add('sec-notifications');
     }
-    if(s==='battlepass'){requestBattlePass();}
     if(s==='myqr'){generateMyQRPage();}
     if(s==='qrterminal'){socket.emit('qr:generateData');socket.emit('qr:getUsers');socket.emit('qr:getHistory');generateMyQR();}
     if(s==='mybanks'){currentBankView=null;$('bankListView').classList.remove('hidden');$('bankDetailView').classList.add('hidden');socket.emit('bank:getAll');socket.emit('bank:getDeposits');socket.emit('bank:getHistory');renderMyBanks();}

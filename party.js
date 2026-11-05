@@ -192,10 +192,12 @@
             + '<div class="pg-modes">'
             + '<button type="button" class="pg-mode" data-act="choose" data-mode="croc"><span class="num">01 / ПОКАЖИ БЕЗ СЛОВ</span><h2>🎭 Крокодил</h2><p>Знакомые герои. Неожиданные образы. Сможете показать, не произнеся ни слова?</p><div class="bottom"><span>' + cN + ' персонажей</span><span>↗</span></div></button>'
             + '<button type="button" class="pg-mode" data-act="choose" data-mode="bunker"><span class="num">02 / ПРЕДСТАВЬ СВОЕГО ГЕРОЯ</span><h2>🚀 Бункер</h2><p>У каждого — своя роль. Откройте персонажа и расскажите о себе.</p><div class="bottom"><span>' + bN + ' персонажей</span><span>↗</span></div></button>'
+            + '<button type="button" class="pg-mode" data-act="mafia"><span class="num">03 / НОЧЬ ГОРОДА</span><h2>🎭 Мафия</h2><p>Мирные жители и мафия. Найдите, кто врёт, пока город спит.</p><div class="bottom"><span>Классическая игра</span><span>↗</span></div></button>'
             + '</div>'
             + '<div class="pg-panel"><div class="pg-row">'
             + '<button type="button" class="pg-btn primary" data-act="goCroc" style="margin:0;flex:1">🎭 Крокодил</button>'
             + '<button type="button" class="pg-btn" data-act="goBunker" style="margin:0;flex:1">🚀 Бункер</button>'
+            + '<button type="button" class="pg-btn" data-act="mafia" style="margin:0;flex:1">🎭 Мафия</button>'
             + '</div><button type="button" class="pg-btn" data-act="editor">📚 Колоды персонажей</button>'
             + '<p class="pg-muted" style="margin-top:12px">Общие аккаунты Bank Mandarin Pro. Без отдельного ПИН и ввода имени.</p></div>';
     }
@@ -360,6 +362,7 @@
         try {
             switch (a) {
                 case 'home': page = 'home'; render(); break;
+                case 'mafia': if (window.go) window.go('mafia'); break;
                 case 'choose':
                     activeMode = b.dataset.mode || 'croc';
                     mode = activeMode;
