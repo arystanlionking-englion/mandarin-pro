@@ -102,8 +102,29 @@ async function main() {
     const hdr = await jget(BASE + '/ai-office/api/state', { 'X-Admin-Token': admin.token });
     ok('доступ по заголовку X-Admin-Token → 200', hdr.status === 200, hdr.status);
 
+    // --- 2б) адреса: ngrok-туннель, локальная сеть, чужой Origin ---
+    const rawGet = (hostHeader, path, headers) => new Promise((resolve, reject) => {
+      const req = require('http').request({ host: '127.0.0.1', port: PORT, path, method: 'GET', headers: Object.assign({ Host: hostHeader }, headers || {}) }, res => {
+        let d = ''; res.on('data', c => d += c); res.on('end', () => resolve({ status: res.statusCode, body: d }));
+      });
+      req.on('error', reject); req.end();
+    });
+    const ng = await rawGet('darkness-grip-audible.ngrok-free.dev', '/ai-office/', { Cookie: cookie });
+    ok('доступ через ngrok-адрес (Host туннеля) → 200', ng.status === 200, ng.status);
+    const lan = await rawGet('192.168.1.50:3210', '/ai-office/api/state', { Cookie: cookie });
+    ok('доступ из локальной сети (LAN Host) → 200', lan.status === 200, lan.status);
+    const badHost = await rawGet('evil.example', '/ai-office/api/state', { Cookie: cookie });
+    ok('адрес (Host) не блокирует работу админа → 200', badHost.status === 200, badHost.status);
+    const badHostAnon = await rawGet('evil.example', '/ai-office/api/state', {});
+    ok('без админ-прав любой адрес → 403', badHostAnon.status === 403, badHostAnon.status);
+    const evilPost = await jpost(BASE + '/ai-office/api/action', { action: 'project', name: 'evil' }, { Cookie: cookie, Origin: 'https://evil.example' });
+    ok('POST с чужим Origin → 403 (CSRF)', evilPost.status === 403, evilPost.status);
+
     // --- 3) ключи: маска вместо секрета, замена, удаление ---
     const FAKE = 'test-key-abcdef1234';
+    const keyOnly = await jpost(BASE + '/ai-office/api/action', { action: 'connection', provider: 'mimo', key: FAKE }, { Cookie: cookie });
+    ok('подключение только по ключу (без названия и модели) → 200', keyOnly.status === 200 && !!keyOnly.data.id && !!keyOnly.data.model, keyOnly.data && keyOnly.data.model);
+    await jpost(BASE + '/ai-office/api/action', { action: 'delete-connection', id: keyOnly.data.id }, { Cookie: cookie });
     const conn = await jpost(BASE + '/ai-office/api/action', { action: 'connection', provider: 'mimo', name: 'Проверка MiMo', model: 'mimo-v2.5', key: FAKE }, { Cookie: cookie });
     ok('подключение создаётся → 200', conn.status === 200 && !!conn.data.id, conn.status);
     ok('в ответе нет секрета, есть маска', conn.data && conn.data.secret === undefined && /1234$/.test(conn.data.mask || ''), conn.data && conn.data.mask);
