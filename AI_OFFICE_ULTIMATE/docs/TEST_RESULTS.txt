@@ -1,0 +1,18 @@
+✔ secrets are encrypted, randomized and owner-bound (1.692221ms)
+✔ password verification (142.256562ms)
+✔ test generator validates count, keys and duplicates (0.807594ms)
+✔ Word generation and targeted editing preserve every other archive part (82.343469ms)
+✔ complex Word fields are locked (1.975046ms)
+(node:51) ExperimentalWarning: vm.USE_MAIN_CONTEXT_DEFAULT_LOADER is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ XLSX generation, extraction and local cell edit retain other formula (6.194041ms)
+✔ PPTX generation and editable slide text (27.70935ms)
+✔ server: authentication, origin, encrypted keys, parallel partial failure, synthesis, idempotency, owner isolation (155.463673ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 297.259465

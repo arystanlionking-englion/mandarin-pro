@@ -11491,6 +11491,20 @@ body.dict-fullscreen .dict-title{color:#fff}
   font-size:13px;font-weight:700;cursor:pointer
 }
 .dict-close:hover{background:rgba(255,255,255,.16)}
+/* --- AI Office iframe (admin only, fullscreen like dictionary) --- */
+body.aioffice-fullscreen{overflow:hidden;height:100%;height:100dvh}
+body.aioffice-fullscreen .sidebar,
+body.aioffice-fullscreen .mob-bottom-nav,
+body.aioffice-fullscreen .mob-header,
+body.aioffice-fullscreen .slide-menu,
+body.aioffice-fullscreen .slide-menu-overlay{display:none!important}
+body.aioffice-fullscreen .layout{display:block;min-height:100dvh}
+body.aioffice-fullscreen .main{max-width:none!important;width:100%!important;margin:0!important;padding:0!important;height:100dvh!important;overflow:hidden!important}
+body.aioffice-fullscreen #secAioffice.on{position:fixed;inset:0;z-index:500;margin:0!important;padding:0!important;background:#fff;display:block!important;animation:none!important}
+body.aioffice-fullscreen .dict-wrap{height:100dvh!important;min-height:0!important;border:0!important;border-radius:0!important}
+body.aioffice-fullscreen .dict-toolbar{background:rgba(13,13,20,.92);border-bottom:1px solid rgba(255,255,255,.08);padding-top:max(10px,env(safe-area-inset-top))}
+body.aioffice-fullscreen .dict-title{color:#fff}
+@media (max-width:768px){body.aioffice-fullscreen .dict-wrap{height:100dvh!important}}
 @media (max-width:768px){
   .dict-wrap{height:calc(100vh - 140px);border-radius:0;border-left:0;border-right:0}
   .hw-card-actions .btn{flex:1 1 auto}
@@ -12097,6 +12111,8 @@ body.dict-fullscreen .dict-title{color:#fff}
                     <button class="btn btn-success btn-sm" onclick="showA('startCap')"><i data-lucide="gift" style="width:18px;height:18px"></i> Стартовые 1000</button>
                     <button class="btn btn-accent btn-sm" onclick="showA('sendNotif')"><i data-lucide="bell" style="width:18px;height:18px"></i> Уведомление</button>
                     <button class="btn btn-ghost btn-sm" onclick="showA('backup')"><i data-lucide="database" style="width:18px;height:18px"></i> Резервная копия</button>
+                    <button class="btn btn-accent btn-sm" onclick="openAiOffice()" style="background:linear-gradient(135deg,#7c5cff,#293e32);color:#fff;font-weight:700"><i data-lucide="bot" style="width:18px;height:18px"></i> 🤖 AI Office</button>
+                    <button class="btn btn-ghost btn-sm" onclick="openAiOffice('settings')"><i data-lucide="key-round" style="width:18px;height:18px"></i> Настройки ИИ</button>
                     <button class="btn btn-accent btn-sm" onclick="go('users')"><i data-lucide="users" style="width:18px;height:18px"></i> Пользователи</button>
                     <button class="btn btn-accent btn-sm" onclick="showA('startRest')"><i data-lucide="moon" style="width:18px;height:18px"></i> 😴 Отдых (Alt+5)</button>
                     <button class="btn btn-warning btn-sm" onclick="showA('globalMode')"><i data-lucide="globe" style="width:18px;height:18px"></i> 🌐 Глобальное управление</button>
@@ -12306,6 +12322,21 @@ body.dict-fullscreen .dict-title{color:#fff}
                     </div>
                 </div>
                 <iframe id="dictFrame" class="dict-frame" title="Словарь китайского языка" src="" data-src="/dictionary"
+                    loading="eager" referrerpolicy="no-referrer"></iframe>
+            </div>
+        </div>
+
+        <!-- AI OFFICE (admin only, fullscreen iframe) -->
+        <div class="sec" id="secAioffice">
+            <div class="dict-wrap">
+                <div class="dict-toolbar">
+                    <div class="dict-title">🤖 AI Office</div>
+                    <div style="display:flex;gap:8px;align-items:center">
+                        <button type="button" class="btn btn-ghost btn-sm" id="aioReload" title="Обновить" style="color:inherit" onclick="reloadAiOffice()">↻</button>
+                        <button type="button" class="dict-close" id="aioClose" title="Закрыть" onclick="closeAiOffice();return false;">✕ Закрыть</button>
+                    </div>
+                </div>
+                <iframe id="aiOfficeFrame" class="dict-frame" title="AI Office" src="" data-src="/ai-office/"
                     loading="eager" referrerpolicy="no-referrer"></iframe>
             </div>
         </div>
@@ -14131,6 +14162,33 @@ function showAuthErr(msg){$('authErr').textContent=msg;$('authErr').style.displa
 
 function showApp(){$('authScreen').style.display='none';$('app').classList.add('show');lucide.createIcons();}
 
+// --- AI Office (доступ только для администратора, iframe того же origin) ---
+window.openAiOffice=function(section){
+    if(typeof isAdmin!=='undefined'&&!isAdmin){toast('w','AI Office','Доступ только для администратора');return;}
+    var token='';try{token=localStorage.getItem('pb_admin_token')||'';}catch(e){}
+    if(!token){toast('w','AI Office','Сначала войдите в панель администратора');return;}
+    fetch('/api/ai-office/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminToken:token}),credentials:'same-origin'}).then(function(r){
+        if(!r.ok)throw new Error('Нет админ-доступа');
+        document.body.classList.add('aioffice-fullscreen');
+        var sec=document.getElementById('secAioffice');if(sec)sec.classList.add('on');
+        var fr=document.getElementById('aiOfficeFrame');
+        if(fr){
+            if(!fr.getAttribute('src')||fr.getAttribute('src')==='about:blank'){
+                fr.setAttribute('src',section==='settings'?'/ai-office/#settings':'/ai-office/');
+            }else if(section==='settings'){
+                try{fr.contentWindow.postMessage({aioSection:'settings'},'*');}catch(e){fr.setAttribute('src','/ai-office/#settings');}
+            }
+        }
+        try{lucide.createIcons();}catch(e){}
+    }).catch(function(e){toast('w','AI Office',e.message||'Нет доступа');});
+};
+window.closeAiOffice=function(){
+    document.body.classList.remove('aioffice-fullscreen');
+    var sec=document.getElementById('secAioffice');if(sec)sec.classList.remove('on');
+    try{if(typeof go==='function')go('admin');}catch(e){}
+};
+window.reloadAiOffice=function(){var fr=document.getElementById('aiOfficeFrame');if(fr)fr.setAttribute('src','/ai-office/');};
+
 // --- Admin Login ---
 window.showAdminLogin=function(){
     clearPinFields('adminModalPinFields');
@@ -14174,6 +14232,7 @@ window.exitAdmin=function(){
     isAdmin=false;
     adminSessionExpiry=0;
     try{localStorage.removeItem('pb_admin_token');}catch(e){}
+    try{fetch('/api/ai-office/logout',{method:'POST',credentials:'same-origin'});}catch(e){}
     if(adminSessionTimer){clearInterval(adminSessionTimer);adminSessionTimer=null;}
     updateAdminUI();go('home');
     toast('i','老师 🦁','Режим учителя отключён');

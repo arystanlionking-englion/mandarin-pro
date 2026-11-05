@@ -85,7 +85,63 @@ if (usePg) {
 
 const app = express();
 app.use(cors({ origin: '*' }));
+app.use(cors({ origin: '*' }));
+
+// --- AI Office: защита статики и служебных файлов (секреты/БД не отдаются) ---
+app.use((req, res, next) => {
+    let p = String(req.url || '').split('?')[0];
+    try { p = decodeURIComponent(p); } catch (e) { }
+    const low = p.toLowerCase();
+    if (low.startsWith('/ai-office')) return next(); // свой обработчик с проверкой админа
+    if (low.startsWith('/ai_office_ultimate') || low.startsWith('/.data/') || low === '/.data' ||
+        low === '/master.key' || low === '/office.sqlite' || low === '/database.json' ||
+        low.startsWith('/database.json.') || low.endsWith('/master.key') || low.endsWith('/office.sqlite')) {
+        res.status(403).type('text/plain').send('Доступ запрещён');
+        return;
+    }
+    next();
+});
+
+// --- AI Office: обработчик модуля (страница + API), доступ только администраторам ---
+// Размещён ДО express.json: модуль сам читает тело запроса из потока.
+let _aiOfficeHandler = null;
+function aiOfficeAuthenticate(req) {
+    const h = req.headers || {};
+    let token = '';
+    const auth = String(h['x-admin-token'] || h['authorization'] || '');
+    if (/^bearer\s+/i.test(auth)) token = auth.replace(/^bearer\s+/i, '').trim();
+    else if (auth) token = auth.trim();
+    if (!token && h.cookie) {
+        token = (String(h.cookie).split(';').map(x => x.trim()).find(x => x.startsWith('pb_admin=')) || '').slice(9);
+    }
+    return (token && validateAdminSessionToken(token)) ? 'admin' : null;
+}
+app.use((req, res, next) => {
+    if (!req.url.startsWith('/ai-office')) return next();
+    if (!_aiOfficeHandler) {
+        res.status(503).type('text/plain').send('AI Office запускается…');
+        return;
+    }
+    _aiOfficeHandler(req, res);
+});
+
 app.use(express.json({ limit: '10mb' }));
+
+// --- AI Office: вход по админ-сессии Bank Manager Pro (HttpOnly cookie) ---
+app.post('/api/ai-office/auth', (req, res) => {
+    const token = String((req.body && req.body.adminToken) || '');
+    if (!validateAdminSessionToken(token)) {
+        res.status(403).json({ ok: false, error: 'Нет админ-доступа' });
+        return;
+    }
+    res.setHeader('Set-Cookie', 'pb_admin=' + token + '; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200');
+    res.json({ ok: true });
+});
+app.post('/api/ai-office/logout', (req, res) => {
+    res.setHeader('Set-Cookie', 'pb_admin=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');
+    res.json({ ok: true });
+});
+
 app.use(express.static(__dirname));
 
 // --- Parent personal link (public, token-only) ---
@@ -406,7 +462,7 @@ const INVESTMENT_TYPES = [
     { id: 'certificates', name: 'Сертификаты', icon: 'award', emoji: '🏅' }
 ];
 
-let db = { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [], journal: { groups: [], students: [], records: [], settings: { reward: 300 } }, accountRequests: [], securityLog: [], auditLog: [], globalMode: { enabled: false, section: null, updatedAt: null }, party: null, guestMode: { enabled: false }, maintenanceMode: { enabled: false }, guestSessions: [], guestQrTokens: [], guestCounter: 0, exams: { exams: [], attempts: [] } };
+let db = { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [], journal: { groups: [], students: [], records: [], settings: { reward: 300 } }, accountRequests: [], securityLog: [], auditLog: [], globalMode: { enabled: false, section: null, updatedAt: null }, party: null, guestMode: { enabled: false }, maintenanceMode: { enabled: false }, guestSessions: [], guestQrTokens: [], guestCounter: 0, exams: { exams: [], attempts: [] }, aiOfficeRecords: [] };
 
 // True only after loadDB() successfully populated `db` from the real store.
 // Prevents empty in-memory defaults from being flushed over real data on startup.
@@ -498,7 +554,7 @@ async function loadDB() {
 }
 
 function getDefaultDB() {
-    return { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], virtualBanks: null, userBankDeposits: [], userBankInvestments: [], bankHistory: [], couponPricesHalved: false, qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [], journal: { groups: [], students: [], records: [], settings: { reward: 300 } }, mafia: null, accountRequests: [], securityLog: [], auditLog: [], globalMode: { enabled: false, section: null, updatedAt: null }, party: null, guestMode: { enabled: false }, maintenanceMode: { enabled: false }, guestSessions: [], guestQrTokens: [], guestCounter: 0, exams: { exams: [], attempts: [] } };
+    return { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], virtualBanks: null, userBankDeposits: [], userBankInvestments: [], bankHistory: [], couponPricesHalved: false, qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [], journal: { groups: [], students: [], records: [], settings: { reward: 300 } }, mafia: null, accountRequests: [], securityLog: [], auditLog: [], globalMode: { enabled: false, section: null, updatedAt: null }, party: null, guestMode: { enabled: false }, maintenanceMode: { enabled: false }, guestSessions: [], guestQrTokens: [], guestCounter: 0, exams: { exams: [], attempts: [] }, aiOfficeRecords: [] };
 }
 
 function getDefaultMafia() {
@@ -8982,6 +9038,57 @@ setInterval(() => {
         }
     }
 }, 10000);
+
+// --- AI Office: инициализация модуля (хранилище — в БД Bank Manager Pro) ---
+function aiOfficeStore(FaultClass) {
+    const recs = () => { if (!Array.isArray(db.aiOfficeRecords)) db.aiOfficeRecords = []; return db.aiOfficeRecords; };
+    return {
+        list: (o, k) => recs().filter(r => r.owner === o && r.kind === k).sort((a, b) => (b.created || 0) - (a.created || 0)).map(r => r.data),
+        get: (o, k, id) => {
+            const r = recs().find(r => r.owner === o && r.kind === k && r.id === id);
+            if (!r) throw new FaultClass('Объект не найден', 404);
+            return r.data;
+        },
+        put: (o, k, rec) => {
+            const arr = recs();
+            const i = arr.findIndex(r => r.owner === o && r.kind === k && r.id === rec.id);
+            const row = { owner: o, kind: k, id: rec.id, data: rec, created: rec.created || Date.now() };
+            if (i >= 0) arr[i] = row; else arr.push(row);
+            saveDB();
+            return rec;
+        },
+        del: (o, k, id) => {
+            const arr = recs();
+            const i = arr.findIndex(r => r.owner === o && r.kind === k && r.id === id);
+            if (i >= 0) { arr.splice(i, 1); saveDB(); }
+        },
+        allByKind: (k) => recs().filter(r => r.kind === k).map(r => ({ owner: r.owner, record: r.data }))
+    };
+}
+(async () => {
+    try {
+        const [{ createOffice }, { Fault: AioFault }] = await Promise.all([
+            import('./AI_OFFICE_ULTIMATE/server/app.mjs'),
+            import('./AI_OFFICE_ULTIMATE/server/core.mjs')
+        ]);
+        const AIO_PORT = process.env.PORT || 3000;
+        const origins = process.env.AI_OFFICE_ORIGIN
+            ? [process.env.AI_OFFICE_ORIGIN]
+            : ['http://127.0.0.1:' + AIO_PORT, 'http://localhost:' + AIO_PORT];
+        const office = createOffice({
+            root: path.join(__dirname, 'AI_OFFICE_ULTIMATE'),
+            origin: origins[0],
+            allowedOrigins: origins,
+            base: '/ai-office',
+            authenticate: aiOfficeAuthenticate,
+            store: aiOfficeStore(AioFault)
+        });
+        _aiOfficeHandler = office.handler;
+        console.log('[AI Office] смонтирован на /ai-office (доступ только для администратора)');
+    } catch (e) {
+        console.error('[AI Office] ошибка инициализации:', e.message);
+    }
+})();
 
 const PORT = process.env.PORT || 3000;
 function startHttpServer() {
