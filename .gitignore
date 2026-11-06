@@ -9,3 +9,6 @@ backup_*.json
 .chrome_diag/
 _e2e_exam_check/
 _backup_before_exam_restore_2026-11-04/
+
+.chrome_ui_admin/
+database.json.pre_stability.bak

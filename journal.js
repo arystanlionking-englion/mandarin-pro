@@ -289,9 +289,15 @@
         return ca < cb ? -1 : ca > cb ? 1 : 0;
     }
 
+    function hwInGroup(h, gid) {
+        if (!h || !gid) return false;
+        if (h.groupId === gid) return true;
+        return Array.isArray(h.groupIds) && h.groupIds.indexOf(gid) >= 0;
+    }
+
     function hwOfGroup(gid, studentId) {
         return (db.homework || []).filter(function (h) {
-            if (!h || h.groupId !== gid) return false;
+            if (!hwInGroup(h, gid)) return false;
             if (studentId) return !h.studentId || h.studentId === studentId;
             return true;
         }).sort(hwSortAsc);
@@ -302,7 +308,7 @@
         return (db.homework || []).filter(function (h) {
             if (!h) return false;
             if (h.studentId && s.id) return h.studentId === s.id;
-            return !h.studentId && s.groupId && h.groupId === s.groupId;
+            return !h.studentId && s.groupId && hwInGroup(h, s.groupId);
         }).sort(hwSortAsc);
     }
 
@@ -316,7 +322,7 @@
         if (!s) return [];
         var out = [];
         var indiv = (db.homework || []).filter(function (h) { return h && h.studentId && s.id && h.studentId === s.id; }).sort(hwSortAsc);
-        var group = (db.homework || []).filter(function (h) { return h && !h.studentId && s.groupId && h.groupId === s.groupId; }).sort(hwSortAsc);
+        var group = (db.homework || []).filter(function (h) { return h && !h.studentId && s.groupId && hwInGroup(h, s.groupId); }).sort(hwSortAsc);
         var ci = currentHw(indiv);
         var cg = currentHw(group);
         if (ci) out.push(ci);
@@ -342,7 +348,7 @@
         if (!s) return [];
         var out = [];
         var indiv = (db.homework || []).filter(function (h) { return h && h.studentId && s.id && h.studentId === s.id; }).sort(hwSortAsc);
-        var group = (db.homework || []).filter(function (h) { return h && !h.studentId && s.groupId && h.groupId === s.groupId; }).sort(hwSortAsc);
+        var group = (db.homework || []).filter(function (h) { return h && !h.studentId && s.groupId && hwInGroup(h, s.groupId); }).sort(hwSortAsc);
         var ai = hwActiveOn(indiv, day);
         var ag = hwActiveOn(group, day);
         if (ai) out.push(ai);
@@ -388,6 +394,7 @@
         html += '<div class="hw-card-badge' + (opts.current ? ' on' : '') + '">' +
             (opts.current ? 'Текущее задание' : 'История') + '</div>';
         if (h && h.studentId) html += '<div class="hw-card-scope">Индивидуально</div>';
+        else if (h && Array.isArray(h.groupIds) && h.groupIds.length > 1) html += '<div class="hw-card-scope">' + h.groupIds.length + ' группы</div>';
         else html += '<div class="hw-card-scope">Группа</div>';
         html += '</div>';
         html += '<div class="hw-card-date">Назначено: <b>' + esc(shortDate(h.date)) + '</b>' +
@@ -398,7 +405,7 @@
         return html;
     }
 
-    function saveHomeworkEntry(groupId, date, text, studentId, editId) {
+    function saveHomeworkEntry(groupId, date, text, studentId, editId, extraGroupIds) {
         if (!isAdminNow()) {
             toast('e', 'ДЗ', 'Сохранение доступно только администратору');
             return;
@@ -408,8 +415,13 @@
             return;
         }
         var nowIso = new Date().toISOString();
+        var allGroupIds = [groupId];
+        (extraGroupIds || []).forEach(function (g) {
+            if (g && allGroupIds.indexOf(g) < 0) allGroupIds.push(g);
+        });
         var payload = {
             groupId: groupId,
+            groupIds: allGroupIds,
             date: date,
             text: text,
             studentId: studentId || null
@@ -427,6 +439,8 @@
                     next[i] = Object.assign({}, next[i], {
                         text: text,
                         studentId: studentId || null,
+                        groupIds: allGroupIds,
+                        groupId: groupId,
                         updatedAt: nowIso,
                         editedAt: nowIso
                     });
@@ -438,6 +452,7 @@
             next.push({
                 id: uid(),
                 groupId: groupId,
+                groupIds: allGroupIds,
                 studentId: studentId || null,
                 date: date,
                 text: text,
@@ -543,6 +558,21 @@
                 '<input type="date" class="inp jr-date" id="hwDate" value="' + esc(formDate) + '"></div>' +
                 '</div>';
 
+            // Назначение одного задания нескольким группам
+            var otherGroups = db.groups.filter(function (g) { return g && g.id !== hwGroupId; });
+            if (otherGroups.length) {
+                var editGroupIds = editing ? (editing.groupIds && editing.groupIds.length ? editing.groupIds : [editing.groupId]) : [];
+                html += '<div style="margin-top:14px"><label class="jr-label" style="margin:0 0 6px">Также назначить этим группам</label>' +
+                    '<div style="display:flex;flex-wrap:wrap;gap:8px">' +
+                    otherGroups.map(function (g) {
+                        var checked = editGroupIds.indexOf(g.id) >= 0 ? ' checked' : '';
+                        return '<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 10px">' +
+                            '<input type="checkbox" class="hw-extra-group" data-gid="' + esc(g.id) + '"' + checked + ' style="accent-color:var(--accent)">' +
+                            esc(g.name) + '</label>';
+                    }).join('') +
+                    '</div><div class="jr-mini" style="margin-top:6px">Отметьте группы, которым нужно дать то же задание.</div></div>';
+            }
+
             html += '<label class="jr-label">Текст задания</label>' +
                 '<textarea class="inp" id="hwText" rows="6" maxlength="20000" placeholder="1. Выучить новые слова…&#10;2. Сделать упражнение…">' +
                 esc(formText) + '</textarea>';
@@ -636,7 +666,11 @@
                 var dt = dtEl && dtEl.value ? dtEl.value : hwDate;
                 hwDate = dt;
                 hwStudentId = stEl ? (stEl.value || '') : hwStudentId;
-                saveHomeworkEntry(hwGroupId, dt, textEl ? textEl.value.trim() : '', hwStudentId || null, hwEditId || null);
+                var extra = [];
+                root.querySelectorAll('.hw-extra-group:checked').forEach(function (cb) {
+                    if (cb.dataset.gid) extra.push(cb.dataset.gid);
+                });
+                saveHomeworkEntry(hwGroupId, dt, textEl ? textEl.value.trim() : '', hwStudentId || null, hwEditId || null, extra);
                 hwEditId = '';
             };
             root.querySelectorAll('[data-hwedit]').forEach(function (b) {

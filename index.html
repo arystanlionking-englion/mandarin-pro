@@ -11684,6 +11684,7 @@ body.aioffice-fullscreen .dict-title{color:#fff}
         <div class="sec on" id="secHome">
             <div style="text-align:left;margin-bottom:14px;padding:16px;background:linear-gradient(135deg,rgba(201,168,76,0.1),rgba(251,146,60,0.05));border:1px solid rgba(201,168,76,0.2);border-radius:var(--r)"><div style="display:flex;align-items:center;gap:12px;margin-bottom:4px"><div class="av" id="homeAvatar" style="width:48px;height:48px;font-size:20px;flex-shrink:0;border-radius:50%;overflow:hidden"></div><div style="min-width:0"><div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:2px">Добро пожаловать, <span id="uName" style="color:var(--text);font-weight:700"></span> <span id="homeLevelBadge"></span></div><div id="homeTitle" style="font-size:14px;color:var(--accent);font-weight:600;margin-bottom:2px"></div><div id="homeXPBar" style="max-width:200px;margin:6px 0 0"></div></div></div></div>
             <div style="display:flex;justify-content:center;gap:8px;margin-bottom:10px"><button class="btn btn-accent btn-sm" id="langRu" onclick="setMoneyLang('ru')">Русский</button><button class="btn btn-ghost btn-sm" id="langZh" onclick="setMoneyLang('zh')">中文</button></div>
+            <div id="homeStudentOnly">
             <div class="bal-card"><div class="bal-label">Текущий баланс</div><div class="bal-val"><span id="balVal">0</span></div></div>
             <div class="home-mini-grid" id="homeMiniBlocks">
                 <div class="home-mini-card" onclick="go('diary')">
@@ -11697,6 +11698,66 @@ body.aioffice-fullscreen .dict-title{color:#fff}
                     <div class="hm-label">Домашнее задание</div>
                     <div class="hm-value" id="homeHwVal">—</div>
                     <div class="hm-sub" id="homeHwSub">Нет заданий</div>
+                </div>
+            </div>
+            </div>
+            <div id="homeAdminOnly" class="hidden">
+                <div class="bal-card" style="padding:0;overflow:hidden">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;cursor:pointer" onclick="go('notifications')">
+                        <div style="display:flex;align-items:center;gap:12px;min-width:0">
+                            <div style="width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 4px 18px var(--gold-glow)">🔔</div>
+                            <div style="min-width:0">
+                                <div style="font-size:15px;font-weight:800;color:var(--text)">Уведомления</div>
+                                <div style="font-size:12px;color:var(--dim)" id="homeNotifSub">Новых нет</div>
+                            </div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                            <span id="homeNotifBadge" class="badge hidden" style="background:var(--error);color:#fff;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:800"></span>
+                            <i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--dim)"></i>
+                        </div>
+                    </div>
+                    <div id="homeNotifList" style="border-top:1px solid var(--border)"></div>
+                </div>
+                <div class="stitle mt-12">⚡ Быстрый доступ</div>
+                <div class="aactions" id="homeQuickActions">
+                    <button class="btn btn-accent btn-sm" onclick="showCreateUserModal()"><i data-lucide="user-plus" style="width:18px;height:18px"></i> Создать пользователя</button>
+                    <button class="btn btn-accent btn-sm" onclick="go('users')"><i data-lucide="users" style="width:18px;height:18px"></i> Пользователи</button>
+                    <button class="btn btn-success btn-sm" onclick="showCreateQrModal()"><i data-lucide="plus-circle" style="width:18px;height:18px"></i> Создать QR-код</button>
+                    <button class="btn btn-accent btn-sm" onclick="go('adminqr')"><i data-lucide="qr-code" style="width:18px;height:18px"></i> Клиент QR-код</button>
+                    <button class="btn btn-success btn-sm" onclick="createGuestQr()"><i data-lucide="qr-code" style="width:18px;height:18px"></i> Создать QR-код гостевого режима</button>
+                    <button class="btn btn-accent btn-sm" onclick="guestPasswordlessEntry()"><i data-lucide="user-plus" style="width:18px;height:18px"></i> Гостевой вход без пароля</button>
+                    <button class="btn btn-accent btn-sm" onclick="go('journal')"><i data-lucide="book-open-check" style="width:18px;height:18px"></i> Открыть журнал</button>
+                    <button class="btn btn-success btn-sm" onclick="showA('studentJournal')"><i data-lucide="users" style="width:18px;height:18px"></i> Журнал учеников</button>
+                    <button class="btn btn-ghost btn-sm" onclick="openJournalSettings()"><i data-lucide="settings" style="width:18px;height:18px"></i> Настройки журнала</button>
+                    <button class="btn btn-ghost btn-sm" onclick="go('homework')"><i data-lucide="clipboard-list" style="width:18px;height:18px"></i> Управление ДЗ</button>
+                    <button class="btn btn-warning btn-sm" onclick="showA('globalMode')"><i data-lucide="globe" style="width:18px;height:18px"></i> 🌐 Глобальное управление</button>
+                    <button class="btn btn-ghost btn-sm" onclick="showA('backup')"><i data-lucide="database" style="width:18px;height:18px"></i> Резервная копия</button>
+                    <button class="btn btn-warning btn-sm" onclick="forceUpdateAll()"><i data-lucide="refresh-cw" style="width:18px;height:18px"></i> 🔄 Принудительное обновление</button>
+                    <button class="btn btn-accent btn-sm" onclick="openAiOffice()" style="background:linear-gradient(135deg,#7c5cff,#293e32);color:#fff;font-weight:700"><i data-lucide="bot" style="width:18px;height:18px"></i> 🤖 AI Office</button>
+                    <button class="btn btn-accent btn-sm" onclick="openAdminQrTerminal()" style="background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:700"><i data-lucide="scan" style="width:18px;height:18px"></i> ⚡ QR-ТЕРМИНАЛ</button>
+                </div>
+                <div class="stitle mt-12">🛰️ Гостевой режим и техработы</div>
+                <div class="aactions" style="flex-direction:column;align-items:stretch;gap:10px">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 14px">
+                        <div>
+                            <div style="font-weight:700;font-size:13px">Гостевой режим</div>
+                            <div style="font-size:11px;color:var(--dim)">Вход без пароля и PIN на 1 час</div>
+                        </div>
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex-shrink:0">
+                            <input type="checkbox" id="guestModeToggleHome" onchange="setGuestMode(this.checked)" style="width:20px;height:20px;accent-color:var(--accent)">
+                            <span id="guestModeLabelHome" style="font-size:12px;font-weight:700">Выкл</span>
+                        </label>
+                    </div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 14px">
+                        <div>
+                            <div style="font-weight:700;font-size:13px">🔧 Технические работы</div>
+                            <div style="font-size:11px;color:var(--dim)">Блокирует доступ для обычных пользователей</div>
+                        </div>
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex-shrink:0">
+                            <input type="checkbox" id="maintenanceToggleHome" onchange="setMaintenanceMode(this.checked)" style="width:20px;height:20px;accent-color:#ef4444">
+                            <span id="maintenanceLabelHome" style="font-size:12px;font-weight:700">Выкл</span>
+                        </label>
+                    </div>
                 </div>
             </div>
             <div style="display:flex;justify-content:center;margin-top:18px;margin-bottom:8px">
@@ -11745,6 +11806,11 @@ body.aioffice-fullscreen .dict-title{color:#fff}
         <!-- NOTIFICATIONS -->
         <div class="sec" id="secNotifications">
             <div class="stitle">Уведомления</div>
+            <div class="coupon-subtabs" id="notifCatTabs">
+                <div class="coupon-subtab on" data-ncat="pending" onclick="setNotifCat('pending')">⏳ На проверке</div>
+                <div class="coupon-subtab" data-ncat="approved" onclick="setNotifCat('approved')">✅ Одобренные</div>
+                <div class="coupon-subtab" data-ncat="all" onclick="setNotifCat('all')">📋 Все уведомления</div>
+            </div>
             <div id="hwReviewWrap" class="hw-review-wrap"></div>
             <div class="notif-center" id="notifList"><div class="empty">Уведомлений пока нет</div></div>
         </div>
@@ -11754,6 +11820,17 @@ body.aioffice-fullscreen .dict-title{color:#fff}
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
                 <div class="stitle" style="margin-bottom:0">Пользователи</div>
                 <div class="notif-icon" onclick="showAdminLogin()" title="Вход администратора"><i data-lucide="user-circle" style="width:20px;height:20px;color:var(--dim);cursor:pointer"></i></div>
+            </div>
+            <div id="secUsersAdminTools" class="hidden" style="margin-bottom:12px">
+                <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+                    <button class="btn btn-accent btn-sm" onclick="showCreateUserModal()"><i data-lucide="user-plus" style="width:16px;height:16px"></i> Создать пользователя</button>
+                    <button class="btn btn-accent btn-sm" onclick="showA('sendNotif')"><i data-lucide="bell" style="width:16px;height:16px"></i> Admin уведомление</button>
+                    <button class="btn btn-warning btn-sm" onclick="showA('fine')"><i data-lucide="alert-triangle" style="width:16px;height:16px"></i> Штрафы</button>
+                    <button class="btn btn-accent btn-sm on" id="btnUsersActive" onclick="setAdminUserView('active')">Активные</button>
+                    <button class="btn btn-ghost btn-sm" id="btnUsersArchive" onclick="setAdminUserView('archive')">Архив</button>
+                    <button class="btn btn-ghost btn-sm" id="btnAccountReq" onclick="toggleAccountRequests()"><i data-lucide="bell" style="width:16px;height:16px"></i> Запросы на аккаунт <span id="accReqBadge" class="hidden" style="background:var(--error);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px"></span></button>
+                </div>
+                <div id="accountRequestsList" class="hidden" style="margin-bottom:12px"></div>
             </div>
             <div class="search-bar"><input type="text" class="inp" id="userSearch" placeholder="Поиск пользователя..." oninput="debounceRenderUsers()"></div>
             <div style="display:flex;gap:4px;margin:8px 0">
@@ -11780,6 +11857,7 @@ body.aioffice-fullscreen .dict-title{color:#fff}
             <div class="profile-card">
                 <div class="av" id="profAv"></div><div class="nm" id="profName"></div>
                 <div class="role" id="profRole">🌱 Новичок</div>
+                <div style="margin:8px 0 2px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Баланс · 余额</div>
                 <div style="font-size:24px;font-weight:800;margin-bottom:4px"><span id="profBal">0 分</span></div>
                 <div class="profile-stats">
                     <div class="pstat"><div class="v" id="profTx">0</div><div class="l">Операций</div></div>
@@ -12109,14 +12187,25 @@ body.aioffice-fullscreen .dict-title{color:#fff}
                     <button class="btn btn-danger btn-sm" onclick="showA('withdraw')"><i data-lucide="minus-circle" style="width:18px;height:18px"></i> Изъять</button>
                     <button class="btn btn-ghost btn-sm" onclick="showA('editBal')"><i data-lucide="edit" style="width:18px;height:18px"></i> Корректировка</button>
                     <button class="btn btn-success btn-sm" onclick="showA('startCap')"><i data-lucide="gift" style="width:18px;height:18px"></i> Стартовые 1000</button>
-                    <button class="btn btn-accent btn-sm" onclick="showA('sendNotif')"><i data-lucide="bell" style="width:18px;height:18px"></i> Уведомление</button>
-                    <button class="btn btn-ghost btn-sm" onclick="showA('backup')"><i data-lucide="database" style="width:18px;height:18px"></i> Резервная копия</button>
+                    <button class="btn btn-accent btn-sm" onclick="showA('sendNotif')"><i data-lucide="bell" style="width:18px;height:18px"></i> Admin уведомление</button>
+                </div>
+                <div class="stitle mt-12">🧰 Инструменты</div>
+                <div class="aactions">
                     <button class="btn btn-accent btn-sm" onclick="openAiOffice()" style="background:linear-gradient(135deg,#7c5cff,#293e32);color:#fff;font-weight:700"><i data-lucide="bot" style="width:18px;height:18px"></i> 🤖 AI Office</button>
                     <button class="btn btn-ghost btn-sm" onclick="openAiOffice('settings')"><i data-lucide="key-round" style="width:18px;height:18px"></i> Настройки ИИ</button>
-                    <button class="btn btn-accent btn-sm" onclick="go('users')"><i data-lucide="users" style="width:18px;height:18px"></i> Пользователи</button>
+                    <button class="btn btn-ghost btn-sm" onclick="showA('backup')"><i data-lucide="database" style="width:18px;height:18px"></i> Резервная копия</button>
                     <button class="btn btn-accent btn-sm" onclick="showA('startRest')"><i data-lucide="moon" style="width:18px;height:18px"></i> 😴 Отдых (Alt+5)</button>
                     <button class="btn btn-warning btn-sm" onclick="showA('globalMode')"><i data-lucide="globe" style="width:18px;height:18px"></i> 🌐 Глобальное управление</button>
                     <button class="btn btn-accent btn-sm" onclick="openAdminQrTerminal()" style="background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:700"><i data-lucide="scan" style="width:18px;height:18px"></i> ⚡ QR-ТЕРМИНАЛ (Shift+9)</button>
+                </div>
+                <div class="stitle mt-12">👤 Дополнительный администратор</div>
+                <div class="bal-card" style="padding:16px">
+                    <div style="font-size:12px;color:var(--dim);margin-bottom:10px">Главный администратор может назначить одного дополнительного администратора из числа пользователей. Выбранный пользователь получит полный административный доступ при входе по своему логину и паролю.</div>
+                    <div id="secondaryAdminInfo" style="font-size:13px;font-weight:600;margin-bottom:10px">Дополнительный администратор не назначен</div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                        <button class="btn btn-accent btn-sm" onclick="openSecondaryAdminPicker()"><i data-lucide="user-plus" style="width:16px;height:16px"></i> Добавить администратора</button>
+                        <button class="btn btn-danger btn-sm" onclick="removeSecondaryAdmin()"><i data-lucide="user-minus" style="width:16px;height:16px"></i> Снять администратора</button>
+                    </div>
                 </div>
                 <div class="stitle mt-12">🎯 Квесты и задания</div>
                 <div class="aactions">
@@ -12250,16 +12339,6 @@ body.aioffice-fullscreen .dict-title{color:#fff}
                 <div id="adminGroupsList"></div>
                 <div class="stitle mt-12">Доступные группы для транзакций</div>
                 <div id="adminGroupPerms" style="margin-bottom:12px"></div>
-                <div class="stitle mt-12">Пользователи</div>
-                <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-                    <button class="btn btn-accent btn-sm" onclick="showCreateUserModal()"><i data-lucide="user-plus" style="width:16px;height:16px"></i> Создать пользователя</button>
-                    <button class="btn btn-accent btn-sm on" id="btnUsersActive" onclick="setAdminUserView('active')">Активные</button>
-                    <button class="btn btn-ghost btn-sm" id="btnUsersArchive" onclick="setAdminUserView('archive')">Архив</button>
-                    <button class="btn btn-ghost btn-sm" id="btnAccountReq" onclick="toggleAccountRequests()"><i data-lucide="bell" style="width:16px;height:16px"></i> Запросы на аккаунт <span id="accReqBadge" class="hidden" style="background:var(--error);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px"></span></button>
-                </div>
-                <div id="accountRequestsList" class="hidden" style="margin-bottom:12px"></div>
-                <div class="search-bar" style="margin-bottom:10px"><input type="text" class="inp" id="adminUserSearch" placeholder="Поиск по имени или логину..." oninput="renderAdminCards()"></div>
-                <div id="adminUserCards"></div>
                 <div class="stitle mt-12" onclick="toggleAdminHist()"><span class="toggle" id="adminHistToggle">+</span> История операций</div>
                 <div class="hlist hidden" id="adminHistList"><div class="empty">Операций пока нет</div></div>
                 <div class="stitle mt-12" onclick="toggleAdminLog()"><span class="toggle" id="adminLogToggle">+</span> Журнал администратора</div>
@@ -12349,8 +12428,10 @@ body.aioffice-fullscreen .dict-title{color:#fff}
                 <div class="sub">Группы, оценки и успеваемость учеников</div>
             </div>
             <div style="margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap">
+                <button type="button" class="btn btn-accent btn-sm" onclick="go('journal')"><i data-lucide="book-open-check" style="width:16px;height:16px"></i> Открыть журнал</button>
+                <button type="button" class="btn btn-success btn-sm" onclick="showA('studentJournal')"><i data-lucide="users" style="width:16px;height:16px"></i> Журнал учеников</button>
                 <button type="button" class="btn btn-ghost btn-sm" onclick="openJournalSettings()"><i data-lucide="settings" style="width:16px;height:16px"></i> Настройки журнала</button>
-                <button type="button" class="btn btn-accent btn-sm" onclick="go('homework')"><i data-lucide="book-open-check" style="width:16px;height:16px"></i> Домашние задания</button>
+                <button type="button" class="btn btn-accent btn-sm" onclick="go('homework')"><i data-lucide="book-open-check" style="width:16px;height:16px"></i> Управление ДЗ</button>
             </div>
             <div id="journalRoot"></div>
         </div>
@@ -12402,7 +12483,7 @@ body.aioffice-fullscreen .dict-title{color:#fff}
 <nav class="mob-bottom-nav" id="mobBottomNav">
   <div class="bnav-item on" data-s="home" onclick="go('home')"><i data-lucide="home" style="width:20px;height:20px"></i><span>Главная</span></div>
   <div class="bnav-item" data-s="diary" id="bnavDiary" onclick="go('diary')"><i data-lucide="book-open" style="width:20px;height:20px"></i><span id="bnavDiaryLabel">Дневник</span></div>
-  <div class="bnav-item center" data-s="qrterminal" onclick="go('qrterminal')"><div class="bnav-center-icon"><i data-lucide="scan" style="width:22px;height:22px"></i></div><span>QR</span></div>
+  <div class="bnav-item center" data-s="qrterminal" id="bnavCenter" onclick="go('qrterminal')"><div class="bnav-center-icon" id="bnavCenterIcon"><i data-lucide="scan" style="width:22px;height:22px"></i></div><span id="bnavCenterLabel">QR</span></div>
   <div class="bnav-item" data-s="dictionary" onclick="go('dictionary')"><i data-lucide="book-a" style="width:20px;height:20px"></i><span>Словарь</span></div>
   <div class="bnav-item" data-s="exams" onclick="go('exams')"><i data-lucide="clipboard-check" style="width:20px;height:20px"></i><span>Экзамены</span></div>
 </nav>
@@ -12666,7 +12747,7 @@ body.aioffice-fullscreen .dict-title{color:#fff}
 
 <!-- Admin: Send Notification -->
 <div class="modal-bg" id="mSendNotif" onclick="cm('mSendNotif')"><div class="modal" onclick="event.stopPropagation()">
-    <div class="modal-h"><h2>Отправить уведомление</h2><button class="modal-x" onclick="cm('mSendNotif')">Назад</button></div>
+    <div class="modal-h"><h2>Admin уведомление</h2><button class="modal-x" onclick="cm('mSendNotif')">Назад</button></div>
     <div class="stitle">Группы</div>
     <style>#notifGroups .gpill{cursor:pointer;border:1px solid var(--border);border-radius:20px;padding:6px 12px;font-size:12px;font-weight:600;user-select:none}#notifGroups .gpill.sel{background:#22c55e;color:#fff;border-color:#22c55e}</style>
     <div id="notifGroups" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"></div>
@@ -12701,6 +12782,15 @@ body.aioffice-fullscreen .dict-title{color:#fff}
 <div class="modal-bg" id="mUserDetail" onclick="cm('mUserDetail')"><div class="modal" onclick="event.stopPropagation()">
     <div class="modal-h"><h2 id="udName">Пользователь</h2><button class="modal-x" onclick="cm('mUserDetail')">Назад</button></div>
     <div id="udContent"></div>
+</div></div>
+
+<!-- Secondary Admin Picker -->
+<div class="modal-bg" id="mSecondaryAdmin" onclick="cm('mSecondaryAdmin')"><div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-h"><h2>Добавить администратора</h2><button class="modal-x" onclick="cm('mSecondaryAdmin')">Назад</button></div>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:10px">Выберите пользователя, который получит полный административный доступ. Можно назначить только одного дополнительного администратора.</div>
+    <div class="search-bar" style="margin-bottom:8px"><input type="text" class="inp" id="secAdminSearch" placeholder="Поиск пользователя..." oninput="filterSecAdminList()"></div>
+    <div class="ulist" id="secAdminList" style="max-height:320px;overflow:auto"></div>
+    <button class="btn btn-accent btn-full" style="margin-top:12px" onclick="confirmSecondaryAdmin()"><i data-lucide="user-plus" style="width:16px;height:16px"></i> Назначить администратором</button>
 </div></div>
 
 <!-- Confirm Dialog -->
@@ -13798,10 +13888,15 @@ window.closeDictionary=function(){
     setTimeout(function(){window._dictClosing=false;},300);
     return false;
 };
-// Esc тоже закрывает словарь
+// Esc тоже закрывает словарь и AI Office
 document.addEventListener('keydown',function(e){
-    if(e.key==='Escape'&&document.body.classList.contains('dict-fullscreen')){
+    if(e.key!=='Escape')return;
+    if(document.body.classList.contains('dict-fullscreen')){
         window.closeDictionary();
+        return;
+    }
+    if(document.body.classList.contains('aioffice-fullscreen')){
+        window.closeAiOffice();
     }
 });
 
@@ -13914,10 +14009,17 @@ socket.on('app:forceUpdate',function(){
 window.setGuestMode=function(on){
     try{socket.emit('admin:guestMode:set',{enabled:!!on});}catch(e){}
 };
+window.guestPasswordlessEntry=function(){
+    const t=$('guestModeToggleHome')||$('guestModeToggle');
+    if(t&&t.checked){
+        toast('i','Гостевой вход','Гостевой режим уже включён. На экране входа нажмите «Войти как гость» и введите имя — пароль не требуется.');
+    }else{
+        setGuestMode(true);
+    }
+};
 window.setMaintenanceMode=function(on){
-    const t=$('maintenanceToggle');
     if(on){
-        if(t)t.checked=false; // reset until confirmed
+        syncMaintenanceUI(false); // reset until confirmed
         showConfirm('Включить технические работы?','Обычные пользователи потеряют доступ к программе. Аккаунты и данные не удаляются. Администратор сохранит доступ.',function(){
             try{socket.emit('admin:maintenance:set',{enabled:true});}catch(e){}
         });
@@ -13984,30 +14086,36 @@ function hideMaintenanceScreen(){
     if(overlay)overlay.style.display='none';
 }
 
-socket.on('guestMode:state',function(d){
-    const t=$('guestModeToggle'), l=$('guestModeLabel');
-    if(t)t.checked=!!(d&&d.enabled);
-    if(l)l.textContent=(d&&d.enabled)?'Вкл':'Выкл';
+function syncGuestModeUI(enabled){
+    ['guestModeToggle','guestModeToggleHome'].forEach(function(id){
+        const t=$(id);if(t)t.checked=!!enabled;
+    });
+    ['guestModeLabel','guestModeLabelHome'].forEach(function(id){
+        const l=$(id);if(l)l.textContent=enabled?'Вкл':'Выкл';
+    });
     const gb=$('guestLoginBtn');
-    if(gb)gb.style.display=(d&&d.enabled)?'flex':'none';
+    if(gb)gb.style.display=enabled?'flex':'none';
+}
+function syncMaintenanceUI(enabled){
+    ['maintenanceToggle','maintenanceToggleHome'].forEach(function(id){
+        const t=$(id);if(t)t.checked=!!enabled;
+    });
+    ['maintenanceLabel','maintenanceLabelHome'].forEach(function(id){
+        const l=$(id);if(l)l.textContent=enabled?'Вкл':'Выкл';
+    });
+}
+socket.on('guestMode:state',function(d){
+    syncGuestModeUI(!!(d&&d.enabled));
 });
 socket.on('guestMode:setResult',function(d){
     if(d&&d.success){
         toast('s','Гостевой режим',d.guestMode&&d.guestMode.enabled?'Включён':'Выключен');
-        if(d.guestMode){
-            const t=$('guestModeToggle'), l=$('guestModeLabel');
-            if(t)t.checked=!!d.guestMode.enabled;
-            if(l)l.textContent=d.guestMode.enabled?'Вкл':'Выкл';
-            const gb=$('guestLoginBtn');
-            if(gb)gb.style.display=d.guestMode.enabled?'flex':'none';
-        }
+        if(d.guestMode)syncGuestModeUI(!!d.guestMode.enabled);
         try{socket.emit('guestMode:get');socket.emit('admin:guestQr:list');}catch(e){}
     }else toast('e','Гостевой режим',(d&&d.error)||'Ошибка');
 });
 socket.on('maintenance:state',function(d){
-    const t=$('maintenanceToggle'), l=$('maintenanceLabel');
-    if(t)t.checked=!!(d&&d.enabled);
-    if(l)l.textContent=(d&&d.enabled)?'Вкл':'Выкл';
+    syncMaintenanceUI(!!(d&&d.enabled));
     if(d&&d.enabled){
         if(!isAdmin)showMaintenanceScreen();
         else hideMaintenanceScreen();
@@ -14019,9 +14127,7 @@ socket.on('maintenance:setResult',function(d){
     if(d&&d.success){
         toast('s','Техработы',d.maintenanceMode&&d.maintenanceMode.enabled?'Включены':'Выключены');
         if(d.maintenanceMode){
-            const t=$('maintenanceToggle'), l=$('maintenanceLabel');
-            if(t)t.checked=!!d.maintenanceMode.enabled;
-            if(l)l.textContent=d.maintenanceMode.enabled?'Вкл':'Выкл';
+            syncMaintenanceUI(!!d.maintenanceMode.enabled);
             if(d.maintenanceMode.enabled){ if(!isAdmin)showMaintenanceScreen(); }
             else hideMaintenanceScreen();
         }
@@ -14128,7 +14234,10 @@ window.updateHomeMiniBlocks=function(){
         const hws=(jdb.homework||[]).filter(h=>{
             if(!h)return false;
             if(h.studentId&&s.id)return h.studentId===s.id;
-            return !h.studentId&&s.groupId&&h.groupId===s.groupId;
+            if(!h.studentId&&s.groupId){
+                return h.groupId===s.groupId||(Array.isArray(h.groupIds)&&h.groupIds.indexOf(s.groupId)>=0);
+            }
+            return false;
         }).sort((a,b)=>{
             const da=String(a.date||''), dbb=String(b.date||'');
             if(da!==dbb)return da<dbb?-1:1;
@@ -14169,6 +14278,7 @@ window.openAiOffice=function(section){
     if(!token){toast('w','AI Office','Сначала войдите в панель администратора');return;}
     fetch('/api/ai-office/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminToken:token}),credentials:'same-origin'}).then(function(r){
         if(!r.ok)throw new Error('Нет админ-доступа');
+        try{window._aioReturnSec=(typeof curSec!=='undefined'&&curSec)?curSec:'admin';}catch(e){window._aioReturnSec='admin';}
         document.body.classList.add('aioffice-fullscreen');
         var sec=document.getElementById('secAioffice');if(sec)sec.classList.add('on');
         var fr=document.getElementById('aiOfficeFrame');
@@ -14183,9 +14293,14 @@ window.openAiOffice=function(section){
     }).catch(function(e){toast('w','AI Office',e.message||'Нет доступа');});
 };
 window.closeAiOffice=function(){
+    window._aioClosing=true;
     document.body.classList.remove('aioffice-fullscreen');
     var sec=document.getElementById('secAioffice');if(sec)sec.classList.remove('on');
-    try{if(typeof go==='function')go('admin');}catch(e){}
+    // Возврат в раздел, из которого открыли AI Office
+    var back='admin';try{back=window._aioReturnSec||'admin';}catch(e){}
+    window._aioReturnSec=null;
+    try{if(typeof go==='function')go(back);}catch(e){}
+    setTimeout(function(){window._aioClosing=false;},300);
 };
 window.reloadAiOffice=function(){var fr=document.getElementById('aiOfficeFrame');if(fr)fr.setAttribute('src','/ai-office/');};
 
@@ -14226,7 +14341,141 @@ function updateAdminUI(){
         try{socket.emit('guestMode:get');socket.emit('maintenance:get');socket.emit('admin:guestQr:list');}catch(e){}
     }
     else{$('adminLoginView')?.classList.remove('hidden');$('adminPanelView')?.classList.add('hidden');}
+    if(typeof updateAdminHome==='function')updateAdminHome();
 }
+
+// --- Admin home screen + navigation (ученические блоки скрываются) ---
+window.updateAdminHome=function(){
+    const show=isAdmin;
+    const hs=$('homeStudentOnly'), ha=$('homeAdminOnly');
+    if(hs)hs.classList.toggle('hidden',show);
+    if(ha)ha.classList.toggle('hidden',!show);
+    // Нижняя навигация: для админа «Журнал» вместо «Дневника» и «Панель управления» вместо QR
+    const bd=$('bnavDiary'), bdl=$('bnavDiaryLabel');
+    if(bd&&bdl){
+        if(show){
+            bdl.textContent='Журнал';
+            bd.dataset.s='journal';
+            bd.onclick=function(){go('journal');};
+        }else{
+            bdl.textContent='Дневник';
+            bd.dataset.s='diary';
+            bd.onclick=function(){go('diary');};
+        }
+    }
+    const bc=$('bnavCenter'), bcl=$('bnavCenterLabel'), bci=$('bnavCenterIcon');
+    if(bc&&bcl){
+        if(show){
+            bcl.textContent='Панель';
+            bc.dataset.s='admin';
+            bc.onclick=function(){go('admin');};
+            if(bci)bci.innerHTML='<i data-lucide="layout-dashboard" style="width:22px;height:22px"></i>';
+        }else{
+            bcl.textContent='QR';
+            bc.dataset.s='qrterminal';
+            bc.onclick=function(){go('qrterminal');};
+            if(bci)bci.innerHTML='<i data-lucide="scan" style="width:22px;height:22px"></i>';
+        }
+    }
+    const suat=$('secUsersAdminTools');
+    if(suat)suat.classList.toggle('hidden',!show);
+    // Пункт «Журнал» в боковом меню — только администратору
+    document.querySelectorAll('.nav-i[data-s="journal"],.sm-item[data-s="journal"]').forEach(n=>n.classList.toggle('hidden',!show));
+    if(show){
+        renderAdminHomeNotifs();
+        renderSecondaryAdminInfo();
+    }
+    try{if(window.lucide)lucide.createIcons();}catch(e){}
+};
+
+// --- Блок «Уведомления» на главном экране администратора ---
+window.renderAdminHomeNotifs=function(){
+    const list=$('homeNotifList'), badge=$('homeNotifBadge'), sub=$('homeNotifSub');
+    if(!list)return;
+    const pending=(approvalRequests||[]).filter(r=>r&&r.status==='pending').sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+    if(badge){
+        if(pending.length){badge.classList.remove('hidden');badge.textContent=pending.length;}
+        else badge.classList.add('hidden');
+    }
+    if(sub)sub.textContent=pending.length?('Новых: '+pending.length+' · нажмите, чтобы открыть'):'Новых нет';
+    if(!pending.length){list.innerHTML='<div style="padding:12px 18px;font-size:12px;color:var(--dim)">Нет уведомлений, ожидающих проверки</div>';return;}
+    list.innerHTML=pending.slice(0,5).map(r=>{
+        const typeIcon={purchase:'🛒',quest:'🎯',task:'📋',duel:'⚔️',coupon:'🎟️'}[r.type]||'📋';
+        const typeName={purchase:'Покупка',quest:'Квест',task:'Задание',duel:'Дуэль',coupon:'Купон'}[r.type]||'Заявка';
+        const desc=getApprovalDesc(r);
+        const dateStr=r.createdAt?new Date(r.createdAt).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+        return '<div class="hw-item pending notif-item unread" style="margin:8px 12px" onclick="go(\'notifications\')">'
+            +'<div class="hw-item-head"><div class="hw-item-name">'+typeIcon+' '+esc(r.userName||'')+' — '+esc(typeName)+'</div><div class="hw-badge pending">На проверке</div></div>'
+            +'<div class="hw-item-meta"><span>📤 '+esc(dateStr)+'</span></div>'
+            +'<div class="hw-block"><div class="hw-block-body">'+esc(desc)+'</div></div></div>';
+    }).join('')+(pending.length>5?'<div style="padding:10px 18px;font-size:12px;color:var(--accent);cursor:pointer" onclick="go(\'notifications\')">Ещё '+(pending.length-5)+'…</div>':'');
+};
+
+// --- Дополнительный администратор ---
+window._secondaryAdminId=null;
+window.renderSecondaryAdminInfo=function(){
+    const el=$('secondaryAdminInfo');
+    if(!el)return;
+    const uid=window._secondaryAdminId;
+    if(!uid){el.innerHTML='Дополнительный администратор не назначен';return;}
+    const u=users.find(x=>x.id===uid);
+    el.innerHTML='Текущий дополнительный администратор: <span style="color:var(--accent)">'+esc(u?(u.nickname||u.name):uid)+'</span>';
+};
+window.openSecondaryAdminPicker=function(){
+    if(!window._isMainAdmin){toast('w','Доп. администратор','Назначать может только главный администратор');return;}
+    const cont=$('secAdminList');
+    if(!cont)return;
+    if(window._secondaryAdminId){
+        toast('w','Доп. администратор','Уже назначен. Сначала снимите текущего администратора.');
+        return;
+    }
+    cont.innerHTML='';
+    const list=users.filter(u=>!u.archived&&!u.isGuest&&u.id!==U?.id);
+    if(!list.length){cont.innerHTML='<div class="empty">Нет доступных пользователей</div>';}
+    list.forEach(u=>{
+        const el=document.createElement('div');
+        el.className='uitem';el.dataset.uid=u.id;
+        const icon=getUserIcon(u);const avHtml=icon?icon:esc(u.name.charAt(0).toUpperCase());
+        const groupName=u.groupId?(groups.find(g=>g.id===u.groupId)||{}).name:null;
+        el.innerHTML=`<div class="av">${avHtml}</div><div class="un">${esc(u.nickname||u.name)}${groupName?' <span style="font-size:10px;color:var(--accent)">'+esc(groupName)+'</span>':' <span style="font-size:10px;color:var(--muted)">Без группы</span>'}</div>`;
+        el.onclick=()=>{
+            cont.querySelectorAll('.uitem').forEach(i=>i.classList.remove('sel'));
+            el.classList.add('sel');
+        };
+        cont.appendChild(el);
+    });
+    openModal('mSecondaryAdmin');
+};
+window.confirmSecondaryAdmin=function(){
+    const cont=$('secAdminList');
+    const sel=cont?cont.querySelector('.uitem.sel'):null;
+    if(!sel){toast('e','Ошибка','Выберите пользователя');return;}
+    socket.emit('admin:setSecondaryAdmin',{userId:sel.dataset.uid});
+};
+window.filterSecAdminList=function(){
+    const q=(($('secAdminSearch')&&$('secAdminSearch').value)||'').toLowerCase();
+    document.querySelectorAll('#secAdminList .uitem').forEach(el=>{
+        el.style.display=!q||el.textContent.toLowerCase().includes(q)?'':'none';
+    });
+};
+window.removeSecondaryAdmin=function(){
+    if(!window._isMainAdmin){toast('w','Доп. администратор','Снимать может только главный администратор');return;}
+    if(!window._secondaryAdminId){toast('i','Доп. администратор','Никто не назначен');return;}
+    showConfirm('Снять администратора?','Пользователь потеряет административный доступ. Обычная авторизация сохранится.',function(){
+        socket.emit('admin:setSecondaryAdmin',{userId:null});
+    });
+};
+socket.on('admin:secondaryAdminResult',function(d){
+    if(d&&d.success){
+        window._secondaryAdminId=d.secondaryAdminId||null;
+        renderSecondaryAdminInfo();
+        if(d.removed)toast('s','Доп. администратор','Административный доступ снят');
+        else toast('s','Доп. администратор',(d.userName||'Пользователь')+' назначен администратором');
+        if(typeof cm==='function')cm('mSecondaryAdmin');
+    }else{
+        toast('e','Доп. администратор',(d&&d.error)||'Ошибка');
+    }
+});
 
 window.exitAdmin=function(){
     isAdmin=false;
@@ -14276,6 +14525,15 @@ socket.on('init',d=>{
 socket.on('user:logged_in',d=>{
     U=d.user;favs=d.favorites||[];hist=d.history||[];msgs=d.messages||[];notifs=d.notifications||[];
     if(d.xp)userXP=d.xp;
+    // Дополнительный администратор: вход по своему логину/паролю даёт admin-доступ
+    if(d.adminRights){
+        isAdmin=true;
+        window._secondaryAdmin=true;
+        window._isMainAdmin=false;
+        if(!adminSessionExpiry)adminSessionExpiry=Date.now()+12*60*60*1000;
+        if(adminSessionTimer)clearInterval(adminSessionTimer);
+        adminSessionTimer=setInterval(checkAdminSession,30000);
+    }
     // Save session token for fast re-entry
     if(d.sessionToken){
         localStorage.setItem('pb_session_token',d.sessionToken);
@@ -14285,6 +14543,7 @@ socket.on('user:logged_in',d=>{
     try{localStorage.setItem('pb_cache_user',JSON.stringify({user:U,favs,xp:userXP,ts:Date.now()}));}catch{}
     $('uName').textContent=U.name;setBal(U.balance);
     showApp();refreshU();renderRecent();renderAdmin();
+    updateAdminUI();updateAdminHome();
     updateNotifBadge();updateMsgBadge();
     toast('s','С возвращением, '+U.name+'!','Баланс: '+formatN(U.balance)+' 分');
     // Request groups data and coupons
@@ -14308,6 +14567,7 @@ socket.on('user:logged_in',d=>{
 
 socket.on('admin:authenticated',d=>{
     isAdmin=true;
+    window._isMainAdmin=true;
     adminSessionExpiry=d.expiresAt||(Date.now()+600000);
     if(d.adminToken){try{localStorage.setItem('pb_admin_token',d.adminToken);}catch(e){}}
     if(adminSessionTimer)clearInterval(adminSessionTimer);
@@ -14325,6 +14585,7 @@ socket.on('admin:authenticated',d=>{
 socket.on('admin:resumeResult',d=>{
     if(d&&d.success){
         isAdmin=true;
+        window._isMainAdmin=true;
         adminSessionExpiry=d.expiresAt||(Date.now()+600000);
         if(adminSessionTimer)clearInterval(adminSessionTimer);
         adminSessionTimer=setInterval(checkAdminSession,30000);
@@ -14340,6 +14601,7 @@ socket.on('admin:resumeResult',d=>{
 
 socket.on('admin:full_data',d=>{
     users=d.users||[];hist=d.history||[];
+    if(d.secondaryAdminId!==undefined){window._secondaryAdminId=d.secondaryAdminId||null;if(typeof renderSecondaryAdminInfo==='function')renderSecondaryAdminInfo();}
     if(d.groups)groups=d.groups;
     if(d.groupPermissions)groupPermissions=d.groupPermissions;
     if(d.coupons)allCoupons=d.coupons;
@@ -14533,6 +14795,7 @@ function updateApprovalBadge(){
             else b.classList.add('hidden');
         }
     });
+    if(isAdmin&&typeof renderAdminHomeNotifs==='function')renderAdminHomeNotifs();
 }
 
 socket.on('admin:fineResult',d=>{
@@ -14848,7 +15111,7 @@ function showCtxMenu(x,y,uid){
     html+=`<div class="ctx-item" data-ctx="fine" data-uid="${uid}"><i data-lucide="alert-triangle" style="width:14px;height:14px"></i> Штраф</div>`;
     html+=`<div class="ctx-item" data-ctx="editBal" data-uid="${uid}"><i data-lucide="edit" style="width:14px;height:14px"></i> Корректировка</div>`;
     html+=`<div class="ctx-sep"></div>`;
-    html+=`<div class="ctx-item" data-ctx="sendNotif" data-uid="${uid}"><i data-lucide="bell" style="width:14px;height:14px"></i> Уведомление</div>`;
+    html+=`<div class="ctx-item" data-ctx="sendNotif" data-uid="${uid}"><i data-lucide="bell" style="width:14px;height:14px"></i> Admin уведомление</div>`;
     html+=`<div class="ctx-item" data-ctx="setGroup" data-uid="${uid}"><i data-lucide="users" style="width:14px;height:14px"></i> Назначить группу</div>`;
     html+=`<div class="ctx-item" data-ctx="resetPin" data-uid="${uid}"><i data-lucide="key" style="width:14px;height:14px"></i> Сменить PIN</div>`;
     html+=`<div class="ctx-sep"></div>`;
@@ -15165,60 +15428,94 @@ window.hwReviewSubmit=function(id,status){
         socket.emit('homework:review',{submissionId:id,status,comment});
     }
 };
+let _notifCat='pending';
+window.setNotifCat=function(c){
+    _notifCat=(c==='approved'||c==='all')?c:'pending';
+    document.querySelectorAll('#notifCatTabs .coupon-subtab').forEach(n=>n.classList.toggle('on',n.dataset.ncat===_notifCat));
+    renderNotifications();
+};
 function renderNotifications(){
     const cont=$('notifList');
     // Ensure full-width layout is active for this section
     const mainEl=document.querySelector('.layout .main');
     if(mainEl&&curSec==='notifications'){mainEl.classList.add('main-wide');document.body.classList.add('sec-notifications');}
+    const catTabs=$('notifCatTabs');
+    if(catTabs)catTabs.classList.toggle('hidden',!isAdmin);
     if(isAdmin){
         // Full-width homework review + approval requests
-        renderHwReview();
+        if(_notifCat==='pending')renderHwReview();
+        else{const hw=$('hwReviewWrap');if(hw)hw.innerHTML='';}
         const pending=approvalRequests.filter(r=>r.status==='pending').sort((a,b)=>b.createdAt-a.createdAt);
-        const resolved=approvalRequests.filter(r=>r.status!=='pending').sort((a,b)=>(b.reviewedAt||b.createdAt)-(a.reviewedAt||a.createdAt));
+        const approved=approvalRequests.filter(r=>r.status==='approved').sort((a,b)=>(b.reviewedAt||b.createdAt)-(a.reviewedAt||a.createdAt));
+        const rejected=approvalRequests.filter(r=>r.status==='rejected').sort((a,b)=>(b.reviewedAt||b.createdAt)-(a.reviewedAt||a.createdAt));
+        const resolved=approved.concat(rejected).sort((a,b)=>(b.reviewedAt||b.createdAt)-(a.reviewedAt||a.createdAt));
         cont.innerHTML='';
-        if(pending.length||resolved.length){
-            const sep=document.createElement('div');
-            sep.style.cssText='font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin:18px 0 8px;font-weight:700';
-            sep.textContent='📋 Заявки на проверку';
-            cont.appendChild(sep);
-        }
-        if(!pending.length&&!resolved.length){/* homework wrap already shows content */}
-        if(pending.length){
-            const hdr=document.createElement('div');
-            hdr.style.cssText='font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--warning);margin:8px 0;font-weight:700';
-            hdr.textContent='⏳ Ожидают проверки ('+pending.length+')';
-            cont.appendChild(hdr);
-            pending.forEach(r=>{
-                const el=document.createElement('div');
-                el.className='hw-item pending notif-item unread';
-                const typeIcon={purchase:'🛒',quest:'🎯',task:'📋',duel:'⚔️',coupon:'🎟️'}[r.type]||'📋';
-                const typeName={purchase:'Покупка',quest:'Квест',task:'Задание',duel:'Дуэль',coupon:'Купон'}[r.type]||'Заявка';
-                const desc=getApprovalDesc(r);
-                const dateStr=r.createdAt?new Date(r.createdAt).toLocaleString('ru-RU',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
-                el.innerHTML=`<div class="hw-item-head"><div class="hw-item-name">${typeIcon} ${esc(r.userName)} — ${esc(typeName)}</div><div class="hw-badge pending">На проверке</div></div>`+
-                    `<div class="hw-item-meta"><span>📤 ${esc(dateStr)}</span></div>`+
-                    `<div class="hw-block"><div class="hw-block-label">📋 Описание</div><div class="hw-block-body">${esc(desc)}</div></div>`+
-                    `<div class="hw-actions"><button type="button" class="btn btn-success" onclick="approveRequest('${r.id}')">✅ Одобрить</button><button type="button" class="btn btn-danger" onclick="rejectRequest('${r.id}')">❌ Отказать</button></div>`;
-                cont.appendChild(el);
-            });
-        }
-        if(resolved.length){
-            const hdr=document.createElement('div');
-            hdr.style.cssText='font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:16px 0 8px;font-weight:700';
-            hdr.textContent='Обработанные ('+resolved.length+')';
-            cont.appendChild(hdr);
-            resolved.slice(0,50).forEach(r=>{
-                const el=document.createElement('div');
-                el.className='hw-item '+(r.status==='approved'?'approved':'rejected');
-                const typeIcon={purchase:'🛒',quest:'🎯',task:'📋',duel:'⚔️',coupon:'🎟️'}[r.type]||'📋';
-                const statusText=r.status==='approved'?'✅ Одобрено':'❌ Отказано';
-                const desc=getApprovalDesc(r);
-                const dateStr=(r.reviewedAt||r.createdAt)?new Date(r.reviewedAt||r.createdAt).toLocaleString('ru-RU',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
-                el.innerHTML=`<div class="hw-item-head"><div class="hw-item-name">${typeIcon} ${esc(r.userName)}</div><div class="hw-badge ${r.status==='approved'?'approved':'rejected'}">${statusText}</div></div>`+
-                    `<div class="hw-item-meta"><span>📤 ${esc(dateStr)}</span>${r.adminComment?'<span>💬 '+esc(r.adminComment)+'</span>':''}</div>`+
-                    `<div class="hw-block"><div class="hw-block-label">📋 Описание</div><div class="hw-block-body">${esc(desc)}</div></div>`;
-                cont.appendChild(el);
-            });
+        if(_notifCat==='pending'){
+            if(pending.length){
+                const hdr=document.createElement('div');
+                hdr.style.cssText='font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--warning);margin:8px 0;font-weight:700';
+                hdr.textContent='⏳ На проверке ('+pending.length+')';
+                cont.appendChild(hdr);
+                pending.forEach(r=>{
+                    const el=document.createElement('div');
+                    el.className='hw-item pending notif-item unread';
+                    const typeIcon={purchase:'🛒',quest:'🎯',task:'📋',duel:'⚔️',coupon:'🎟️'}[r.type]||'📋';
+                    const typeName={purchase:'Покупка',quest:'Квест',task:'Задание',duel:'Дуэль',coupon:'Купон'}[r.type]||'Заявка';
+                    const desc=getApprovalDesc(r);
+                    const dateStr=r.createdAt?new Date(r.createdAt).toLocaleString('ru-RU',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+                    el.innerHTML=`<div class="hw-item-head"><div class="hw-item-name">${typeIcon} ${esc(r.userName)} — ${esc(typeName)}</div><div class="hw-badge pending">На проверке</div></div>`+
+                        `<div class="hw-item-meta"><span>📤 ${esc(dateStr)}</span></div>`+
+                        `<div class="hw-block"><div class="hw-block-label">📋 Описание</div><div class="hw-block-body">${esc(desc)}</div></div>`+
+                        `<div class="hw-actions"><button type="button" class="btn btn-success" onclick="approveRequest('${r.id}')">✅ Одобрить</button><button type="button" class="btn btn-danger" onclick="rejectRequest('${r.id}')">❌ Отказать</button></div>`;
+                    cont.appendChild(el);
+                });
+            }else{
+                cont.innerHTML='<div class="empty">Нет уведомлений, ожидающих проверки</div>';
+            }
+        }else if(_notifCat==='approved'){
+            if(approved.length){
+                const hdr=document.createElement('div');
+                hdr.style.cssText='font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--success);margin:8px 0;font-weight:700';
+                hdr.textContent='✅ Одобренные ('+approved.length+')';
+                cont.appendChild(hdr);
+                approved.forEach(r=>cont.appendChild(buildResolvedNotifEl(r)));
+            }else{
+                cont.innerHTML='<div class="empty">Одобренных уведомлений пока нет</div>';
+            }
+        }else{
+            if(pending.length||resolved.length){
+                const sep=document.createElement('div');
+                sep.style.cssText='font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin:18px 0 8px;font-weight:700';
+                sep.textContent='📋 Заявки на проверку';
+                cont.appendChild(sep);
+            }
+            if(pending.length){
+                const hdr=document.createElement('div');
+                hdr.style.cssText='font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--warning);margin:8px 0;font-weight:700';
+                hdr.textContent='⏳ Ожидают проверки ('+pending.length+')';
+                cont.appendChild(hdr);
+                pending.forEach(r=>{
+                    const el=document.createElement('div');
+                    el.className='hw-item pending notif-item unread';
+                    const typeIcon={purchase:'🛒',quest:'🎯',task:'📋',duel:'⚔️',coupon:'🎟️'}[r.type]||'📋';
+                    const typeName={purchase:'Покупка',quest:'Квест',task:'Задание',duel:'Дуэль',coupon:'Купон'}[r.type]||'Заявка';
+                    const desc=getApprovalDesc(r);
+                    const dateStr=r.createdAt?new Date(r.createdAt).toLocaleString('ru-RU',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+                    el.innerHTML=`<div class="hw-item-head"><div class="hw-item-name">${typeIcon} ${esc(r.userName)} — ${esc(typeName)}</div><div class="hw-badge pending">На проверке</div></div>`+
+                        `<div class="hw-item-meta"><span>📤 ${esc(dateStr)}</span></div>`+
+                        `<div class="hw-block"><div class="hw-block-label">📋 Описание</div><div class="hw-block-body">${esc(desc)}</div></div>`+
+                        `<div class="hw-actions"><button type="button" class="btn btn-success" onclick="approveRequest('${r.id}')">✅ Одобрить</button><button type="button" class="btn btn-danger" onclick="rejectRequest('${r.id}')">❌ Отказать</button></div>`;
+                    cont.appendChild(el);
+                });
+            }
+            if(resolved.length){
+                const hdr=document.createElement('div');
+                hdr.style.cssText='font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:16px 0 8px;font-weight:700';
+                hdr.textContent='Обработанные ('+resolved.length+')';
+                cont.appendChild(hdr);
+                resolved.slice(0,50).forEach(r=>cont.appendChild(buildResolvedNotifEl(r)));
+            }
+            if(!pending.length&&!resolved.length){cont.innerHTML='<div class="empty">Уведомлений пока нет</div>';}
         }
     } else {
         // Regular user sees their own approval request statuses + system notifications
@@ -15263,6 +15560,19 @@ function renderNotifications(){
     }
 }
 
+function buildResolvedNotifEl(r){
+    const el=document.createElement('div');
+    el.className='hw-item '+(r.status==='approved'?'approved':'rejected');
+    const typeIcon={purchase:'🛒',quest:'🎯',task:'📋',duel:'⚔️',coupon:'🎟️'}[r.type]||'📋';
+    const statusText=r.status==='approved'?'✅ Одобрено':'❌ Отказано';
+    const desc=getApprovalDesc(r);
+    const dateStr=(r.reviewedAt||r.createdAt)?new Date(r.reviewedAt||r.createdAt).toLocaleString('ru-RU',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+    el.innerHTML=`<div class="hw-item-head"><div class="hw-item-name">${typeIcon} ${esc(r.userName)}</div><div class="hw-badge ${r.status==='approved'?'approved':'rejected'}">${statusText}</div></div>`+
+        `<div class="hw-item-meta"><span>📤 ${esc(dateStr)}</span>${r.adminComment?'<span>💬 '+esc(r.adminComment)+'</span>':''}</div>`+
+        `<div class="hw-block"><div class="hw-block-label">📋 Описание</div><div class="hw-block-body">${esc(desc)}</div></div>`;
+    return el;
+}
+
 function getApprovalDesc(r){
     if(r.type==='purchase')return'Покупка: '+(r.data?.reason||'')+' ('+formatN(r.data?.amount||0)+' 分)';
     if(r.type==='quest')return'Квест: '+(r.data?.questTitle||'')+(r.data?.result?' — '+r.data.result:'');
@@ -15301,15 +15611,16 @@ window.debounceRenderUsers=function(){debounce('users',renderUsers);};
 function renderUsers(){
     const cont=$('usersListCont');const q=($('userSearch')?.value||'').toLowerCase();
     let list=isAdmin?users:getVisibleUsers();
-    list=list.filter(u=>!u.archived);
+    const showArchive=isAdmin&&window._adminUserView==='archive';
+    list=list.filter(u=>showArchive?!!u.archived:!u.archived);
     if(q){
-        list=list.filter(u=>u.name.toLowerCase().includes(q));
+        list=list.filter(u=>u.name.toLowerCase().includes(q)||(u.login||'').toLowerCase().includes(q)||(u.nickname||'').toLowerCase().includes(q));
         list.sort((a,b)=>(b.online?1:0)-(a.online?1:0));
     }else{
         if(usersOnlineFilter==='online')list=list.filter(u=>u.online);
         else list=list.filter(u=>!u.online);
     }
-    if(!list.length){cont.innerHTML=q?'<div class="empty">Пользователь не найден</div>':'<div class="empty">'+(usersOnlineFilter==='online'?'Нет пользователей онлайн':'Нет пользователей офлайн')+'</div>';return;}
+    if(!list.length){cont.innerHTML=q?'<div class="empty">Пользователь не найден</div>':'<div class="empty">'+(showArchive?'Архив пуст':(usersOnlineFilter==='online'?'Нет пользователей онлайн':'Нет пользователей офлайн'))+'</div>';return;}
     cont.innerHTML='';
     list.forEach(u=>{
         const el=document.createElement('div');el.className='ucard';el.dataset.uid=u.id;
@@ -15317,12 +15628,13 @@ function renderUsers(){
         el.onclick=()=>showUD(u.id);
         const menuBtn=isAdmin?`<button class="btn btn-ghost btn-sm" style="position:absolute;top:12px;right:12px;padding:4px 8px" onclick="event.stopPropagation();showCtxMenu(event.clientX,event.clientY,'${u.id}')">&#8942;</button>`:'';
         const groupName=u.groupId?groups.find(g=>g.id===u.groupId):null;
-        const groupBadge=groupName?`<span style="font-size:10px;padding:2px 8px;border-radius:8px;background:rgba(99,102,241,.12);color:#818cf8;margin-left:6px">${esc(groupName.name)}</span>`:'';
+        const groupBadge=groupName?`<span style="font-size:10px;padding:2px 8px;border-radius:8px;background:rgba(99,102,241,.12);color:#818cf8;margin-left:6px">${esc(groupName.name)}</span>`:'<span style="font-size:10px;padding:2px 8px;border-radius:8px;background:rgba(255,255,255,.05);color:var(--muted);margin-left:6px">Без группы</span>';
         const lvlBadge=u.level?getLevelBadgeHTML(u.level):'';
         const titleBadge=getUserTitleBadge(u);
         const avHtml=getUserAvatarHtml(u,42);
         const colorStyle=getNickColorStyle(u)||getUserColorStyle(u);
-        el.innerHTML=`${menuBtn}<div class="ucard-top">${avHtml}<div class="info"><div class="nm" ${colorStyle?'style="'+colorStyle+'"':''}>${esc(u.name)} ${lvlBadge}${titleBadge}${groupBadge}</div><div class="id">${u.login?'Логин: '+esc(u.login)+' · ':''}ID: ${u.id.substring(0,8)}...</div></div><span class="ust ${u.online?'on':'off'}">${u.online?'Онлайн':'Офлайн'}</span></div>${showBal?'<div class="ucard-bal">'+formatN(u.balance)+' 分</div>':''}`;
+        const infoLine=u.login?'Логин: '+esc(u.login):(groupName?'Группа: '+esc(groupName.name):'Ученик');
+        el.innerHTML=`${menuBtn}<div class="ucard-top">${avHtml}<div class="info"><div class="nm" ${colorStyle?'style="'+colorStyle+'"':''}>${esc(u.name)} ${lvlBadge}${titleBadge}${groupBadge}</div><div class="id">${infoLine}</div></div><span class="ust ${u.online?'on':'off'}">${u.online?'Онлайн':'Офлайн'}</span></div>${showBal?'<div class="ucard-bal">'+formatN(u.balance)+' 分</div>':''}`;
         cont.appendChild(el);
     });
 }
@@ -15341,7 +15653,8 @@ window.showUD=function showUD(uid){
     const ucActive=userCoupons.filter(x=>x.status==='active').length;
     const ucUsed=userCoupons.filter(x=>x.status==='activated'||x.status==='used').length;
     const ucExpired=userCoupons.filter(x=>x.status==='expired').length;
-    const groupName=u.groupId?(groups.find(g=>g.id===u.groupId)||{}).name||'—':'—';
+    const groupObj=u.groupId?groups.find(g=>g.id===u.groupId):null;
+    const groupName=groupObj?groupObj.name:'Группа не назначена';
     const regDate=u.createdAt?new Date(u.createdAt).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
     const lastAct=u.lastActive?new Date(u.lastActive).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
     const profileColorSwatch=u.profileColor?'<span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:'+u.profileColor+';vertical-align:middle;margin-left:6px"></span>':'';
@@ -15354,7 +15667,7 @@ window.showUD=function showUD(uid){
     const neonStyle=u.neonColor?'box-shadow:0 0 10px 2px '+u.neonColor+';border-color:'+u.neonColor+';':'';
     html+='<div class="av" style="width:56px;height:56px;font-size:24px;'+avPhotoStyle+neonStyle+(u.profilePhoto?'overflow:hidden;':'')+'">'+(u.profilePhoto?'<img src="'+u.profilePhoto+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%">':(icon?icon:esc(u.name.charAt(0).toUpperCase())))+'</div>';
     html+='<div><div style="font-size:18px;font-weight:700;'+avColor+'">'+esc(u.name)+(u.nickname?' <span style="font-size:13px;color:var(--dim)">('+esc(u.nickname)+')</span>':'')+'</div>';
-    html+='<div style="font-size:12px;color:var(--muted)">ID: '+u.id+'</div>';
+    html+='<div style="font-size:12px;color:var(--muted)">'+(u.login?'Логин: '+esc(u.login):esc(groupName))+'</div>';
     const displayTitle=u.customTitle||u.currentTitle||'Новичок';
     html+='<div style="font-size:12px;margin-top:2px"><span style="padding:2px 8px;border-radius:8px;background:rgba(201,168,76,.12);color:var(--accent)">🏆 '+esc(displayTitle)+'</span></div>';
     html+='</div></div>';
@@ -15758,7 +16071,7 @@ function renderProfManage(){
         const titleBadge=getUserTitleBadge(u);
         const avHtml=getUserAvatarHtml(u,42);
         const colorStyle=getNickColorStyle(u)||getUserColorStyle(u);
-        el.innerHTML=`<div class="ucard-top">${avHtml}<div class="info"><div class="nm" ${colorStyle?'style="'+colorStyle+'"':''}>${esc(u.name)} ${lvlBadge}${titleBadge}${groupBadge}</div><div class="id">ID: ${u.id.substring(0,8)}...</div></div><span class="ust ${u.online?'on':'off'}">${u.online?'Онлайн':'Офлайн'}</span></div><div class="ucard-bal">${formatN(u.balance)} 分</div><div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn btn-accent btn-sm" onclick="showUD('${u.id}')">⚙️ Управление</button><button class="btn btn-ghost btn-sm" onclick="showCtxMenu(event.clientX,event.clientY,'${u.id}')">⋯ Ещё</button></div>`;
+        el.innerHTML=`<div class="ucard-top">${avHtml}<div class="info"><div class="nm" ${colorStyle?'style="'+colorStyle+'"':''}>${esc(u.name)} ${lvlBadge}${titleBadge}${groupBadge}</div><div class="id">${u.login?'Логин: '+esc(u.login):'Ученик'}</div></div><span class="ust ${u.online?'on':'off'}">${u.online?'Онлайн':'Офлайн'}</span></div><div class="ucard-bal">${formatN(u.balance)} 分</div><div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn btn-accent btn-sm" onclick="showUD('${u.id}')">⚙️ Управление</button><button class="btn btn-ghost btn-sm" onclick="showCtxMenu(event.clientX,event.clientY,'${u.id}')">⋯ Ещё</button></div>`;
         cont.appendChild(el);
     });
     lucide.createIcons();
@@ -16137,16 +16450,16 @@ function renderAdminCards(){
     list.forEach(u=>{
         const el=document.createElement('div');el.className='ucard';el.dataset.uid=u.id;
         const groupName=u.groupId?groups.find(g=>g.id===u.groupId):null;
-        const groupBadge=groupName?`<span style="font-size:10px;padding:2px 8px;border-radius:8px;background:rgba(99,102,241,.12);color:#818cf8;margin-left:6px">${esc(groupName.name)}</span>`:'';
+        const groupBadge=groupName?`<span style="font-size:10px;padding:2px 8px;border-radius:8px;background:rgba(99,102,241,.12);color:#818cf8;margin-left:6px">${esc(groupName.name)}</span>`:'<span style="font-size:10px;padding:2px 8px;border-radius:8px;background:rgba(255,255,255,.05);color:var(--muted);margin-left:6px">Без группы</span>';
         const userCouponCount=(window._adminUserCoupons||[]).filter(uc=>uc.userId===u.id&&uc.status==='active').length;
         const lvlBadge=u.level?getLevelBadgeHTML(u.level):'';
         const titleBadgeAdmin=getUserTitleBadge(u);
-        const icon=getUserIcon(u);const avHtml=icon?icon:esc(u.name.charAt(0).toUpperCase());
+        const avHtml=getUserAvatarHtml(u,42);
         const colorStyle=getUserColorStyle(u);
         const archiveBtns=showArchive
             ?`<button class="btn btn-success btn-sm" onclick="doRestoreUser('${u.id}')">♻️ Восстановить</button><button class="btn btn-danger btn-sm" onclick="doDeleteUser('${u.id}')">🗑 Удалить</button>`
             :`<button class="btn btn-ghost btn-sm" onclick="doArchiveUser('${u.id}')">📦 В архив</button>`;
-        el.innerHTML=`<div class="ucard-top"><div class="av" ${colorStyle?'style="'+colorStyle+'"':''}>${avHtml}</div><div class="info"><div class="nm" ${colorStyle?'style="'+colorStyle+'"':''}>${esc(u.name)} ${lvlBadge}${titleBadgeAdmin}${groupBadge}</div><div class="id">${u.login?'Логин: '+esc(u.login)+' · ':''}ID: ${u.id.substring(0,8)}...</div></div><span class="ust ${u.online?'on':'off'}">${u.online?'Онлайн':'Офлайн'}</span></div><div class="ucard-bal">${formatN(u.balance)} 分</div>${userCouponCount>0?'<div style="font-size:11px;color:var(--accent);margin-top:4px">🎟️ Активных купонов: '+userCouponCount+'</div>':''}<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">${archiveBtns}<button class="btn btn-accent btn-sm" onclick="showUD('${u.id}')">Подробнее</button></div>`;
+        el.innerHTML=`<div class="ucard-top"><div class="av" ${colorStyle?'style="'+colorStyle+'"':''}>${avHtml}</div><div class="info"><div class="nm" ${colorStyle?'style="'+colorStyle+'"':''}>${esc(u.name)} ${lvlBadge}${titleBadgeAdmin}${groupBadge}</div><div class="id">${u.login?'Логин: '+esc(u.login):(groupName?'Группа: '+esc(groupName.name):'Ученик')}</div></div><span class="ust ${u.online?'on':'off'}">${u.online?'Онлайн':'Офлайн'}</span></div><div class="ucard-bal">${formatN(u.balance)} 分</div>${userCouponCount>0?'<div style="font-size:11px;color:var(--accent);margin-top:4px">🎟️ Активных купонов: '+userCouponCount+'</div>':''}<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">${archiveBtns}<button class="btn btn-accent btn-sm" onclick="showUD('${u.id}')">Подробнее</button></div>`;
         cont.appendChild(el);
     });
 }
@@ -16157,6 +16470,7 @@ window.setAdminUserView=function(mode){
     if(ba)ba.classList.toggle('on',window._adminUserView==='active');
     if(br)br.classList.toggle('on',window._adminUserView==='archive');
     renderAdminCards();
+    if(typeof renderUsers==='function')renderUsers();
 };
 
 window.doArchiveUser=function(uid){
@@ -16517,7 +16831,7 @@ function showGroupQuickAction(userId,groupId){
     html+=`<button class="btn btn-danger btn-lg" onclick="groupQuickAction('withdraw','${userId}')"><i data-lucide="minus-circle" style="width:18px;height:18px"></i> Изъять</button>`;
     html+=`<button class="btn btn-ghost btn-lg" onclick="groupQuickAction('edit','${userId}')"><i data-lucide="edit" style="width:18px;height:18px"></i> Корректировка</button>`;
     html+=`<button class="btn btn-accent btn-lg" onclick="groupQuickAction('transfer','${userId}')"><i data-lucide="send" style="width:18px;height:18px"></i> Перевод</button>`;
-    html+=`<button class="btn btn-accent btn-lg" onclick="groupQuickAction('notify','${userId}')"><i data-lucide="bell" style="width:18px;height:18px"></i> Уведомление</button>`;
+    html+=`<button class="btn btn-accent btn-lg" onclick="groupQuickAction('notify','${userId}')"><i data-lucide="bell" style="width:18px;height:18px"></i> Admin уведомление</button>`;
     html+='</div>';
     html+=`<button class="btn btn-ghost btn-full mt-12" onclick="removeFromGroup('${userId}');cm('mGroupAction');setTimeout(()=>{cm('mGroupDetail');},200)"><i data-lucide="user-minus" style="width:14px;height:14px"></i> Убрать из группы</button>`;
     $('gaContent').innerHTML=html;
@@ -19240,6 +19554,10 @@ setInterval(function(){try{socket.emit('globalMode:get');}catch(e){}},30000);
 // Override go() to handle new sections
 const _origGo2=window.go;
 window.go=function(s){
+    // AI Office открыт: случайная навигация не должна закрывать рабочее пространство
+    if(document.body.classList.contains('aioffice-fullscreen')&&!window._aioClosing){
+        return;
+    }
     // Unified games section: croc/bunker aliases point to «Игры»
     if(s==='croc'||s==='bunker'||s==='games')s='games';
     // Global mode: lock non-admin users into forced section (кроме явного закрытия словаря)
@@ -22186,6 +22504,12 @@ document.addEventListener('DOMContentLoaded',function(){
         }
         const dictReload=$('dictReload');
         if(dictReload)dictReload.onclick=function(){return window.reloadDictionary();};
+        // Кнопка AI Office — такая же надёжная привязка, как у словаря
+        const aioClose=$('aioClose');
+        if(aioClose){
+            aioClose.onclick=function(e){if(e){e.preventDefault();e.stopPropagation();}return window.closeAiOffice();};
+            aioClose.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();window.closeAiOffice();},true);
+        }
     }catch(e){}
     try{ if(window.Journal&&window.Journal.init&&window.BP)window.Journal.init(window.BP); }catch(e){}
     try{ if(window.Exams&&window.Exams.init&&window.BP)window.Exams.init(window.BP); }catch(e){}

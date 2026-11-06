@@ -15,6 +15,26 @@ export const providerMeta={
  github:{label:'GitHub Models',keyHint:'GitHub PAT (scope: models)',defaultModel:'openai/gpt-4o-mini',voice:false,disabled:'GitHub Models полностью отключён GitHub 30.07.2026 — playground, каталог и inference API больше недоступны. Ключ GitHub нельзя использовать для ИИ-запросов в этой сборке.'},
  demo:{label:'Тестовый адаптер (без ИИ)',keyHint:'',defaultModel:'demo',voice:false,demo:true}
 };
+// Команда AI Office: роли агентов и их рабочие инструкции.
+export const agentMeta={
+ document:{id:'document',name:'Линь',role:'Документы',symbol:'文',color:'#e8c37a',instruction:'Ты — Линь, эксперт по документам. Готовь аккуратные структурированные тексты документов, соблюдай деловой стиль, проверяй орфографию, ясность формулировок и сохраняй форматирование.'},
+ research:{id:'research',name:'Атлас',role:'Исследования',symbol:'知',color:'#8fb6e8',instruction:'Ты — Атлас, исследователь и аналитик. Собирай и проверяй факты, выделяй ключевые тезисы, сравнивай подходы, честно указывай ограничения данных и не выдумывай источники.'},
+ education:{id:'education',name:'Мэй',role:'Обучение',symbol:'学',color:'#8fd6b0',instruction:'Ты — Мэй, методист преподавания. Готовь понятные учебные материалы, задания и планы занятий с целями, этапами, минутами и упражнениями; проверяй китайские иероглифы, пиньинь и тоновые знаки.'},
+ development:{id:'development',name:'Нео',role:'Разработка',symbol:'码',color:'#c9a2f2',instruction:'Ты — Нео, технический специалист. Структурируй решения, пиши ясные пошаговые инструкции и самодостаточный код, объясняй шаги, отмечай риски и ограничения.'}
+};
+export const agentList=Object.values(agentMeta);
+function httpDiagnosis(status,bodyText){
+ let detail='';try{const d=JSON.parse(bodyText||'{}');detail=String(d.error?.message||d.error||d.message||'').slice(0,280)}catch{detail=String(bodyText||'').replace(/\s+/g,' ').trim().slice(0,280)}
+ let reason;
+ if(status===401||status===403)reason='Неверный API-ключ или нет доступа';
+ else if(status===402)reason='Недостаточно средств на балансе';
+ else if(status===404)reason='Модель недоступна или неверный Model ID';
+ else if(status===429)reason='Превышен лимит запросов';
+ else if(status===400)reason='Неправильный формат запроса или несовместимая модель';
+ else if(status>=500)reason='Ошибка сервера провайдера';
+ else reason='Ошибка провайдера';
+ return reason+(detail?': '+detail:'');
+}
 export async function complete(c,key,messages,signal,maxTokens=4096){
  if(c.provider==='demo')return {text:'⚠ ТЕСТОВЫЙ АДАПТЕР — это НЕ ответ ИИ.\n\nЗадание принято в работу, но внешняя модель не вызывалась: реальные API-ключи не подключены (или явно выбран тестовый адаптер).\nОтветы тестового адаптера не являются результатом работы модели и не должны использоваться как готовые материалы.\n\nЧтобы получать реальные ответы, откройте «Настройки ИИ → API-подключения» и добавьте ключ Xiaomi MiMo, Groq, OpenRouter или Hugging Face.\n\nТекст задания (для отладки):\n'+String(messages.at(-1)?.content||'').slice(0,800),usage:null,demo:true};
  if(c.provider==='github')throw new Fault((providerMeta.github?.disabled||'GitHub Models недоступен'),502);
@@ -22,9 +42,11 @@ export async function complete(c,key,messages,signal,maxTokens=4096){
  const headers={'Content-Type':'application/json','Authorization':'Bearer '+key};
  if(c.provider==='mimo')headers['api-key']=key;
  const body={model:c.model,messages,stream:false,max_tokens:maxTokens};
- if(c.temperature!==null)body.temperature=c.temperature;
- const r=await fetch(providers[c.provider]+'/chat/completions',{method:'POST',headers,body:JSON.stringify(body),redirect:'error',signal:AbortSignal.any([signal,AbortSignal.timeout(120000)])});
- if(!r.ok)throw new Fault(c.name+': HTTP '+r.status+' — проверьте ключ, модель и баланс',502);
+ if(c.temperature!==null&&c.temperature!==undefined)body.temperature=c.temperature;
+ let r;
+ try{r=await fetch(providers[c.provider]+'/chat/completions',{method:'POST',headers,body:JSON.stringify(body),redirect:'error',signal:AbortSignal.any([signal,AbortSignal.timeout(300000)])})}
+ catch(e){if(signal?.aborted)throw new Fault('Остановлено',499);const f=new Fault(c.name+': сеть или тайм-аут — сервер недоступен или запрос слишком долгий',502);f.retryable=true;throw f}
+ if(!r.ok){let bodyText='';try{bodyText=await r.text()}catch{}const f=new Fault(c.name+': HTTP '+r.status+' — '+httpDiagnosis(r.status,bodyText),r.status===429?429:502);f.retryable=(r.status===429||r.status>=500);throw f}
  const d=await r.json(),answer=d.choices?.[0]?.message?.content;
  if(typeof answer!=='string'||!answer.trim())throw new Fault('Модель не вернула текст',502);
  return {text:answer,usage:d.usage||null}

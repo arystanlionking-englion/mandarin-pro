@@ -2569,6 +2569,11 @@ const unifiedWords = [...unifiedWordMap.values()];
 // Предвычисленный ключ поиска — ускоряет фильтрацию без normalize на каждый ввод
 unifiedWords.forEach(w=>{w._sk=normalize(w.hanzi)+"|"+normalize(w.pinyin)+"|"+normalize(w.ru)+"|"+normalize(w.kz)});
 
+// Общий список словосочетаний с предвычисленным ключом поиска —
+// без повторной сборки массива и normalize на каждый запрос
+const ALL_PHRASES=phrases.concat(HSK1_PHRASES).concat(HSK2_PHRASES).concat(typeof HSK4A_PHRASES!=='undefined'?HSK4A_PHRASES:[]);
+ALL_PHRASES.forEach(p=>{p._sk=normalize(p.hanzi||"")+"|"+normalize(p.pinyin||"")+"|"+normalize(p.ru||"")+"|"+normalize(p.kz||"")});
+
 // ===== WORD-DIALOGUE BIDIRECTIONAL INDEX =====
 // Optimized: build full text per dialogue, scan words once per dialogue (not per line)
 function buildWordDialogueLinks() {
@@ -2677,7 +2682,8 @@ function navigate(view){
   if(view==="favorites"){renderFavorites()}
   if(view==="training"){renderTraining()}
   if(view==="ai"){scrollAiBottom()}
-  if(view==="dictionary"){
+  // Список словаря не пересобираем, если он уже актуален (без лишних перерисовок)
+  if(view==="dictionary"&&!dictListRendered){
     var isDialogueTab=document.querySelector('#dictTabs .lesson-tab[data-dt="dialogues"]').classList.contains("active");
     if(isDialogueTab){renderDictDialogues(document.getElementById("dictSearch").value)}
     else{renderDict(document.getElementById("dictSearch").value)}
@@ -2702,7 +2708,11 @@ function refreshCurrentView(){
 // ===== RENDER: DICTIONARY =====
 function getUnifiedWordKey(w){return`${w.level}|${w.lesson}|${w.hanzi}|${w.pinyin}`}
 let dictLimit=30;
-function resetDictLimit(){dictLimit=30}
+// Флаг: список словаря уже отрисован — не пересобираем DOM без изменений
+let dictListRendered=false;
+// Ключ последней отрисовки списка уроков (по режиму), чтобы не пересобирать карточки
+let lessonsListRenderKey=null;
+function resetDictLimit(){dictLimit=30;dictListRendered=false}
 
 function renderDict(query=""){
   const container=document.getElementById("dictCards");
@@ -2738,7 +2748,7 @@ function renderDict(query=""){
     const nq=normalize(query);
     list=list.filter(w=>(w._sk||"").includes(nq)||String(w.lesson)===query.trim());
   }
-  if(!list.length){container.innerHTML="";empty.style.display="block";return}
+  if(!list.length){container.innerHTML="";empty.style.display="block";dictListRendered=true;return}
   empty.style.display="none";
   const total=list.length;
   const shown=list.slice(0,dictLimit);
@@ -2801,6 +2811,7 @@ function renderDict(query=""){
       else showDialogue(lid, di);
     });
   });
+  dictListRendered=true;
 }
 
 function bindDictEvents(container){
@@ -2864,6 +2875,9 @@ function showLessonsList(){
   document.getElementById("dialogueView").style.display="none";
   const list=document.getElementById("lessonsList");
   list.style.display="block";
+  // Без смены режима список уже актуален — только возвращаем его на экран
+  if(lessonsListRenderKey===currentMode&&list.childElementCount)return;
+  lessonsListRenderKey=currentMode;
   let html='';
 
   if(currentMode==="hsk1"){
@@ -3663,6 +3677,7 @@ function renderDictDialogues(query){
   if(!html){
     container.innerHTML="";
     document.getElementById("dictEmpty").style.display="block";
+    dictListRendered=true;
     return;
   }
   document.getElementById("dictEmpty").style.display="none";
@@ -3680,6 +3695,7 @@ function renderDictDialogues(query){
       }
     });
   });
+  dictListRendered=true;
 }
 
 function showHsk1Dialogue(lessonId,dialogueIndex){
@@ -4739,15 +4755,15 @@ function searchInternalDB(query,lessonFilter){
   const nq=normalize(query.trim());
   if(!nq)return{words:[],phrases:[]};
   // Always search ALL words (unified) regardless of mode
+  // По предвычисленному ключу _sk — без повторного normalize каждого поля
   var w=unifiedWords.filter(function(w){
     if(lessonFilter&&w.lesson!==lessonFilter)return false;
-    return normalize(w.hanzi).includes(nq)||normalize(w.pinyin).includes(nq)||normalize(w.ru).includes(nq)||normalize(w.kz).includes(nq);
+    return (w._sk||"").includes(nq);
   });
-  // Search all phrases (HSK3 + HSK1 + HSK2)
-  var allPhrases=phrases.concat(HSK1_PHRASES).concat(HSK2_PHRASES).concat(typeof HSK4A_PHRASES !== 'undefined' ? HSK4A_PHRASES : []);
-  var p=allPhrases.filter(function(ph){
+  // Search all phrases (HSK3 + HSK1 + HSK2 + HSK4A) — готовый список ALL_PHRASES
+  var p=ALL_PHRASES.filter(function(ph){
     if(lessonFilter&&ph.lesson!==lessonFilter)return false;
-    return normalize(ph.hanzi).includes(nq)||normalize(ph.pinyin).includes(nq)||normalize(ph.ru).includes(nq)||normalize(ph.kz).includes(nq);
+    return (ph._sk||"").includes(nq);
   });
   return{words:w,phrases:p};
 }
@@ -4914,47 +4930,55 @@ function speak(text){
 
 // ===== INITIALIZATION =====
 function init(){
-  // Populate lesson filters
+  // Populate lesson filters — одной вставкой на каждый select (без сотен insertAdjacentHTML)
   try{
     const lf=document.getElementById("lessonFilter");
     const pl=document.getElementById("phraseLesson");
     const ts=document.getElementById("trainSource");
     var hlf=document.getElementById("homeLessonFilter");
     const alf=document.getElementById("aiLessonFilter");
+    const opt=(v,t)=>`<option value="${v}">${t}</option>`;
+    let lfHtml="",plHtml="",tsHtml="",hlfHtml="",alfHtml="";
     // HSK1 lessons
-    lf.insertAdjacentHTML("beforeend",`<optgroup label="Первоуческий (HSK 1)">`);
+    lfHtml+=`<optgroup label="Первоуческий (HSK 1)">`;
     HSK1_LESSONS.forEach(l=>{
-      lf.insertAdjacentHTML("beforeend",`<option value="hsk1-${l.id}">HSK1 L${l.id} ${l.cn}</option>`);
-      ts.insertAdjacentHTML("beforeend",`<option value="hsk1-${l.id}">HSK1 L${l.id}</option>`);
+      lfHtml+=opt(`hsk1-${l.id}`,`HSK1 L${l.id} ${l.cn}`);
+      tsHtml+=opt(`hsk1-${l.id}`,`HSK1 L${l.id}`);
     });
-    lf.insertAdjacentHTML("beforeend",`</optgroup>`);
+    lfHtml+=`</optgroup>`;
     // HSK2 lessons
-    lf.insertAdjacentHTML("beforeend",`<optgroup label="HSK 2">`);
+    lfHtml+=`<optgroup label="HSK 2">`;
     HSK2_LESSONS.forEach(l=>{
-      lf.insertAdjacentHTML("beforeend",`<option value="hsk2-${l.id}">HSK2 L${l.id} ${l.cn}</option>`);
-      pl.insertAdjacentHTML("beforeend",`<option value="hsk2-${l.id}">HSK2 L${l.id}</option>`);
-      ts.insertAdjacentHTML("beforeend",`<option value="hsk2-${l.id}">HSK2 L${l.id}</option>`);
+      lfHtml+=opt(`hsk2-${l.id}`,`HSK2 L${l.id} ${l.cn}`);
+      plHtml+=opt(`hsk2-${l.id}`,`HSK2 L${l.id}`);
+      tsHtml+=opt(`hsk2-${l.id}`,`HSK2 L${l.id}`);
     });
-    lf.insertAdjacentHTML("beforeend",`</optgroup>`);
+    lfHtml+=`</optgroup>`;
     // HSK4A lessons
     if (typeof HSK4A_LESSONS !== 'undefined') {
-      lf.insertAdjacentHTML("beforeend",`<optgroup label="4 HSK A">`);
+      lfHtml+=`<optgroup label="4 HSK A">`;
       HSK4A_LESSONS.forEach(l=>{
-        lf.insertAdjacentHTML("beforeend",`<option value="hsk4a-${l.id}">4A L${l.id} ${l.cn}</option>`);
-        pl.insertAdjacentHTML("beforeend",`<option value="hsk4a-${l.id}">4A L${l.id}</option>`);
-        ts.insertAdjacentHTML("beforeend",`<option value="hsk4a-${l.id}">4A L${l.id}</option>`);
+        lfHtml+=opt(`hsk4a-${l.id}`,`4A L${l.id} ${l.cn}`);
+        plHtml+=opt(`hsk4a-${l.id}`,`4A L${l.id}`);
+        tsHtml+=opt(`hsk4a-${l.id}`,`4A L${l.id}`);
       });
-      lf.insertAdjacentHTML("beforeend",`</optgroup>`);
+      lfHtml+=`</optgroup>`;
     }
-    lf.insertAdjacentHTML("beforeend",`<optgroup label="HSK 3 (Уроки)">`);
+    // HSK3 (lessons)
+    lfHtml+=`<optgroup label="HSK 3 (Уроки)">`;
     LESSONS.forEach(l=>{
-      lf.insertAdjacentHTML("beforeend",`<option value="${l.id}">Урок ${l.id} ${l.cn}</option>`);
-      pl.insertAdjacentHTML("beforeend",`<option value="${l.id}">Урок ${l.id}</option>`);
-      ts.insertAdjacentHTML("beforeend",`<option value="lesson-${l.id}">Урок ${l.id}</option>`);
-      if(hlf)hlf.insertAdjacentHTML("beforeend",`<option value="${l.id}">Урок ${l.id}</option>`);
-      if(alf)alf.insertAdjacentHTML("beforeend",`<option value="${l.id}">Урок ${l.id}</option>`);
+      lfHtml+=opt(`${l.id}`,`Урок ${l.id} ${l.cn}`);
+      plHtml+=opt(`${l.id}`,`Урок ${l.id}`);
+      tsHtml+=opt(`lesson-${l.id}`,`Урок ${l.id}`);
+      hlfHtml+=opt(`${l.id}`,`Урок ${l.id}`);
+      alfHtml+=opt(`${l.id}`,`Урок ${l.id}`);
     });
-    lf.insertAdjacentHTML("beforeend",`</optgroup>`);
+    lfHtml+=`</optgroup>`;
+    lf.insertAdjacentHTML("beforeend",lfHtml);
+    if(plHtml)pl.insertAdjacentHTML("beforeend",plHtml);
+    if(tsHtml)ts.insertAdjacentHTML("beforeend",tsHtml);
+    if(hlf&&hlfHtml)hlf.insertAdjacentHTML("beforeend",hlfHtml);
+    if(alf&&alfHtml)alf.insertAdjacentHTML("beforeend",alfHtml);
   }catch(e){console.error("Init: lesson filters",e)}
 
   // Apply font
@@ -5223,11 +5247,21 @@ function init(){
   // Dialogue controls
   try{initDialogueControls()}catch(e){console.error("Init: dialogue controls",e)}
 
-  // Initial render
+  // Initial render — после первого кадра, чтобы не блокировать открытие словаря.
+  // Повторно не пересобираем то, что уже отрисовано (dictListRendered / currentPhrase).
   try{
-    renderDict();
-    showRandomPhrase();
-    renderFavorites();
+    var doInitRender=function(){
+      try{
+        if(!dictListRendered)renderDict();
+        if(!currentPhrase)showRandomPhrase();
+        renderFavorites();
+      }catch(e){console.error("Init: initial render",e)}
+    };
+    if(typeof requestAnimationFrame==="function"){
+      requestAnimationFrame(function(){requestAnimationFrame(doInitRender)});
+    }else{
+      setTimeout(doInitRender,50);
+    }
   }catch(e){console.error("Init: initial render",e)}
 }
 

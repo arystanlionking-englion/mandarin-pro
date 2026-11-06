@@ -578,6 +578,8 @@ function _assignDB(parsed) {
             db[key] = parsed[key];
         }
     }
+    // Extra fields not present in getDefaultDB() must survive the load
+    if (parsed.secondaryAdminId !== undefined) db.secondaryAdminId = parsed.secondaryAdminId || null;
     // Fix nested object that may be null after JSON round-trip
     if (!db.battlePass || typeof db.battlePass !== 'object') {
         db.battlePass = { seasonEnd: null, userProgress: {} };
@@ -590,6 +592,7 @@ function _assignDB(parsed) {
 
 function _runMigrations() {
     // Migration: ensure all users have required fields
+    if (db.secondaryAdminId === undefined || db.secondaryAdminId === '') db.secondaryAdminId = null;
     db.users.forEach(u => {
         if (!u.pinHash) { u.pinHash = null; u.salt = null; }
         if (typeof u.balance !== 'number' || !isFinite(u.balance)) u.balance = 0;
@@ -1324,6 +1327,7 @@ function publicUserAdmin(u, onlineIds) {
 
 const socketUserMap = new Map(); // socketId -> userId
 const adminSockets = new Set();
+const pinAdminSockets = new Set(); // sockets authenticated via admin PIN (main admin only)
 const adminSessions = new Map(); // token -> expiresAt (ms)
 const ADMIN_SESSION_TTL = 12 * 60 * 60 * 1000; // 12 hours
 const socketIdMap = new Map(); // userId -> Set<socketId>
@@ -1355,6 +1359,16 @@ function getOnlineUserIds() {
 }
 function getOnlineCount() { return getOnlineUserIds().size; }
 function isAdmin(socketId) { return adminSockets.has(socketId); }
+function isMainAdmin(socketId) { return pinAdminSockets.has(socketId); }
+// Дополнительный администратор: обычный пользователь с сохранённым admin-статусом
+function isSecondaryAdminUser(user) {
+    return !!(user && db.secondaryAdminId && user.id === db.secondaryAdminId && !user.isGuest && !user.archived);
+}
+function grantSecondaryAdminIfAny(user, socket) {
+    if (!isSecondaryAdminUser(user)) return false;
+    adminSockets.add(socket.id);
+    return true;
+}
 
 function getGlobalMode() {
     if (!db.globalMode || typeof db.globalMode !== 'object') {
@@ -1398,6 +1412,7 @@ function removeSocket(socketId) {
     }
     socketUserMap.delete(socketId);
     adminSockets.delete(socketId);
+    pinAdminSockets.delete(socketId);
 }
 
 // --- Emit to specific user (all their sockets) ---
@@ -2776,6 +2791,7 @@ io.on('connection', (socket) => {
         const session = createSession(user.id);
         const onlineIds = getOnlineUserIds();
         const uxData2 = getXP(user.id);
+        const adminRights2 = grantSecondaryAdminIfAny(user, socket);
         socket.emit('user:logged_in', {
             user: publicUserFull(user, onlineIds),
             favorites: db.favorites[user.id] || [],
@@ -2783,7 +2799,8 @@ io.on('connection', (socket) => {
             messages: db.messages.filter(m => m.fromId === user.id || m.toId === user.id),
             notifications: db.notifications.filter(n => n.targetUserId === user.id),
             xp: uxData2,
-            sessionToken: session.token
+            sessionToken: session.token,
+            adminRights: adminRights2
         });
         emitBankUpdate();
     });
@@ -2865,6 +2882,7 @@ io.on('connection', (socket) => {
         const session = createSession(user.id);
         const onlineIds = getOnlineUserIds();
         const uxData = getXP(user.id);
+        const adminRightsPw = grantSecondaryAdminIfAny(user, socket);
         socket.emit('user:logged_in', {
             user: publicUserFull(user, onlineIds),
             favorites: db.favorites[user.id] || [],
@@ -2872,7 +2890,8 @@ io.on('connection', (socket) => {
             messages: db.messages.filter(m => m.fromId === user.id || m.toId === user.id),
             notifications: db.notifications.filter(n => n.targetUserId === user.id),
             xp: uxData,
-            sessionToken: session.token
+            sessionToken: session.token,
+            adminRights: adminRightsPw
         });
         socket.emit('user:login_result', { success: true, name: user.name });
         emitBankUpdate();
@@ -3012,6 +3031,7 @@ io.on('connection', (socket) => {
         checkMaturedDeposits(user.id);
         const onlineIds = getOnlineUserIds();
         const uxData = getXP(user.id);
+        const adminRightsSess = grantSecondaryAdminIfAny(user, socket);
         socket.emit('user:logged_in', {
             user: publicUserFull(user, onlineIds),
             favorites: db.favorites[user.id] || [],
@@ -3019,7 +3039,8 @@ io.on('connection', (socket) => {
             messages: db.messages.filter(m => m.fromId === user.id || m.toId === user.id),
             notifications: db.notifications.filter(n => n.targetUserId === user.id),
             xp: uxData,
-            sessionToken: session.token
+            sessionToken: session.token,
+            adminRights: adminRightsSess
         });
         emitBankUpdate();
     });
@@ -3291,6 +3312,7 @@ io.on('connection', (socket) => {
             db.adminSalt = salt;
             saveDB();
             adminSockets.add(socket.id);
+            pinAdminSockets.add(socket.id);
             const adminToken = createAdminSessionToken();
             socket.emit('admin:authenticated', { success: true, firstTime: true, adminToken, expiresAt: Date.now() + ADMIN_SESSION_TTL });
             logAdminAction('admin_login', null, null, null, null, 'Первый вход, PIN установлен');
@@ -3311,6 +3333,7 @@ io.on('connection', (socket) => {
         }
         clearLoginFails(adminRlKey);
         adminSockets.add(socket.id);
+        pinAdminSockets.add(socket.id);
         const adminToken = createAdminSessionToken();
         socket.emit('admin:authenticated', { success: true, firstTime: false, adminToken, expiresAt: Date.now() + ADMIN_SESSION_TTL });
         // Send full admin data
@@ -3330,7 +3353,7 @@ io.on('connection', (socket) => {
             tasks: db.taskAssignments,
             duels: db.duels,
             userXP: db.userXP,
-            approvalRequests: db.approvalRequests
+            approvalRequests: db.approvalRequests, secondaryAdminId: db.secondaryAdminId || null
         });
         logAdminAction('admin_login', null, null, null, null, 'Вход в админ-панель');
         saveDB();
@@ -3344,6 +3367,7 @@ io.on('connection', (socket) => {
             return;
         }
         adminSockets.add(socket.id);
+        pinAdminSockets.add(socket.id);
         socket.emit('admin:resumeResult', { success: true, expiresAt: adminSessions.get(token) });
         const onlineIds = getOnlineUserIds();
         socket.emit('admin:full_data', {
@@ -3361,8 +3385,49 @@ io.on('connection', (socket) => {
             tasks: db.taskAssignments,
             duels: db.duels,
             userXP: db.userXP,
-            approvalRequests: db.approvalRequests
+            approvalRequests: db.approvalRequests, secondaryAdminId: db.secondaryAdminId || null
         });
+    });
+
+    // --- Дополнительный администратор (только главный администратор, максимум один) ---
+    socket.on('admin:setSecondaryAdmin', (data) => {
+        const fail = (error) => socket.emit('admin:secondaryAdminResult', { success: false, error });
+        if (!isAdmin(socket.id)) { fail('Требуется доступ администратора.'); return; }
+        if (!isMainAdmin(socket.id)) { fail('Назначать дополнительного администратора может только главный администратор.'); return; }
+        const userId = data && data.userId ? String(data.userId) : '';
+        if (!userId) {
+            // Снять статус
+            const prevId = db.secondaryAdminId || null;
+            db.secondaryAdminId = null;
+            saveDB();
+            // Отозвать admin-доступ у всех сокетов прежнего доп. администратора
+            if (prevId) {
+                const socks = getUserSockets(prevId);
+                for (const sid of socks) {
+                    if (!isMainAdmin(sid)) adminSockets.delete(sid);
+                }
+            }
+            logAdminAction('secondary_admin_remove', prevId, null, null, null, 'Дополнительный администратор снят');
+            saveDB();
+            socket.emit('admin:secondaryAdminResult', { success: true, removed: true, secondaryAdminId: null });
+            return;
+        }
+        if (db.secondaryAdminId && db.secondaryAdminId !== userId) {
+            fail('Дополнительный администратор уже назначен. Сначала снимите текущего.');
+            return;
+        }
+        const user = findUser(userId);
+        if (!user) { fail('Пользователь не найден.'); return; }
+        if (user.isGuest) { fail('Гостевой режим не даёт административных прав.'); return; }
+        if (user.archived) { fail('Аккаунт в архиве нельзя назначить администратором.'); return; }
+        db.secondaryAdminId = user.id;
+        saveDB();
+        // Выдать admin-доступ текущим сокетам пользователя
+        const socks = getUserSockets(user.id);
+        for (const sid of socks) adminSockets.add(sid);
+        logAdminAction('secondary_admin_set', user.id, user.name, null, null, 'Назначен дополнительным администратором');
+        saveDB();
+        socket.emit('admin:secondaryAdminResult', { success: true, secondaryAdminId: user.id, userName: user.name });
     });
 
     // --- Admin Change Password ---
@@ -3418,7 +3483,7 @@ io.on('connection', (socket) => {
             tasks: db.taskAssignments,
             duels: db.duels,
             userXP: db.userXP,
-            approvalRequests: db.approvalRequests
+            approvalRequests: db.approvalRequests, secondaryAdminId: db.secondaryAdminId || null
         });
         logAdminAction('set_profile_color', userId, null, null, null, color || 'default');
     });
@@ -3440,7 +3505,7 @@ io.on('connection', (socket) => {
             userCoupons: db.userCoupons, couponNotifications: db.couponNotifications,
             purchaseRequests: db.purchaseRequests, quests: db.quests,
             tasks: db.taskAssignments, duels: db.duels,
-            userXP: db.userXP, approvalRequests: db.approvalRequests
+            userXP: db.userXP, approvalRequests: db.approvalRequests, secondaryAdminId: db.secondaryAdminId || null
         });
         logAdminAction('set_nickname', userId, user.name, null, null, user.nickname || 'default');
     });
@@ -3462,7 +3527,7 @@ io.on('connection', (socket) => {
             userCoupons: db.userCoupons, couponNotifications: db.couponNotifications,
             purchaseRequests: db.purchaseRequests, quests: db.quests,
             tasks: db.taskAssignments, duels: db.duels,
-            userXP: db.userXP, approvalRequests: db.approvalRequests
+            userXP: db.userXP, approvalRequests: db.approvalRequests, secondaryAdminId: db.secondaryAdminId || null
         });
         logAdminAction('set_title', userId, user.name, null, null, user.title || 'default');
     });
@@ -3486,7 +3551,7 @@ io.on('connection', (socket) => {
             userCoupons: db.userCoupons, couponNotifications: db.couponNotifications,
             purchaseRequests: db.purchaseRequests, quests: db.quests,
             tasks: db.taskAssignments, duels: db.duels,
-            userXP: db.userXP, approvalRequests: db.approvalRequests
+            userXP: db.userXP, approvalRequests: db.approvalRequests, secondaryAdminId: db.secondaryAdminId || null
         });
         logAdminAction('set_profile_icon', userId, user.name, null, null, user.profileIcon || 'default');
     });
@@ -3514,7 +3579,7 @@ io.on('connection', (socket) => {
             userCoupons: db.userCoupons, couponNotifications: db.couponNotifications,
             purchaseRequests: db.purchaseRequests, quests: db.quests,
             tasks: db.taskAssignments, duels: db.duels,
-            userXP: db.userXP, approvalRequests: db.approvalRequests
+            userXP: db.userXP, approvalRequests: db.approvalRequests, secondaryAdminId: db.secondaryAdminId || null
         });
         logAdminAction('set_level', userId, user.name, user.adminLevel, null, user.adminLevel ? 'LEVEL ' + user.adminLevel : 'auto');
     });
@@ -4284,7 +4349,7 @@ io.on('connection', (socket) => {
             taskAssignments: db.taskAssignments,
             duels: db.duels,
             userXP: db.userXP,
-            approvalRequests: db.approvalRequests,
+            approvalRequests: db.approvalRequests, secondaryAdminId: db.secondaryAdminId || null,
             rests: db.rests,
             userBlocks: db.userBlocks,
             qrTerminalHistory: db.qrTerminalHistory,
@@ -7748,7 +7813,9 @@ io.on('connection', (socket) => {
             homework: j.homework.filter(h => {
                 if (!h) return false;
                 if (myId && h.studentId) return h.studentId === myId;
-                return !h.studentId && myGroupId && h.groupId === myGroupId;
+                if (!myGroupId) return false;
+                if (h.studentId) return false;
+                return h.groupId === myGroupId || (Array.isArray(h.groupIds) && h.groupIds.indexOf(myGroupId) >= 0);
             }),
             homeworkSubmissions: myId ? j.homeworkSubmissions.filter(s => s && s.studentId === myId) : [],
             isAdmin: false
@@ -8034,9 +8101,15 @@ io.on('connection', (socket) => {
     // ==================== HOMEWORK + GLOBAL MODE + PARTY ====================
     socket.on('homework:save', (data) => {
         if (!isAdmin(socket.id)) { socket.emit('homework:saved', { ok: false, error: 'ДЗ доступно только администратору.' }); return; }
-        if (!data || !data.groupId || !data.date) { socket.emit('homework:saved', { ok: false, error: 'Нужны groupId и date' }); return; }
+        if (!data || !data.date) { socket.emit('homework:saved', { ok: false, error: 'Нужны groupId и date' }); return; }
         const j = getJournalData();
-        const groupId = String(data.groupId);
+        // Поддержка нескольких групп: groupIds[] (groupId остаётся первой группой)
+        const rawGroups = Array.isArray(data.groupIds) && data.groupIds.length
+            ? data.groupIds.map(g => String(g)).filter(Boolean)
+            : (data.groupId ? [String(data.groupId)] : []);
+        if (!rawGroups.length) { socket.emit('homework:saved', { ok: false, error: 'Нужны groupId и date' }); return; }
+        const groupId = rawGroups[0];
+        const groupIds = rawGroups.slice();
         const date = String(data.date);
         const text = String(data.text == null ? '' : data.text).slice(0, 20000);
         const studentId = data.studentId ? String(data.studentId) : null;
@@ -8048,19 +8121,21 @@ io.on('connection', (socket) => {
             if (existing.originalText == null) existing.originalText = existing.text || '';
             existing.text = text;
             existing.studentId = studentId;
+            existing.groupIds = groupIds;
+            existing.groupId = groupId;
             existing.updatedAt = nowIso;
             existing.editedAt = nowIso;
             saveDB();
             emitJournalUpdate();
-            socket.emit('homework:saved', { ok: true, groupId, date, id: existing.id, edited: true });
+            socket.emit('homework:saved', { ok: true, groupId, groupIds, date, id: existing.id, edited: true });
             return;
         }
         // Новая публикация — всегда новая запись (старое уходит в историю)
-        const entry = { id: genId(), groupId, studentId, date, text, createdAt: nowIso, updatedAt: nowIso };
+        const entry = { id: genId(), groupId, groupIds, studentId, date, text, createdAt: nowIso, updatedAt: nowIso };
         j.homework.push(entry);
         saveDB();
         emitJournalUpdate();
-        socket.emit('homework:saved', { ok: true, groupId, date, id: entry.id });
+        socket.emit('homework:saved', { ok: true, groupId, groupIds, date, id: entry.id });
     });
 
     socket.on('homework:delete', (data) => {
