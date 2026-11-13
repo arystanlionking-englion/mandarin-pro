@@ -144,7 +144,7 @@ app.post('/api/ai-office/logout', (req, res) => {
     res.json({ ok: true });
 });
 
-// --- My Notes AI: доступ только администратору, заметки хранятся на сервере (изоляция по аккаунту) ---
+// --- My Notes AI 2.0: заметки, напоминания, ссылки, AI-оркестратор (только администратор) ---
 function myNotesGetToken(req) {
     const h = req.headers || {};
     let token = '';
@@ -159,6 +159,171 @@ function myNotesGetToken(req) {
 function myNotesOwner(req) {
     return getAdminSessionOwner(myNotesGetToken(req));
 }
+function myNotesStore(owner) {
+    if (!db.myNotesAI || typeof db.myNotesAI !== 'object') db.myNotesAI = {};
+    if (!db.myNotesAI[owner] || typeof db.myNotesAI[owner] !== 'object') db.myNotesAI[owner] = {};
+    const s = db.myNotesAI[owner];
+    if (!Array.isArray(s.notes)) s.notes = [];
+    if (!Array.isArray(s.reminders)) s.reminders = [];
+    if (!Array.isArray(s.links)) s.links = [];
+    if (!Array.isArray(s.activity)) s.activity = [];
+    if (!s.settings || typeof s.settings !== 'object') s.settings = {};
+    return s;
+}
+const MY_NOTES_DEFAULT_SETTINGS = {
+    apiKey: 'tp-sp7xftr9xj3ktdjt271xp2mtojtfsffzpox2o6fh8le9o74w',
+    apiEndpoint: 'https://token-plan-sgp.xiaomimimo.com/v1',
+    model: 'mimo-v2.6-flash'
+};
+function myNotesSettings(owner) {
+    const s = myNotesStore(owner);
+    return Object.assign({}, MY_NOTES_DEFAULT_SETTINGS, s.settings);
+}
+function myNotesLog(owner, action, detail, noteId) {
+    const s = myNotesStore(owner);
+    s.activity.unshift({ id: genId(), ts: Date.now(), action: String(action).slice(0, 40), detail: String(detail || '').slice(0, 300), noteId: noteId || null });
+    if (s.activity.length > 800) s.activity.length = 800;
+}
+function myNotesNoteView(n) {
+    return {
+        id: n.id, title: n.title || 'Без названия', category: n.category || 'Разное',
+        html: n.html || '', text: n.text || '', createdAt: n.createdAt, updatedAt: n.updatedAt
+    };
+}
+function myNotesHtmlToText(html) {
+    return String(html || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+}
+function myNotesEsc(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function myNotesSafeHtml(html) {
+    return String(html || '')
+        .replace(/<\s*(script|style|iframe|object|embed|link|meta)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '')
+        .replace(/<\s*\/?\s*(script|style|iframe|object|embed|link|meta)[^>]*>/gi, '')
+        .replace(/\son\w+\s*=\s*"[^"]*"/gi, '')
+        .replace(/\son\w+\s*=\s*'[^']*'/gi, '')
+        .replace(/javascript\s*:/gi, '');
+}
+async function myNotesCallAI(owner, messages, maxTokens) {
+    const cfg = myNotesSettings(owner);
+    if (!cfg.apiKey || !cfg.apiEndpoint) throw new Error('Не задан API-ключ или адрес API. Откройте настройки AI.');
+    const url = String(cfg.apiEndpoint).replace(/\/+$/, '') + '/chat/completions';
+    const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.apiKey, 'api-key': cfg.apiKey },
+        body: JSON.stringify({ model: cfg.model || 'mimo-v2.6-flash', messages, temperature: 0.3, max_tokens: maxTokens || 1400 }),
+        signal: AbortSignal.timeout(60000)
+    });
+    if (!r.ok) {
+        const t = await r.text().catch(() => '');
+        throw new Error('AI API вернул ' + r.status + ': ' + t.slice(0, 180));
+    }
+    const data = await r.json();
+    const content = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+    if (typeof content !== 'string' || !content.trim()) throw Error('Провайдер вернул пустой ответ.');
+    return content;
+}
+function myNotesParseAIJson(text) {
+    let t = String(text || '').trim();
+    t = t.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
+    const start = t.indexOf('{');
+    const end = t.lastIndexOf('}');
+    if (start < 0 || end <= start) throw new Error('AI вернул некорректный формат ответа.');
+    return JSON.parse(t.slice(start, end + 1));
+}
+function myNotesCategoryOf(text) {
+    const t = String(text || '').toLowerCase();
+    if (/работ|проект|дедлайн|клиент|документ|отчет|отчёт|встреч/.test(t)) return 'Работа';
+    if (/покуп|деньг|бюджет|оплат|финанс|счет|счёт|банк/.test(t)) return 'Финансы';
+    if (/учеб|учёб|урок|экзамен|китай|словар|курс/.test(t)) return 'Учёба';
+    if (/иде|мысль|вдохнов|план на жизнь|цель/.test(t)) return 'Идеи';
+    if (/личн|семь|здоров|дом|быт/.test(t)) return 'Личное';
+    return 'Разное';
+}
+function myNotesHtmlFromText(text) {
+    const lines = String(text || '').split(/\n+/).filter(x => x.trim());
+    return lines.map((l, i) => {
+        const t = l.replace(/^\s*(?:[-•*]|\d+[.)])\s*/, '').trim();
+        return /^\s*(?:[-•*]|\d+[.)])\s/.test(l) ? '<p>' + (i + 1) + '. ' + myNotesEsc(t) + '</p>' : '<p>' + myNotesEsc(t) + '</p>';
+    }).join('') || '<p>' + myNotesEsc(text || '') + '</p>';
+}
+function myNotesExecute(owner, act) {
+    const s = myNotesStore(owner);
+    const now = Date.now();
+    const action = String(act && act.action || 'none').toLowerCase();
+    const out = { notes: null, note: null, reminder: null };
+    if (action === 'create_note' && act.note) {
+        const n = {
+            id: genId(), title: String(act.note.title || 'Заметка').slice(0, 160),
+            category: String(act.note.category || myNotesCategoryOf((act.note.title || '') + ' ' + (act.note.text || ''))).slice(0, 40),
+            html: myNotesSafeHtml(act.note.html || myNotesHtmlFromText(act.note.text || act.reply || '')),
+            text: act.note.text || myNotesHtmlToText(act.note.html || act.reply || ''),
+            createdAt: now, updatedAt: now, history: []
+        };
+        s.notes.unshift(n);
+        out.note = myNotesNoteView(n);
+        myNotesLog(owner, 'create_note', n.title, n.id);
+    } else if (action === 'edit_note' && act.note) {
+        const n = s.notes.find(x => x.id === act.note.id);
+        if (n) {
+            n.history = Array.isArray(n.history) ? n.history : [];
+            n.history.unshift({ at: now, title: n.title, html: n.html });
+            if (n.history.length > 50) n.history.length = 50;
+            if (act.note.title) n.title = String(act.note.title).slice(0, 160);
+            if (act.note.html) n.html = myNotesSafeHtml(act.note.html);
+            if (act.note.text) n.text = act.note.text;
+            if (act.note.category) n.category = String(act.note.category).slice(0, 40);
+            n.updatedAt = now;
+            out.note = myNotesNoteView(n);
+            myNotesLog(owner, 'edit_note', n.title, n.id);
+        }
+    } else if (action === 'delete_note' && act.noteId) {
+        const i = s.notes.findIndex(x => x.id === act.noteId);
+        if (i >= 0) {
+            const [n] = s.notes.splice(i, 1);
+            s.links = s.links.filter(l => l.noteId !== n.id);
+            myNotesLog(owner, 'delete_note', n.title, n.id);
+            out.deleted = n.id;
+        }
+    } else if (action === 'merge' && Array.isArray(act.noteIds) && act.noteIds.length > 1) {
+        const list = act.noteIds.map(id => s.notes.find(x => x.id === id)).filter(Boolean);
+        if (list.length > 1) {
+            const target = list[0];
+            target.history = Array.isArray(target.history) ? target.history : [];
+            target.history.unshift({ at: now, title: target.title, html: target.html });
+            target.html = myNotesSafeHtml(act.note.html || (target.html + list.slice(1).map(x => x.html).join('')));
+            target.text = myNotesHtmlToText(target.html);
+            if (act.note && act.note.title) target.title = String(act.note.title).slice(0, 160);
+            target.updatedAt = now;
+            for (const extra of list.slice(1)) {
+                s.notes = s.notes.filter(x => x.id !== extra.id);
+                s.links = s.links.filter(l => l.noteId !== extra.id);
+            }
+            out.note = myNotesNoteView(target);
+            myNotesLog(owner, 'merge', target.title, target.id);
+        }
+    } else if (action === 'create_reminder' && act.reminder) {
+        const dueRaw = act.reminder.dueAt;
+        let dueAt = Date.parse(dueRaw);
+        if (!isFinite(dueAt)) dueAt = now + 24 * 3600 * 1000;
+        const r = {
+            id: genId(), text: String(act.reminder.text || 'Напоминание').slice(0, 400),
+            dueAt, done: false, createdAt: now, notified: false, notifiedAt: null, completedAt: null
+        };
+        s.reminders.push(r);
+        out.reminder = r;
+        myNotesLog(owner, 'create_reminder', r.text + ' @ ' + new Date(dueAt).toISOString(), r.id);
+    } else if (action === 'complete_reminder' && act.reminderId) {
+        const r = s.reminders.find(x => x.id === act.reminderId);
+        if (r) { r.done = true; r.completedAt = now; out.reminder = r; myNotesLog(owner, 'complete_reminder', r.text, r.id); }
+    } else if (action === 'delete_reminder' && act.reminderId) {
+        const i = s.reminders.findIndex(x => x.id === act.reminderId);
+        if (i >= 0) { const [r] = s.reminders.splice(i, 1); out.reminder = r; myNotesLog(owner, 'delete_reminder', r.text, r.id); }
+    }
+    if (action !== 'none' && action !== 'search' && action !== 'summarize' && action !== 'chat') { s.updatedAt = now; saveDB(); }
+    return out;
+}
+
 app.post('/api/my-notes/auth', (req, res) => {
     const token = String((req.body && req.body.adminToken) || '');
     if (!validateAdminSessionToken(token)) {
@@ -168,27 +333,297 @@ app.post('/api/my-notes/auth', (req, res) => {
     res.setHeader('Set-Cookie', 'pb_admin=' + token + '; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200');
     res.json({ ok: true });
 });
+
 app.get('/api/my-notes/state', (req, res) => {
     const owner = myNotesOwner(req);
     if (!owner) { res.status(403).json({ ok: false, error: 'Нет админ-доступа' }); return; }
-    if (!db.myNotesAI || typeof db.myNotesAI !== 'object') db.myNotesAI = {};
-    const rec = db.myNotesAI[owner] || null;
-    res.json({ ok: true, state: rec ? rec.state : null, revision: rec ? (rec.revision || 0) : 0, updatedAt: rec ? rec.updatedAt : null });
+    const s = myNotesStore(owner);
+    const now = Date.now();
+    const missed = s.reminders.filter(r => !r.done && !r.missedShown && r.dueAt <= now);
+    const cfg = myNotesSettings(owner);
+    res.json({
+        ok: true,
+        notes: s.notes.map(myNotesNoteView),
+        reminders: s.reminders,
+        links: s.links,
+        settings: { apiEndpoint: cfg.apiEndpoint, model: cfg.model, keyMask: cfg.apiKey ? (cfg.apiKey.slice(0, 6) + '…' + cfg.apiKey.slice(-4)) : '' },
+        missed
+    });
 });
 app.put('/api/my-notes/state', (req, res) => {
     const owner = myNotesOwner(req);
     if (!owner) { res.status(403).json({ ok: false, error: 'Нет админ-доступа' }); return; }
     const body = req.body || {};
-    if (!body.state || typeof body.state !== 'object') {
-        res.status(400).json({ ok: false, error: 'Некорректные данные состояния' });
-        return;
+    const s = myNotesStore(owner);
+    if (Array.isArray(body.notes)) {
+        s.notes = body.notes.map(n => ({
+            id: String(n.id || genId()), title: String(n.title || 'Заметка').slice(0, 160),
+            category: String(n.category || 'Разное').slice(0, 40), html: myNotesSafeHtml(n.html || ''),
+            text: String(n.text || myNotesHtmlToText(n.html || '')), createdAt: Number(n.createdAt) || Date.now(),
+            updatedAt: Number(n.updatedAt) || Date.now(), history: Array.isArray(n.history) ? n.history : []
+        }));
     }
-    if (!db.myNotesAI || typeof db.myNotesAI !== 'object') db.myNotesAI = {};
-    const prev = db.myNotesAI[owner];
-    const revision = (prev && typeof prev.revision === 'number' ? prev.revision : 0) + 1;
-    db.myNotesAI[owner] = { state: body.state, revision, updatedAt: Date.now() };
+    if (Array.isArray(body.reminders)) {
+        s.reminders = body.reminders.map(r => ({
+            id: String(r.id || genId()), text: String(r.text || '').slice(0, 400), dueAt: Number(r.dueAt) || Date.now(),
+            done: !!r.done, createdAt: Number(r.createdAt) || Date.now(), notified: !!r.notified,
+            notifiedAt: r.notifiedAt || null, completedAt: r.completedAt || null
+        }));
+    }
+    s.updatedAt = Date.now();
     saveDB();
-    res.json({ ok: true, revision });
+    res.json({ ok: true, notes: s.notes.length, reminders: s.reminders.length });
+});
+
+app.post('/api/my-notes/ai', async (req, res) => {
+    const owner = myNotesOwner(req);
+    if (!owner) { res.status(403).json({ ok: false, error: 'Нет админ-доступа' }); return; }
+    const message = String((req.body && req.body.message) || '').slice(0, 4000);
+    if (!message.trim()) { res.status(400).json({ ok: false, error: 'Пустой запрос' }); return; }
+    try {
+        const s = myNotesStore(owner);
+        const notesList = s.notes.slice(0, 40).map((n, i) =>
+            (i + 1) + ') id=' + n.id + ' | ' + n.title + ' | категория: ' + (n.category || 'Разное')).join('\n') || '(заметок пока нет)';
+        const remList = s.reminders.slice(0, 30).map(r =>
+            'id=' + r.id + ' | ' + r.text + ' | ' + new Date(r.dueAt).toISOString() + ' | ' + (r.done ? 'выполнено' : 'активно')).join('\n') || '(напоминаний нет)';
+        const system = 'Ты — интеллектуальный секретарь My Notes AI. Управляешь личными заметками и напоминаниями пользователя.\n' +
+            'Понимай запросы на любом языке, исправляй опечатки, выполняй команды. Отвечай по-русски.\n' +
+            'Самостоятельно выбирай категорию заметки (Работа, Финансы, Учёба, Идеи, Личное, Разное) и форматируй текст с заголовками и нумерацией.\n' +
+            'Текущие заметки (id | заголовок | категория):\n' + notesList + '\n\n' +
+            'Текущие напоминания (id | текст | срок | статус):\n' + remList + '\n\n' +
+            'Сегодня: ' + new Date().toISOString() + '\n' +
+            'Ответь СТРОГО одним JSON-объектом без markdown и пояснений:\n' +
+            '{"reply":"краткий ответ пользователю","action":"create_note|edit_note|delete_note|search|merge|summarize|create_reminder|complete_reminder|delete_reminder|list|none",\n' +
+            '"note":{"id":"...","title":"...","category":"...","html":"<p>...</p>","text":"..."},\n' +
+            '"noteIds":["id1","id2"],"reminder":{"id":"...","text":"...","dueAt":"ISO-8601"},"query":"слово для поиска"}\n' +
+            'Для создания заметки — action=create_note и note без id. Для правки — action=edit_note и note.id существующей.\n' +
+            'Для напоминания — action=create_reminder, reminder.dueAt строго в ISO-8601 (посчитай дату сам: "завтра в 10:00" → ближайшая дата).\n' +
+            'Для поиска/выводов — action=search или summarize, без изменения данных.';
+        const raw = await myNotesCallAI(owner, [
+            { role: 'system', content: system },
+            { role: 'user', content: message }
+        ], 1600);
+        const act = myNotesParseAIJson(raw);
+        const executed = myNotesExecute(owner, act);
+        const reply = String(act.reply || 'Готово.').slice(0, 2000);
+        myNotesLog(owner, 'ai_command', message.slice(0, 120) + ' → ' + String(act.action || 'none'), executed.note ? executed.note.id : null);
+        saveDB();
+        const fresh = myNotesStore(owner);
+        res.json({
+            ok: true, reply, action: act.action || 'none',
+            note: executed.note, reminder: executed.reminder, deleted: executed.deleted,
+            notes: fresh.notes.map(myNotesNoteView), reminders: fresh.reminders
+        });
+    } catch (e) {
+        res.status(502).json({ ok: false, error: 'AI: ' + (e.message || 'ошибка запроса') });
+    }
+});
+
+app.get('/api/my-notes/settings', (req, res) => {
+    const owner = myNotesOwner(req);
+    if (!owner) { res.status(403).json({ ok: false, error: 'Нет админ-доступа' }); return; }
+    const cfg = myNotesSettings(owner);
+    res.json({ ok: true, settings: { apiEndpoint: cfg.apiEndpoint, model: cfg.model, keyMask: cfg.apiKey ? (cfg.apiKey.slice(0, 6) + '…' + cfg.apiKey.slice(-4)) : '', hasKey: !!cfg.apiKey } });
+});
+app.put('/api/my-notes/settings', (req, res) => {
+    const owner = myNotesOwner(req);
+    if (!owner) { res.status(403).json({ ok: false, error: 'Нет админ-доступа' }); return; }
+    const b = req.body || {};
+    const s = myNotesStore(owner);
+    if (typeof b.apiKey === 'string' && b.apiKey.trim()) s.settings.apiKey = b.apiKey.trim().slice(0, 200);
+    if (typeof b.apiEndpoint === 'string' && /^https?:\/\//i.test(b.apiEndpoint)) s.settings.apiEndpoint = b.apiEndpoint.trim().slice(0, 300);
+    if (typeof b.model === 'string' && b.model.trim()) s.settings.model = b.model.trim().slice(0, 100);
+    saveDB();
+    const cfg = myNotesSettings(owner);
+    res.json({ ok: true, settings: { apiEndpoint: cfg.apiEndpoint, model: cfg.model, keyMask: cfg.apiKey ? (cfg.apiKey.slice(0, 6) + '…' + cfg.apiKey.slice(-4)) : '', hasKey: !!cfg.apiKey } });
+});
+app.post('/api/my-notes/settings/test', async (req, res) => {
+    const owner = myNotesOwner(req);
+    if (!owner) { res.status(403).json({ ok: false, error: 'Нет админ-доступа' }); return; }
+    const b = req.body || {};
+    const s = myNotesStore(owner);
+    const cfg = {
+        apiKey: (typeof b.apiKey === 'string' && b.apiKey.trim()) ? b.apiKey.trim() : myNotesSettings(owner).apiKey,
+        apiEndpoint: (typeof b.apiEndpoint === 'string' && b.apiEndpoint.trim()) ? b.apiEndpoint.trim() : myNotesSettings(owner).apiEndpoint,
+        model: (typeof b.model === 'string' && b.model.trim()) ? b.model.trim() : myNotesSettings(owner).model
+    };
+    const t0 = Date.now();
+    try {
+        const r = await fetch(String(cfg.apiEndpoint).replace(/\/+$/, '') + '/models', {
+            headers: { 'Authorization': 'Bearer ' + cfg.apiKey },
+            signal: AbortSignal.timeout(15000)
+        });
+        const body = await r.text().catch(() => '');
+        if (!r.ok) throw new Error('Сервер API ответил ' + r.status + ': ' + body.slice(0, 160));
+        let models = [];
+        try { models = (JSON.parse(body).data || []).map(m => m.id); } catch (e) { }
+        res.json({ ok: true, latencyMs: Date.now() - t0, models: models.slice(0, 30), modelOk: !cfg.model || !models.length || models.indexOf(cfg.model) >= 0 });
+    } catch (e) {
+        res.status(502).json({ ok: false, error: e.name === 'TimeoutError' ? 'Соединение не отвечает (тайм-аут 15 с).' : (e.message || 'Не удалось подключиться к API.') });
+    }
+});
+
+app.get('/api/my-notes/reminders/missed', (req, res) => {
+    const owner = myNotesOwner(req);
+    if (!owner) { res.status(403).json({ ok: false, error: 'Нет админ-доступа' }); return; }
+    const s = myNotesStore(owner);
+    const now = Date.now();
+    const missed = s.reminders.filter(r => !r.done && !r.missedShown && r.dueAt <= now);
+    missed.forEach(r => { r.missedShown = true; });
+    saveDB();
+    res.json({ ok: true, missed });
+});
+app.post('/api/my-notes/reminders/:id/done', (req, res) => {
+    const owner = myNotesOwner(req);
+    if (!owner) { res.status(403).json({ ok: false, error: 'Нет админ-доступа' }); return; }
+    const s = myNotesStore(owner);
+    const r = s.reminders.find(x => x.id === req.params.id);
+    if (!r) { res.status(404).json({ ok: false, error: 'Напоминание не найдено' }); return; }
+    r.done = true; r.completedAt = Date.now();
+    myNotesLog(owner, 'complete_reminder', r.text, r.id);
+    saveDB();
+    res.json({ ok: true, reminder: r });
+});
+app.delete('/api/my-notes/reminders/:id', (req, res) => {
+    const owner = myNotesOwner(req);
+    if (!owner) { res.status(403).json({ ok: false, error: 'Нет админ-доступа' }); return; }
+    const s = myNotesStore(owner);
+    const i = s.reminders.findIndex(x => x.id === req.params.id);
+    if (i >= 0) {
+        const [r] = s.reminders.splice(i, 1);
+        myNotesLog(owner, 'delete_reminder', r.text, r.id);
+        saveDB();
+    }
+    res.json({ ok: true });
+});
+
+function myNotesFindLink(token) {
+    if (!token || typeof token !== 'string' || token.length < 16) return null;
+    for (const owner of Object.keys(db.myNotesAI || {})) {
+        const s = db.myNotesAI[owner];
+        if (!s || !Array.isArray(s.links)) continue;
+        const l = s.links.find(x => x.token === token);
+        if (l) return { owner, link: l, store: s };
+    }
+    return null;
+}
+app.get('/api/my-notes/links', (req, res) => {
+    const owner = myNotesOwner(req);
+    if (!owner) { res.status(403).json({ ok: false, error: 'Нет админ-доступа' }); return; }
+    const s = myNotesStore(owner);
+    res.json({ ok: true, links: s.links.map(l => Object.assign({}, l, { token: undefined, url: '/note-view/' + l.token })) });
+});
+app.post('/api/my-notes/links', (req, res) => {
+    const owner = myNotesOwner(req);
+    if (!owner) { res.status(403).json({ ok: false, error: 'Нет админ-доступа' }); return; }
+    const b = req.body || {};
+    const s = myNotesStore(owner);
+    const note = s.notes.find(n => n.id === b.noteId);
+    if (!note) { res.status(404).json({ ok: false, error: 'Заметка не найдена' }); return; }
+    const days = Number(b.expiresInDays);
+    const link = {
+        id: genId(), noteId: note.id, token: crypto.randomBytes(24).toString('hex'),
+        title: note.title, enabled: true,
+        expiresAt: isFinite(days) && days > 0 ? Date.now() + days * 24 * 3600 * 1000 : (b.expiresAt ? Date.parse(b.expiresAt) : null),
+        createdAt: Date.now(), views: 0
+    };
+    s.links.unshift(link);
+    myNotesLog(owner, 'create_link', note.title, note.id);
+    saveDB();
+    res.json({ ok: true, link: Object.assign({}, link, { token: undefined, url: '/note-view/' + link.token }) });
+});
+app.patch('/api/my-notes/links/:id', (req, res) => {
+    const owner = myNotesOwner(req);
+    if (!owner) { res.status(403).json({ ok: false, error: 'Нет админ-доступа' }); return; }
+    const s = myNotesStore(owner);
+    const l = s.links.find(x => x.id === req.params.id);
+    if (!l) { res.status(404).json({ ok: false, error: 'Ссылка не найдена' }); return; }
+    const b = req.body || {};
+    if (typeof b.enabled === 'boolean') l.enabled = b.enabled;
+    if (b.expiresAt !== undefined) l.expiresAt = b.expiresAt ? Date.parse(b.expiresAt) : null;
+    if (b.expiresInDays !== undefined) {
+        const d = Number(b.expiresInDays);
+        l.expiresAt = isFinite(d) && d > 0 ? Date.now() + d * 24 * 3600 * 1000 : null;
+    }
+    myNotesLog(owner, b.enabled === false ? 'disable_link' : 'update_link', l.title, l.noteId);
+    saveDB();
+    res.json({ ok: true, link: Object.assign({}, l, { token: undefined, url: '/note-view/' + l.token }) });
+});
+app.delete('/api/my-notes/links/:id', (req, res) => {
+    const owner = myNotesOwner(req);
+    if (!owner) { res.status(403).json({ ok: false, error: 'Нет админ-доступа' }); return; }
+    const s = myNotesStore(owner);
+    const i = s.links.findIndex(x => x.id === req.params.id);
+    if (i >= 0) {
+        const [l] = s.links.splice(i, 1);
+        myNotesLog(owner, 'delete_link', l.title, l.noteId);
+        saveDB();
+    }
+    res.json({ ok: true });
+});
+app.get('/api/note-view/:token', (req, res) => {
+    const found = myNotesFindLink(String(req.params.token || ''));
+    if (!found || !found.link.enabled) { res.status(404).json({ ok: false, error: 'Ссылка недействительна или отключена' }); return; }
+    if (found.link.expiresAt && Date.now() > found.link.expiresAt) { res.status(410).json({ ok: false, error: 'Срок действия ссылки истёк' }); return; }
+    const note = (found.store.notes || []).find(n => n.id === found.link.noteId);
+    if (!note) { res.status(404).json({ ok: false, error: 'Заметка не найдена' }); return; }
+    found.link.views = (found.link.views || 0) + 1;
+    saveDB();
+    res.json({ ok: true, note: { title: note.title, html: note.html, category: note.category, updatedAt: note.updatedAt } });
+});
+
+app.get('/api/my-notes/admin/overview', (req, res) => {
+    const owner = myNotesOwner(req);
+    if (!owner) { res.status(403).json({ ok: false, error: 'Нет админ-доступа' }); return; }
+    const owners = Object.keys(db.myNotesAI || {});
+    const stats = { owners: 0, notes: 0, reminders: 0, links: 0, actions: 0 };
+    const perOwner = [];
+    const recent = [];
+    const suspicious = [];
+    for (const o of owners) {
+        const s = db.myNotesAI[o];
+        if (!s) continue;
+        stats.owners++;
+        stats.notes += (s.notes || []).length;
+        stats.reminders += (s.reminders || []).length;
+        stats.links += (s.links || []).length;
+        stats.actions += (s.activity || []).length;
+        perOwner.push({ owner: o, notes: (s.notes || []).length, reminders: (s.reminders || []).length, links: (s.links || []).length, lastAction: (s.activity && s.activity[0]) ? s.activity[0].ts : null });
+        for (const a of (s.activity || []).slice(0, 30)) recent.push(Object.assign({ owner: o }, a));
+        const deletes = (s.activity || []).filter(a => a.action === 'delete_note' && Date.now() - a.ts < 24 * 3600 * 1000);
+        if (deletes.length >= 5) suspicious.push({ owner: o, reason: 'Массовое удаление заметок: ' + deletes.length + ' за сутки' });
+        const fails = (s.activity || []).filter(a => /error|fail|ошибк/i.test(a.detail || ''));
+        if (fails.length >= 3) suspicious.push({ owner: o, reason: 'Повторяющиеся ошибки: ' + fails.length });
+    }
+    recent.sort((a, b) => b.ts - a.ts);
+    res.json({ ok: true, stats, perOwner, recent: recent.slice(0, 60), suspicious });
+});
+app.post('/api/my-notes/admin/ask', async (req, res) => {
+    const owner = myNotesOwner(req);
+    if (!owner) { res.status(403).json({ ok: false, error: 'Нет админ-доступа' }); return; }
+    const q = String((req.body && req.body.question) || '').slice(0, 1500);
+    if (!q.trim()) { res.status(400).json({ ok: false, error: 'Пустой вопрос' }); return; }
+    try {
+        const rows = [];
+        for (const o of Object.keys(db.myNotesAI || {})) {
+            const s = db.myNotesAI[o];
+            for (const a of (s.activity || []).slice(0, 60)) rows.push(new Date(a.ts).toISOString() + ' | ' + o + ' | ' + a.action + ' | ' + a.detail);
+        }
+        const raw = await myNotesCallAI(owner, [
+            { role: 'system', content: 'Ты — аналитик журнала активности My Notes AI. Отвечай кратко по-русски по данным журнала. Ничего не выдумывай.\nЖурнал:\n' + (rows.join('\n') || '(пусто)') },
+            { role: 'user', content: q }
+        ], 900);
+        res.json({ ok: true, reply: raw.trim() });
+    } catch (e) {
+        res.status(502).json({ ok: false, error: 'AI: ' + (e.message || 'ошибка запроса') });
+    }
+});
+app.get('/api/my-notes/export', (req, res) => {
+    const owner = myNotesOwner(req);
+    if (!owner) { res.status(403).json({ ok: false, error: 'Нет админ-доступа' }); return; }
+    const s = myNotesStore(owner);
+    res.setHeader('Content-Disposition', 'attachment; filename="my-notes-backup.json"');
+    res.json({ ok: true, exportedAt: Date.now(), owner, notes: s.notes, reminders: s.reminders, links: s.links.map(l => Object.assign({}, l, { token: undefined })), activity: s.activity });
 });
 
 // --- ИИ-ассистенты: лёгкий клиент Dify / OpenAI-совместимых API (LiteLLM) / Claude / Langflow / Open WebUI, только админ ---
@@ -243,145 +678,347 @@ app.get('/наш логотип фирмы.jpg', (req, res) => {
     res.sendFile(path.join(__dirname, '12 версия FINALL', 'наш логотип фирмы.jpg'));
 });
 
-// --- My Notes AI: страница модуля (только админ), данные синхронизируются с сервером ---
-const MY_NOTES_HTML_PATH = path.join(__dirname, 'My_Notes_AI_2.0.html');
-const MY_NOTES_SHIM = `<script>(function(){
-function mnaApi(method, body) {
-  return fetch('/api/my-notes/state', {
-    method: method,
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'same-origin',
-    body: body ? JSON.stringify(body) : undefined
-  }).then(function (r) { return r.json(); });
-}
-function mnaSeed(data) {
-  return new Promise(function (resolve) {
-    if (!data || !data.ok || !data.state) { resolve(); return; }
-    var open = indexedDB.open('my-notes-ai', 1);
-    open.onupgradeneeded = function () {
-      var d = open.result;
-      if (!d.objectStoreNames.contains('state')) d.createObjectStore('state');
-      if (!d.objectStoreNames.contains('backups')) d.createObjectStore('backups');
-    };
-    open.onsuccess = function () {
-      var d = open.result;
-      try {
-        var tx = d.transaction('state', 'readwrite');
-        var store = tx.objectStore('state');
-        store.put(data.state, 'main');
-        if (data.revision != null) store.put(data.revision, 'revision');
-        tx.oncomplete = function () { d.close(); resolve(); };
-        tx.onerror = function () { d.close(); resolve(); };
-        tx.onabort = function () { d.close(); resolve(); };
-      } catch (e) { d.close(); resolve(); }
-    };
-    open.onerror = function () { resolve(); };
-  });
-}
-function mnaHookWrites() {
-  var origPut = IDBObjectStore.prototype.put;
-  IDBObjectStore.prototype.put = function (value, key) {
-    var req = origPut.apply(this, arguments);
-    var storeName = this.name;
-    if (storeName === 'state' && (key === 'main' || key === undefined)) {
-      var onSuccess = function () {
-        mnaApi('PUT', { state: value }).catch(function () {});
-      };
-      if (typeof req.addEventListener === 'function') req.addEventListener('success', onSuccess, { once: true });
-      else { var prev = req.onsuccess; req.onsuccess = function (e) { if (prev) prev.call(this, e); onSuccess(); }; }
-    }
-    return req;
+// --- My Notes AI: страница модуля (только админ) — единая AI-панель ---
+const MY_NOTES_PAGE = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>My Notes AI</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#eef4ec;--card:#fff;--ink:#1b2a1e;--muted:#5f7358;--line:#c8dcbd;--green:#2e8b52;--green2:#4ea165;--soft:#d8ebcd;--danger:#c0564a;--radius:16px}
+body{background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;min-height:100dvh;padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+.wrap{max-width:560px;margin:0 auto;padding:18px 16px}
+header{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+.logo{width:42px;height:42px;border-radius:13px;background:linear-gradient(135deg,#2e8b52,#57b071);display:flex;align-items:center;justify-content:center;font-size:21px;box-shadow:0 8px 20px rgba(46,139,82,.32)}
+header h1{font-size:21px;font-weight:800;letter-spacing:-.3px;flex:1}
+.icon-btn{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--card);font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.icon-btn:active{transform:scale(.94)}
+.hero{background:linear-gradient(135deg,#14432a,#2e8b52 60%,#57b071);border-radius:22px;padding:22px 18px 18px;color:#fff;box-shadow:0 16px 40px rgba(20,80,45,.32);margin-bottom:18px}
+.hero h2{font-size:19px;font-weight:800;margin-bottom:5px}
+.hero p{font-size:12.5px;opacity:.85;margin-bottom:14px}
+.ai-box{background:rgba(255,255,255,.97);border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:8px;box-shadow:0 10px 26px rgba(0,0,0,.18)}
+.ai-box textarea{border:0;outline:none;resize:none;font:16px/1.5 inherit;color:var(--ink);background:transparent;padding:8px 8px 2px;min-height:74px;width:100%}
+.ai-row{display:flex;gap:8px;align-items:center}
+.chips{display:flex;gap:6px;flex-wrap:wrap;flex:1}
+.chip{font-size:11px;padding:6px 10px;border-radius:999px;background:var(--soft);color:#227042;border:0;cursor:pointer;font-weight:600}
+.send-btn{background:linear-gradient(135deg,#14432a,#2e8b52);color:#fff;border:0;border-radius:12px;min-height:44px;padding:0 18px;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 6px 16px rgba(20,67,42,.35);white-space:nowrap}
+.send-btn:disabled{opacity:.5}
+.send-btn:active{transform:scale(.96)}
+.answer{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:15px 16px;margin-bottom:14px;font-size:14px;line-height:1.7;white-space:pre-wrap}
+.answer .tag{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;background:var(--soft);color:#227042;padding:3px 9px;border-radius:999px;margin-bottom:8px}
+.section-title{display:flex;align-items:center;gap:8px;margin:20px 2px 10px;font-size:13px;font-weight:800;color:#227042;text-transform:uppercase;letter-spacing:.7px}
+.section-title .count{background:var(--green);color:#fff;border-radius:999px;font-size:10px;padding:2px 8px}
+.note{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:15px 16px;margin-bottom:10px}
+.note-head{display:flex;align-items:flex-start;gap:9px;margin-bottom:7px}
+.note-num{min-width:26px;height:26px;border-radius:9px;background:linear-gradient(135deg,#2e8b52,#57b071);color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.note h3{font-size:15px;font-weight:750;flex:1;overflow-wrap:anywhere}
+.note-cat{font-size:10px;font-weight:700;color:#227042;background:var(--soft);padding:3px 9px;border-radius:999px;white-space:nowrap}
+.note-body{font-size:13.5px;color:#3c4c3a;line-height:1.65}
+.note-body p{margin:4px 0}
+.note-actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.mini-btn{font-size:11px;font-weight:700;padding:7px 11px;border-radius:9px;border:1px solid var(--line);background:#f6faf4;cursor:pointer;color:#227042}
+.mini-btn.danger{color:var(--danger);border-color:#e4bdb7;background:#fbf1ef}
+.mini-btn:active{transform:scale(.95)}
+.rem{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:12px 13px;margin-bottom:8px}
+.rem.done{opacity:.55}
+.rem .when{font-size:10.5px;font-weight:800;color:#227042;background:var(--soft);padding:4px 8px;border-radius:8px;white-space:nowrap}
+.rem .txt{flex:1;font-size:13px;overflow-wrap:anywhere}
+.rem .txt small{display:block;color:var(--muted);font-size:10.5px;margin-top:2px}
+.empty{text-align:center;color:var(--muted);font-size:12.5px;padding:22px 12px;background:var(--card);border:1px dashed var(--line);border-radius:var(--radius)}
+.modal-bg{position:fixed;inset:0;background:rgba(15,35,20,.55);backdrop-filter:blur(5px);z-index:50;display:none;align-items:flex-end;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--card);width:100%;max-width:560px;max-height:88dvh;overflow:auto;border-radius:22px 22px 0 0;padding:20px 18px calc(22px + env(safe-area-inset-bottom))}
+.modal h3{font-size:17px;font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:11px;padding:11px 12px;font-size:15px;outline:none;background:#fbfdfa}
+.field input:focus{border-color:var(--green)}
+.modal-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.btn-main{flex:1;min-height:46px;border:0;border-radius:13px;background:linear-gradient(135deg,#2e8b52,#57b071);color:#fff;font-size:14px;font-weight:800;cursor:pointer}
+.btn-ghost{min-height:46px;padding:0 16px;border-radius:13px;border:1px solid var(--line);background:#fff;font-size:13px;font-weight:700;cursor:pointer;color:var(--ink)}
+.status{font-size:12px;padding:10px 12px;border-radius:11px;margin-top:10px;display:none}
+.status.ok{display:block;background:#e2f4e6;color:#1e6b3c;border:1px solid #b8e0c3}
+.status.err{display:block;background:#fbedeb;color:#9c3a2d;border:1px solid #eec6bf}
+.link-row{display:flex;align-items:center;gap:8px;background:#f6faf4;border:1px solid var(--line);border-radius:12px;padding:10px 11px;margin-bottom:8px;font-size:12px;flex-wrap:wrap}
+.link-row .u{flex:1;min-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#227042;font-weight:700}
+.toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:#14432a;color:#fff;padding:12px 18px;border-radius:13px;font-size:13px;font-weight:650;z-index:99;opacity:0;transition:.25s;max-width:90vw;text-align:center;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.load{display:inline-block;width:16px;height:16px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media(min-width:600px){.modal-bg{align-items:center}.modal{border-radius:22px}.modal-bg{padding:20px}}
+</style></head><body><div class="wrap">
+<header>
+  <div class="logo">📝</div>
+  <h1>My Notes AI</h1>
+  <button class="icon-btn" id="btnRem" title="Напоминания">🔔</button>
+  <button class="icon-btn" id="btnLinks" title="Ссылки">🔗</button>
+  <button class="icon-btn" id="btnSettings" title="Настройки AI">⚙️</button>
+</header>
+
+<div class="hero">
+  <h2>Чем могу помочь?</h2>
+  <p>Напишите обычным текстом — AI создаст заметку, напоминание или найдёт нужное.</p>
+  <div class="ai-box">
+    <textarea id="aiInput" placeholder="Например: «Напомни завтра в 10:00 проверить документы» или «Запиши: идея проекта — приложение для учёбы»"></textarea>
+    <div class="ai-row">
+      <div class="chips">
+        <button class="chip" data-q="Сделай краткий обзор моих заметок">📊 Обзор</button>
+        <button class="chip" data-q="Напомни мне завтра в 10:00 проверить документы">⏰ Напоминание</button>
+        <button class="chip" data-q="Найди заметку про документы">🔎 Поиск</button>
+      </div>
+      <button class="send-btn" id="sendBtn">Отправить</button>
+    </div>
+  </div>
+</div>
+
+<div id="answerBox"></div>
+
+<div class="section-title">🗂️ Заметки <span class="count" id="notesCount">0</span></div>
+<div id="notesList"></div>
+
+<div class="section-title">🔔 Напоминания <span class="count" id="remCount">0</span></div>
+<div id="remList"></div>
+</div>
+
+<div class="modal-bg" id="modalSettings"><div class="modal">
+  <h3>⚙️ Настройки AI</h3>
+  <div class="field"><label>API URL</label><input id="setEndpoint" type="url" placeholder="https://…/v1"></div>
+  <div class="field"><label>Модель</label><input id="setModel" placeholder="mimo-v2.6-flash"></div>
+  <div class="field"><label>API-ключ</label><input id="setKey" type="password" autocomplete="off" placeholder="Оставьте пустым, чтобы не менять"><div style="font-size:11px;color:var(--muted);margin-top:4px" id="keyMask"></div></div>
+  <div class="modal-actions">
+    <button class="btn-main" id="saveSettings">Сохранить</button>
+    <button class="btn-ghost" id="testSettings">Проверить ключ</button>
+    <button class="btn-ghost" onclick="closeModal('modalSettings')">Закрыть</button>
+  </div>
+  <div class="status" id="setStatus"></div>
+</div></div>
+
+<div class="modal-bg" id="modalLinks"><div class="modal">
+  <h3>🔗 Ссылки на заметки</h3>
+  <div class="field"><label>Заметка</label><select id="linkNote"></select></div>
+  <div class="field"><label>Срок действия (дней, 0 — бессрочно)</label><input id="linkDays" type="number" min="0" value="7"></div>
+  <div class="modal-actions"><button class="btn-main" id="createLink">Создать ссылку</button><button class="btn-ghost" onclick="closeModal('modalLinks')">Закрыть</button></div>
+  <div id="linksList" style="margin-top:14px"></div>
+</div></div>
+
+<div class="modal-bg" id="modalRem"><div class="modal">
+  <h3>🔔 Напоминания</h3>
+  <div id="remListModal"></div>
+  <div class="modal-actions"><button class="btn-ghost" onclick="closeModal('modalRem')">Закрыть</button></div>
+</div></div>
+
+<div class="modal-bg" id="modalNote"><div class="modal">
+  <h3>✏️ Заметка</h3>
+  <div class="field"><label>Заголовок</label><input id="edTitle"></div>
+  <div class="field"><label>Категория</label><input id="edCat"></div>
+  <div class="field"><label>Текст (по абзацам)</label><textarea id="edText" rows="10"></textarea></div>
+  <div class="modal-actions">
+    <button class="btn-main" id="saveNote">Сохранить</button>
+    <button class="btn-ghost" onclick="closeModal('modalNote')">Отмена</button>
+  </div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+<script>
+var S={notes:[],reminders:[],links:[],settings:{}}, editId=null;
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function toast(msg){var t=$('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2600)}
+function openModal(id){$(id).classList.add('open')}
+function closeModal(id){$(id).classList.remove('open')}
+function fmtDate(ts){if(!ts)return '—';var d=new Date(ts);return d.toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}
+function api(path,method,body){return fetch(path,{method:method||'GET',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:body?JSON.stringify(body):undefined}).then(function(r){return r.json().then(function(d){if(!r.ok||d.ok===false)throw new Error(d.error||('HTTP '+r.status));return d})})}
+
+function render(){
+  $('notesCount').textContent=S.notes.length;
+  $('remCount').textContent=S.reminders.filter(function(r){return !r.done}).length;
+  var nl=$('notesList');
+  if(!S.notes.length){nl.innerHTML='<div class="empty">Заметок пока нет. Напишите запрос выше — AI всё организует.</div>'}
+  else{
+    nl.innerHTML=S.notes.map(function(n,i){
+      return '<div class="note"><div class="note-head"><div class="note-num">'+(i+1)+'</div><h3>'+esc(n.title)+'</h3><span class="note-cat">'+esc(n.category||'Разное')+'</span></div>'+
+      '<div class="note-body">'+(n.html||esc(n.text||''))+'</div>'+
+      '<div class="note-actions">'+
+      '<button class="mini-btn" onclick="editNote(\\''+n.id+'\\')">✏️ Править</button>'+
+      '<button class="mini-btn" onclick="linkNote(\\''+n.id+'\\')">🔗 Ссылка</button>'+
+      '<button class="mini-btn danger" onclick="delNote(\\''+n.id+'\\')">🗑 Удалить</button>'+
+      '</div></div>'
+    }).join('')
+  }
+  var rl=function(arr,host){
+    if(!arr.length){host.innerHTML='<div class="empty">Напоминаний нет.</div>';return}
+    host.innerHTML=arr.slice().sort(function(a,b){return a.dueAt-b.dueAt}).map(function(r){
+      return '<div class="rem'+(r.done?' done':'')+'"><span class="when">'+esc(fmtDate(r.dueAt))+'</span><div class="txt">'+esc(r.text)+(r.done?'<small>выполнено</small>':(r.dueAt<Date.now()?'<small style="color:#c0564a">просрочено</small>':''))+'</div>'+
+      (r.done?'':'<button class="mini-btn" onclick="doneRem(\\''+r.id+'\\')">✓</button>')+
+      '<button class="mini-btn danger" onclick="delRem(\\''+r.id+'\\')">✕</button></div>'
+    }).join('')
   };
+  rl(S.reminders,$('remList'));
+  rl(S.reminders,$('remListModal'));
+  var sel=$('linkNote');
+  sel.innerHTML=S.notes.map(function(n){return '<option value="'+n.id+'">'+esc(n.title)+'</option>'}).join('')||'<option value="">Нет заметок</option>';
 }
-window.__mnaBoot = mnaApi('GET').then(function (data) {
-  return mnaSeed(data);
-}).then(function () {
-  mnaHookWrites();
-}).catch(function () {
-  try { mnaHookWrites(); } catch (e) {}
+function refresh(){return api('/api/my-notes/state').then(function(d){S.notes=d.notes||[];S.reminders=d.reminders||[];S.links=d.links||[];S.settings=d.settings||{};render();if(d.missed&&d.missed.length){showAnswer('⏰ Пропущенные напоминания:\\n'+d.missed.map(function(r){return '• '+r.text+' (должно было быть '+fmtDate(r.dueAt)+')'}).join('\\n'),'Напоминания');api('/api/my-notes/reminders/missed');}})}
+
+function showAnswer(text,tag){
+  $('answerBox').innerHTML='<div class="answer">'+(tag?'<div class="tag">'+esc(tag)+'</div>':'')+esc(text)+'</div>';
+}
+function send(){
+  var msg=$('aiInput').value.trim();
+  if(!msg){toast('Введите запрос');return}
+  var btn=$('sendBtn');
+  btn.disabled=true;
+  btn.innerHTML='<span class="load"></span>Думаю…';
+  $('answerBox').innerHTML='<div class="answer"><div class="tag">AI</div>Обрабатываю запрос…</div>';
+  api('/api/my-notes/ai','POST',{message:msg}).then(function(d){
+    showAnswer(d.reply||'Готово.','AI · '+(d.action||'chat'));
+    S.notes=d.notes||S.notes;S.reminders=d.reminders||S.reminders;
+    render();
+    $('aiInput').value='';
+    if('Notification'in window&&Notification.permission==='granted'){try{new Notification('My Notes AI',{body:(d.reply||'Готово').slice(0,120)})}catch(e){}}
+  }).catch(function(e){showAnswer('⚠️ '+e.message,'Ошибка')}).finally(function(){btn.disabled=false;btn.textContent='Отправить'})
+}
+function editNote(id){
+  var n=S.notes.find(function(x){return x.id===id});
+  if(!n)return;
+  editId=id;
+  $('edTitle').value=n.title||'';
+  $('edCat').value=n.category||'';
+  $('edText').value=(n.text||String(n.html||'').replace(/<[^>]+>/g,'\\n').replace(/\\n+/g,'\\n').trim());
+  openModal('modalNote');
+}
+function delNote(id){
+  if(!confirm('Удалить заметку?'))return;
+  S.notes=S.notes.filter(function(x){return x.id!==id});
+  S.links=S.links.filter(function(l){return l.noteId!==id});
+  api('/api/my-notes/state','PUT',{notes:S.notes,reminders:S.reminders}).then(function(){toast('Заметка удалена');render()}).catch(function(e){toast(e.message)})
+}
+function linkNote(id){openModal('modalLinks');$('linkNote').value=id;renderLinks()}
+function doneRem(id){api('/api/my-notes/reminders/'+id+'/done','POST').then(refresh).catch(function(e){toast(e.message)})}
+function delRem(id){api('/api/my-notes/reminders/'+id,'DELETE').then(refresh).catch(function(e){toast(e.message)})}
+function renderLinks(){
+  api('/api/my-notes/links').then(function(d){
+    $('linksList').innerHTML=(d.links||[]).map(function(l){
+      return '<div class="link-row"><span class="u">'+esc(l.title)+'</span><span>'+esc(l.url)+'</span>'+
+      '<button class="mini-btn" onclick="copyLink(\\''+l.url+'\\')">📋</button>'+
+      '<button class="mini-btn" onclick="toggleLink(\\''+l.id+'\\','+(l.enabled?'false':'true')+')">'+(l.enabled?'🚫 Выкл':'✅ Вкл')+'</button>'+
+      '<button class="mini-btn danger" onclick="dropLink(\\''+l.id+'\\')">✕</button></div>'
+    }).join('')||'<div class="empty">Ссылок нет.</div>'
+  }).catch(function(e){toast(e.message)})
+}
+function copyLink(u){var full=location.origin+u;navigator.clipboard&&navigator.clipboard.writeText(full);toast('Ссылка скопирована')}
+function toggleLink(id,on){api('/api/my-notes/links/'+id,'PATCH',{enabled:on==='true'}).then(renderLinks).catch(function(e){toast(e.message)})}
+function dropLink(id){api('/api/my-notes/links/'+id,'DELETE').then(renderLinks).catch(function(e){toast(e.message)})}
+
+$('sendBtn').addEventListener('click',send);
+$('aiInput').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});
+document.querySelectorAll('.chip').forEach(function(c){c.addEventListener('click',function(){$('aiInput').value=c.getAttribute('data-q');send()})});
+$('btnSettings').addEventListener('click',function(){
+  api('/api/my-notes/settings').then(function(d){
+    $('setEndpoint').value=d.settings.apiEndpoint||'';
+    $('setModel').value=d.settings.model||'';
+    $('keyMask').textContent='Сохранённый ключ: '+(d.settings.keyMask||'не задан');
+    $('setStatus').className='status';
+    openModal('modalSettings');
+  }).catch(function(e){toast(e.message)})
 });
-})();<\/script>`;
-const MY_NOTES_THEME = `
-:root{--bg:#eef4ec;--surface:#fff;--sidebar:#d7e8cf;--ink:#1b2a1e;--muted:#5f7358;--line:#bcd4ae;--green:#2e8b52;--green-hover:#227042;--soft:#d8ebcd;--shadow:0 10px 30px rgba(46,139,82,.16)}
-body{background:var(--bg)}
-.sidebar{background:linear-gradient(180deg,#d0e4c6,#e4f0da);border-right-color:#a9c899}
-.brand-icon{background:linear-gradient(135deg,#2e8b52,#56ab6d);box-shadow:0 6px 16px rgba(46,139,82,.35)}
-.create-button{background:linear-gradient(135deg,#2e8b52,#4ea165);color:#fff;box-shadow:0 6px 18px rgba(46,139,82,.35);border:0}
-.create-button:hover{background:linear-gradient(135deg,#227042,#3d8b55)}
-.sidebar nav>button.active{background:#2e8b52;color:#fff}
-.sidebar nav>button:hover{background:#c6e0b8}
-.primary{background:linear-gradient(135deg,#2e8b52,#4ea165);border:0;box-shadow:0 6px 16px rgba(46,139,82,.32)}
-.primary:hover{background:linear-gradient(135deg,#227042,#3d8b55)}
-.soft-button{background:#d8ebcd;color:#227042;font-weight:700}
-.outline-button{border-color:#9dc48f;background:#fff}
-.topbar{background:#f3faf0;border-bottom-color:#bcd4ae}
-.capture-card{background:linear-gradient(120deg,#2e8b52 0%,#4ea165 60%,#79b98a 100%);border-color:#2e8b52;box-shadow:0 12px 32px rgba(46,139,82,.28)}
-.capture-card *{color:#fff!important}
-.capture-card .primary{background:#fff!important;color:#227042!important;border-color:#fff!important}
-.capture-voice{color:#e4f4e6!important}
-.note-card{border-color:#c8dcbd}
-.note-card:hover{border-color:#2e8b52;box-shadow:0 14px 34px rgba(46,139,82,.22)}
-.note-card:hover .card-icons{color:#2e8b52}
-.section-title h2{color:#227042}
-.section-icon{background:#d8ebcd;color:#227042}
-.section-icon.lavender{background:#e9def5;color:#6d4d9c}
-.count{background:#2e8b52;color:#fff;font-weight:700}
-.quiet-idea{background:linear-gradient(110deg,#e4d7f2,#f0e9f8);border-color:#c9b2e2}
-.ai-mini{background:#6d4d9c;color:#fff;border-color:#6d4d9c}
-.ai-symbol{background:linear-gradient(135deg,#6d4d9c,#9a76c4);color:#fff;border-color:#6d4d9c;box-shadow:0 10px 26px rgba(109,77,156,.3)}
-.first-note{background:#f4faf0;border-color:#a9c899}
-.first-note-icon{background:#2e8b52;color:#fff}
-.tabs button.active{background:#2e8b52;color:#fff;font-weight:800}
-.task-check.high{border-color:#d2691e}
-.completed .task-check{background:#2e8b52}
-.ai-chips button{border-color:#9dc48f;background:#fff;font-weight:600}
-.ai-chips button:hover{background:#2e8b52;color:#fff}
-.ai-input{border:2px solid #7fb56f;box-shadow:0 12px 30px rgba(46,139,82,.2)}
-.ai-input button.primary{min-width:118px;min-height:48px;font-size:13px;font-weight:800;border-radius:12px;letter-spacing:.2px}
-.ai-input button.primary svg{display:none}
-.ai-input button.primary::after{content:"Отправить"}
-.ai-input button.primary[aria-label="Остановить запрос"]::after{content:"Стоп"}
-.ai-answer{border-color:#c8dcbd;box-shadow:0 12px 30px rgba(46,139,82,.12)}
-.settings-card{border-color:#c8dcbd}
-.settings-card h3{color:#227042}
-.theme-options button.active{background:#2e8b52;color:#fff;border-color:#2e8b52}
-.folder-tag{color:#5f7358;font-weight:600}
-.folder-dot{background:#2e8b52}
-.editor-backdrop>div{box-shadow:-16px 0 60px rgba(20,50,30,.25)}
-.formatbar{background:#f3faf0;border-color:#bcd4ae}
-.page-heading .eyebrow{color:#2e8b52;font-weight:800}
-.today-panel,.upcoming-panel,.task-list{border-color:#c8dcbd;box-shadow:0 8px 24px rgba(46,139,82,.08)}
-.muted{color:#5f7358}
-.mna-theme-badge{display:inline-flex;align-items:center;gap:6px;background:#2e8b52;color:#fff;font-size:10px;font-weight:800;padding:3px 9px;border-radius:999px;letter-spacing:.5px;margin-left:8px}
-`;
+$('saveSettings').addEventListener('click',function(){
+  var b={apiEndpoint:$('setEndpoint').value,model:$('setModel').value};
+  if($('setKey').value.trim())b.apiKey=$('setKey').value.trim();
+  api('/api/my-notes/settings','PUT',b).then(function(d){
+    $('keyMask').textContent='Сохранённый ключ: '+(d.settings.keyMask||'не задан');
+    $('setKey').value='';
+    $('setStatus').className='status ok';$('setStatus').textContent='Настройки сохранены.';
+  }).catch(function(e){$('setStatus').className='status err';$('setStatus').textContent=e.message})
+});
+$('testSettings').addEventListener('click',function(){
+  $('setStatus').className='status';$('setStatus').textContent='Проверяю соединение…';
+  var b={apiEndpoint:$('setEndpoint').value,model:$('setModel').value};
+  if($('setKey').value.trim())b.apiKey=$('setKey').value.trim();
+  api('/api/my-notes/settings/test','POST',b).then(function(d){
+    $('setStatus').className='status ok';
+    $('setStatus').textContent='✅ Соединение ОК ('+d.latencyMs+' мс). Моделей: '+(d.models||[]).length+(d.modelOk===false?' — ⚠️ модель не найдена в списке':'');
+  }).catch(function(e){$('setStatus').className='status err';$('setStatus').textContent='❌ '+e.message})
+});
+$('btnLinks').addEventListener('click',function(){openModal('modalLinks');renderLinks()});
+$('btnRem').addEventListener('click',function(){openModal('modalRem');render()});
+$('createLink').addEventListener('click',function(){
+  var noteId=$('linkNote').value;
+  if(!noteId){toast('Сначала создайте заметку');return}
+  api('/api/my-notes/links','POST',{noteId:noteId,expiresInDays:Number($('linkDays').value)||0}).then(function(){
+    toast('Ссылка создана');renderLinks();
+  }).catch(function(e){toast(e.message)})
+});
+$('saveNote').addEventListener('click',function(){
+  if(!editId)return;
+  var n=S.notes.find(function(x){return x.id===editId});
+  if(!n)return;
+  n.title=$('edTitle').value.trim()||n.title;
+  n.category=$('edCat').value.trim()||n.category;
+  n.text=$('edText').value;
+  n.html='<p>'+esc(n.text).replace(/\\n/g,'</p><p>')+'</p>';
+  n.updatedAt=Date.now();
+  api('/api/my-notes/state','PUT',{notes:S.notes,reminders:S.reminders}).then(function(){
+    closeModal('modalNote');toast('Сохранено');render();
+  }).catch(function(e){toast(e.message)})
+});
+document.querySelectorAll('.modal-bg').forEach(function(m){m.addEventListener('click',function(e){if(e.target===m)m.classList.remove('open')})});
+refresh();
+if('Notification'in window&&Notification.permission==='default'){setTimeout(function(){Notification.requestPermission()},1500)}
+</script></body></html>`;
+
 app.get('/my-notes/', (req, res) => {
     const owner = myNotesOwner(req);
     if (!owner) {
-        res.status(403).type('text/html').send('<!doctype html><meta charset="utf-8"><title>Доступ запрещён</title><p style="font:16px system-ui;padding:40px">Доступ только для администратора.</p>');
+        res.status(403).type('html').send('<!doctype html><meta charset="utf-8"><title>Доступ запрещён</title><p style="font:16px system-ui;padding:40px">Доступ только для администратора.</p>');
         return;
     }
-    fs.readFile(MY_NOTES_HTML_PATH, 'utf-8', (err, html) => {
-        if (err) {
-            res.status(500).type('text/plain').send('My Notes AI: файл не найден');
-            return;
-        }
-        const marker = '<script>"use strict";';
-        const i = html.indexOf(marker);
-        if (i < 0) {
-            res.status(500).type('text/plain').send('My Notes AI: не удалось разметить страницу');
-            return;
-        }
-        let body = html.slice(i + '<script>'.length).replace(/<\/script>(\s*<\/body>)/, '});<\/script>$1');
-        // Патч дефолтов AI: рабочий endpoint MIMO token-plan + модель + предустановленный ключ
-        body = body.split('endpoint:"https://api.openai.com/v1"').join('endpoint:"https://token-plan-sgp.xiaomimimo.com/v1"');
-        body = body.split('model:"",audioEndpoint').join('model:"mimo-v2.6-flash",audioEndpoint');
-        body = body.split('audioEndpoint:"https://api.openai.com/v1",audioModel:"whisper-1"').join('audioEndpoint:"https://token-plan-sgp.xiaomimimo.com/v1",audioModel:"mimo-v2.5-asr"');
-        body = body.split('[y,U]=(0,j.useState)("")').join('[y,U]=(0,j.useState)("tp-sp7xftr9xj3ktdjt271xp2mtojtfsffzpox2o6fh8le9o74w")');
-        const out = html.slice(0, i) + '<style>' + MY_NOTES_THEME + '</style>' + MY_NOTES_SHIM +
-            '<script>window.__mnaBoot.then(function () {' + body;
-        res.type('html').send(out);
-    });
+    res.type('html').send(MY_NOTES_PAGE);
 });
+
+// --- My Notes AI: публичная страница заметки по индивидуальной ссылке ---
+app.get('/note-view/:token', (req, res) => {
+    const found = myNotesFindLink(String(req.params.token || ''));
+    if (!found || !found.link.enabled || (found.link.expiresAt && Date.now() > found.link.expiresAt)) {
+        res.status(404).type('html').send('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ссылка недействительна</title><div style="font:16px/1.6 system-ui;padding:40px;text-align:center"><h2>🔗 Ссылка недействительна</h2><p style="color:#5f7358">Ссылка отключена, истекла или удалена.</p></div>');
+        return;
+    }
+    const note = (found.store.notes || []).find(n => n.id === found.link.noteId);
+    if (!note) {
+        res.status(404).type('html').send('<!doctype html><meta charset="utf-8"><title>Заметка не найдена</title><p style="font:16px system-ui;padding:40px">Заметка не найдена.</p>');
+        return;
+    }
+    found.link.views = (found.link.views || 0) + 1;
+    saveDB();
+    res.type('html').send('<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + myNotesEsc(note.title) + '</title><style>*{box-sizing:border-box}body{margin:0;background:#eef4ec;color:#1b2a1e;font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.wrap{max-width:640px;margin:0 auto;padding:28px 18px}header{display:flex;align-items:center;gap:10px;margin-bottom:18px}.logo{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,#2e8b52,#57b071);display:flex;align-items:center;justify-content:center}.card{background:#fff;border:1px solid #c8dcbd;border-radius:18px;padding:22px 20px;box-shadow:0 12px 32px rgba(46,139,82,.12)}h1{font-size:21px;margin:0 0 4px;letter-spacing:-.3px}.cat{display:inline-block;font-size:11px;font-weight:700;color:#227042;background:#d8ebcd;padding:4px 11px;border-radius:999px;margin:8px 0 16px}.body{font-size:15px;line-height:1.75}.body p{margin:7px 0}footer{margin-top:18px;font-size:11px;color:#5f7358;text-align:center}</style></head><body><div class="wrap"><header><div class="logo">📝</div><div style="font-weight:800;font-size:14px">My Notes AI · Публичный просмотр</div></header><div class="card"><h1>' + myNotesEsc(note.title) + '</h1><div class="cat">' + myNotesEsc(note.category || 'Разное') + '</div><div class="body">' + (note.html || '<p>' + myNotesEsc(note.text || '') + '</p>') + '</div></div><footer>Видна только эта заметка · Обновлено ' + new Date(note.updatedAt || Date.now()).toLocaleString('ru-RU') + '</footer></div></body></html>');
+});
+
+// --- My Notes AI: серверный планировщик напоминаний ---
+function myNotesProcessReminders() {
+    if (!_dbLoaded || !db.myNotesAI) return;
+    const now = Date.now();
+    let dirty = false;
+    for (const owner of Object.keys(db.myNotesAI)) {
+        const s = db.myNotesAI[owner];
+        if (!s || !Array.isArray(s.reminders)) continue;
+        for (const r of s.reminders) {
+            if (r.done || r.notified) continue;
+            if (r.dueAt <= now) {
+                r.notified = true;
+                r.notifiedAt = now;
+                dirty = true;
+                myNotesLog(owner, 'reminder_fired', r.text, r.id);
+                try {
+                    for (const sid of adminSockets) io.to(sid).emit('my-notes:reminder', { reminder: r, owner });
+                } catch (e) { }
+                try {
+                    if (!Array.isArray(db.notifications)) db.notifications = [];
+                    db.notifications.unshift({ id: genId(), targetUserId: owner, title: '⏰ Напоминание My Notes AI', text: r.text, timestamp: now, read: false });
+                    if (db.notifications.length > 300) db.notifications.length = 300;
+                } catch (e) { }
+            }
+        }
+    }
+    if (dirty) saveDB();
+}
+setInterval(myNotesProcessReminders, 30000);
 
 
 app.get('/api/parent-view/:token', (req, res) => {

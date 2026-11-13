@@ -11519,6 +11519,10 @@ body.aioffice-fullscreen .dict-title{color:#fff}
 .mna-card .mna-hint{font-size:11px;color:rgba(255,255,255,.62)}
 .mna-open-btn{background:#fff!important;color:#14432a!important;font-weight:800!important;padding:12px 22px!important;font-size:14px!important;border:0!important;border-radius:12px!important;box-shadow:0 8px 22px rgba(0,0,0,.22)}
 .mna-open-btn:hover{transform:translateY(-2px);background:#eaf7ee!important}
+.mna-admin-btn{background:rgba(255,255,255,.16)!important;color:#fff!important;font-weight:800!important;padding:12px 18px!important;font-size:13px!important;border:1px solid rgba(255,255,255,.28)!important;border-radius:12px!important}
+.mna-admin-btn:hover{background:rgba(255,255,255,.28)!important}
+.mna-stat{background:var(--card,#1a221c);border:1px solid var(--border,#2c3a2e);border-radius:10px;padding:8px 12px;font-size:12px;min-width:86px;text-align:center}
+.mna-stat b{display:block;font-size:17px;color:var(--accent,#57b071)}
 /* --- My Notes AI: полноэкранный iframe --- */
 body.mynotes-fullscreen{overflow:hidden;height:100%;height:100dvh}
 body.mynotes-fullscreen .sidebar,
@@ -12265,6 +12269,27 @@ body.mynotes-fullscreen .dict-close{color:#fff!important;font-weight:700}
                     </div>
                     <div class="mna-actions">
                         <button type="button" class="btn btn-accent mna-open-btn" onclick="event.stopPropagation();openMyNotes()"><i data-lucide="notebook-pen" style="width:18px;height:18px"></i> Открыть My Notes AI →</button>
+                        <button type="button" class="btn btn-accent mna-admin-btn" onclick="event.stopPropagation();openMnaAdmin()"><i data-lucide="bar-chart-3" style="width:16px;height:16px"></i> 📊 Активность</button>
+                    </div>
+                </div>
+                <!-- My Notes AI: административная панель -->
+                <div class="modal-backdrop" id="mnaAdminModal" style="display:none">
+                    <div class="modal" style="width:min(680px,94vw);max-height:88vh;overflow:auto">
+                        <header style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+                            <h2 style="font-size:19px">📊 My Notes AI · Активность</h2>
+                            <button class="btn btn-ghost btn-sm" onclick="closeMnaAdmin()">✕ Закрыть</button>
+                        </header>
+                        <div id="mnaAdminStats" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
+                        <div style="font-size:12px;font-weight:800;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;margin:10px 0 6px">Журнал действий</div>
+                        <div id="mnaAdminLog" style="font-size:12px;line-height:1.7"></div>
+                        <div style="font-size:12px;font-weight:800;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;margin:14px 0 6px">⚠️ Подозрительные действия</div>
+                        <div id="mnaAdminSusp" style="font-size:12px;color:var(--error);line-height:1.7"></div>
+                        <div style="font-size:12px;font-weight:800;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;margin:14px 0 6px">🤖 Спросить AI об активности</div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap">
+                            <input class="inp" id="mnaAdminQ" style="flex:1;min-width:200px" placeholder="Например: кто удалял заметки вчера?">
+                            <button class="btn btn-accent btn-sm" onclick="askMnaAdmin()">Спросить</button>
+                        </div>
+                        <div id="mnaAdminAnswer" style="font-size:12.5px;line-height:1.7;margin-top:10px"></div>
                     </div>
                 </div>
                 <div class="stitle mt-12">Действия</div>
@@ -14467,6 +14492,38 @@ window.closeMyNotes=function(){
     setTimeout(function(){window._mnaClosing=false;},300);
 };
 window.reloadMyNotes=function(){var fr=document.getElementById('myNotesFrame');if(fr)fr.setAttribute('src','/my-notes/');};
+
+// --- My Notes AI: административная панель активности ---
+window.openMnaAdmin=function(){
+    if(typeof isAdmin!=='undefined'&&!isAdmin){toast('w','My Notes AI','Доступ только для администратора');return;}
+    var m=document.getElementById('mnaAdminModal');if(m)m.style.display='flex';
+    var log=document.getElementById('mnaAdminLog');
+    if(log)log.innerHTML='<div class="empty">Загружаю…</div>';
+    mnaAdminApi('/api/my-notes/admin/overview').then(function(d){
+        var st=d.stats||{};
+        var sh=document.getElementById('mnaAdminStats');
+        if(sh)sh.innerHTML=['Владельцев|'+st.owners,'Заметок|'+st.notes,'Напоминаний|'+st.reminders,'Ссылок|'+st.links,'Действий|'+st.actions].map(function(x){var p=x.split('|');return '<div class="mna-stat"><b>'+p[1]+'</b>'+p[0]+'</div>'}).join('');
+        var log=document.getElementById('mnaAdminLog');
+        if(log)log.innerHTML=(d.recent||[]).length?d.recent.map(function(a){
+            return '<div style="padding:6px 0;border-bottom:1px solid var(--border,#2c3a2e)"><b>'+new Date(a.ts).toLocaleString('ru-RU')+'</b> · '+String(a.owner||'').slice(0,12)+' · <span style="color:var(--accent,#57b071)">'+String(a.action||'')+'</span> — '+String(a.detail||'').slice(0,120)+'</div>';
+        }).join(''):'<div class="empty">Журнал пуст</div>';
+        var ss=document.getElementById('mnaAdminSusp');
+        if(ss)ss.innerHTML=(d.suspicious||[]).length?d.suspicious.map(function(s){return '<div>⚠️ '+String(s.owner||'')+': '+String(s.reason||'')+'</div>'}).join(''):'<div style="color:var(--dim)">Подозрительных действий не найдено</div>';
+    }).catch(function(e){if(log)log.innerHTML='<div class="empty">Ошибка: '+String(e.message||e)+'</div>'});
+};
+window.closeMnaAdmin=function(){var m=document.getElementById('mnaAdminModal');if(m)m.style.display='none';};
+window.askMnaAdmin=function(){
+    var q=document.getElementById('mnaAdminQ');var out=document.getElementById('mnaAdminAnswer');
+    if(!q||!q.value.trim()){toast('w','My Notes AI','Введите вопрос');return;}
+    if(out)out.innerHTML='<div class="empty">AI анализирует журнал…</div>';
+    mnaAdminApi('/api/my-notes/admin/ask','POST',{question:q.value.trim()}).then(function(d){
+        if(out)out.innerHTML='<div style="background:var(--card,#1a221c);border:1px solid var(--border,#2c3a2e);border-radius:10px;padding:12px;white-space:pre-wrap">'+String(d.reply||'').slice(0,3000)+'</div>';
+    }).catch(function(e){if(out)out.innerHTML='<div class="empty">Ошибка: '+String(e.message||e)+'</div>'});
+};
+function mnaAdminApi(path,method,body){
+    var token='';try{token=localStorage.getItem('pb_admin_token')||'';}catch(e){}
+    return fetch(path,{method:method||'GET',headers:{'Content-Type':'application/json','X-Admin-Token':token},credentials:'same-origin',body:body?JSON.stringify(body):undefined}).then(function(r){return r.json().then(function(d){if(!r.ok||d.ok===false)throw new Error(d.error||('HTTP '+r.status));return d})});
+}
 
 // --- AI Assistants (4 независимых ассистента: Dify / LiteLLM / Claude, только админ) ---
 window._asst={active:'admin',assistants:[],chats:{},mem0:{},busy:false,settingsOpen:false};
