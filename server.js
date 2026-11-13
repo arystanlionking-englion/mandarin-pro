@@ -93,9 +93,11 @@ app.use((req, res, next) => {
     try { p = decodeURIComponent(p); } catch (e) { }
     const low = p.toLowerCase();
     if (low.startsWith('/ai-office')) return next(); // свой обработчик с проверкой админа
+    if (low.startsWith('/my-notes')) return next(); // свой обработчик с проверкой админа
     if (low.startsWith('/ai_office_ultimate') || low.startsWith('/.data/') || low === '/.data' ||
         low === '/master.key' || low === '/office.sqlite' || low === '/database.json' ||
-        low.startsWith('/database.json.') || low.endsWith('/master.key') || low.endsWith('/office.sqlite')) {
+        low.startsWith('/database.json.') || low.endsWith('/master.key') || low.endsWith('/office.sqlite') ||
+        low === '/my_notes_ai_2.0.html' || low === '/my-notes_ai_2.0.html') {
         res.status(403).type('text/plain').send('Доступ запрещён');
         return;
     }
@@ -142,6 +144,80 @@ app.post('/api/ai-office/logout', (req, res) => {
     res.json({ ok: true });
 });
 
+// --- My Notes AI: доступ только администратору, заметки хранятся на сервере (изоляция по аккаунту) ---
+function myNotesGetToken(req) {
+    const h = req.headers || {};
+    let token = '';
+    const auth = String(h['x-admin-token'] || h['authorization'] || '');
+    if (/^bearer\s+/i.test(auth)) token = auth.replace(/^bearer\s+/i, '').trim();
+    else if (auth) token = auth.trim();
+    if (!token && h.cookie) {
+        token = (String(h.cookie).split(';').map(x => x.trim()).find(x => x.startsWith('pb_admin=')) || '').slice(9);
+    }
+    return token || '';
+}
+function myNotesOwner(req) {
+    return getAdminSessionOwner(myNotesGetToken(req));
+}
+app.post('/api/my-notes/auth', (req, res) => {
+    const token = String((req.body && req.body.adminToken) || '');
+    if (!validateAdminSessionToken(token)) {
+        res.status(403).json({ ok: false, error: 'Нет админ-доступа' });
+        return;
+    }
+    res.setHeader('Set-Cookie', 'pb_admin=' + token + '; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200');
+    res.json({ ok: true });
+});
+app.get('/api/my-notes/state', (req, res) => {
+    const owner = myNotesOwner(req);
+    if (!owner) { res.status(403).json({ ok: false, error: 'Нет админ-доступа' }); return; }
+    if (!db.myNotesAI || typeof db.myNotesAI !== 'object') db.myNotesAI = {};
+    const rec = db.myNotesAI[owner] || null;
+    res.json({ ok: true, state: rec ? rec.state : null, revision: rec ? (rec.revision || 0) : 0, updatedAt: rec ? rec.updatedAt : null });
+});
+app.put('/api/my-notes/state', (req, res) => {
+    const owner = myNotesOwner(req);
+    if (!owner) { res.status(403).json({ ok: false, error: 'Нет админ-доступа' }); return; }
+    const body = req.body || {};
+    if (!body.state || typeof body.state !== 'object') {
+        res.status(400).json({ ok: false, error: 'Некорректные данные состояния' });
+        return;
+    }
+    if (!db.myNotesAI || typeof db.myNotesAI !== 'object') db.myNotesAI = {};
+    const prev = db.myNotesAI[owner];
+    const revision = (prev && typeof prev.revision === 'number' ? prev.revision : 0) + 1;
+    db.myNotesAI[owner] = { state: body.state, revision, updatedAt: Date.now() };
+    saveDB();
+    res.json({ ok: true, revision });
+});
+
+// --- ИИ-ассистенты: лёгкий клиент Dify / OpenAI-совместимых API (LiteLLM) / Claude / Langflow / Open WebUI, только админ ---
+// --- mem0: память ассистентов (лёгкий REST-клиент, ключ только на сервере) ---
+const { createAssistantsRouter } = require('./assistants-api.js');
+const { createMem0Client, createMem0Router } = require('./mem0-client.js');
+const { createLangflowRouter } = require('./langflow-client.js');
+const { createOpenWebUIRouter } = require('./openwebui-client.js');
+const mem0Client = createMem0Client({ getCfg: () => (db.aiAssistants && db.aiAssistants.mem0) || {} });
+app.use('/api/mem0', createMem0Router({
+    validateToken: validateAdminSessionToken,
+    getDb: () => db,
+    saveDB: () => saveDB()
+}));
+app.use('/api/langflow', createLangflowRouter({
+    validateToken: validateAdminSessionToken,
+    getDb: () => db
+}));
+app.use('/api/openwebui', createOpenWebUIRouter({
+    validateToken: validateAdminSessionToken,
+    getDb: () => db
+}));
+app.use('/api/assistants', createAssistantsRouter({
+    validateToken: validateAdminSessionToken,
+    getDb: () => db,
+    saveDB: () => saveDB(),
+    mem0: mem0Client
+}));
+
 app.use(express.static(__dirname));
 
 // --- Parent personal link (public, token-only) ---
@@ -166,6 +242,147 @@ app.get('/dialogue_data.js', (req, res) => {
 app.get('/наш логотип фирмы.jpg', (req, res) => {
     res.sendFile(path.join(__dirname, '12 версия FINALL', 'наш логотип фирмы.jpg'));
 });
+
+// --- My Notes AI: страница модуля (только админ), данные синхронизируются с сервером ---
+const MY_NOTES_HTML_PATH = path.join(__dirname, 'My_Notes_AI_2.0.html');
+const MY_NOTES_SHIM = `<script>(function(){
+function mnaApi(method, body) {
+  return fetch('/api/my-notes/state', {
+    method: method,
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: body ? JSON.stringify(body) : undefined
+  }).then(function (r) { return r.json(); });
+}
+function mnaSeed(data) {
+  return new Promise(function (resolve) {
+    if (!data || !data.ok || !data.state) { resolve(); return; }
+    var open = indexedDB.open('my-notes-ai', 1);
+    open.onupgradeneeded = function () {
+      var d = open.result;
+      if (!d.objectStoreNames.contains('state')) d.createObjectStore('state');
+      if (!d.objectStoreNames.contains('backups')) d.createObjectStore('backups');
+    };
+    open.onsuccess = function () {
+      var d = open.result;
+      try {
+        var tx = d.transaction('state', 'readwrite');
+        var store = tx.objectStore('state');
+        store.put(data.state, 'main');
+        if (data.revision != null) store.put(data.revision, 'revision');
+        tx.oncomplete = function () { d.close(); resolve(); };
+        tx.onerror = function () { d.close(); resolve(); };
+        tx.onabort = function () { d.close(); resolve(); };
+      } catch (e) { d.close(); resolve(); }
+    };
+    open.onerror = function () { resolve(); };
+  });
+}
+function mnaHookWrites() {
+  var origPut = IDBObjectStore.prototype.put;
+  IDBObjectStore.prototype.put = function (value, key) {
+    var req = origPut.apply(this, arguments);
+    var storeName = this.name;
+    if (storeName === 'state' && (key === 'main' || key === undefined)) {
+      var onSuccess = function () {
+        mnaApi('PUT', { state: value }).catch(function () {});
+      };
+      if (typeof req.addEventListener === 'function') req.addEventListener('success', onSuccess, { once: true });
+      else { var prev = req.onsuccess; req.onsuccess = function (e) { if (prev) prev.call(this, e); onSuccess(); }; }
+    }
+    return req;
+  };
+}
+window.__mnaBoot = mnaApi('GET').then(function (data) {
+  return mnaSeed(data);
+}).then(function () {
+  mnaHookWrites();
+}).catch(function () {
+  try { mnaHookWrites(); } catch (e) {}
+});
+})();<\/script>`;
+const MY_NOTES_THEME = `
+:root{--bg:#eef4ec;--surface:#fff;--sidebar:#d7e8cf;--ink:#1b2a1e;--muted:#5f7358;--line:#bcd4ae;--green:#2e8b52;--green-hover:#227042;--soft:#d8ebcd;--shadow:0 10px 30px rgba(46,139,82,.16)}
+body{background:var(--bg)}
+.sidebar{background:linear-gradient(180deg,#d0e4c6,#e4f0da);border-right-color:#a9c899}
+.brand-icon{background:linear-gradient(135deg,#2e8b52,#56ab6d);box-shadow:0 6px 16px rgba(46,139,82,.35)}
+.create-button{background:linear-gradient(135deg,#2e8b52,#4ea165);color:#fff;box-shadow:0 6px 18px rgba(46,139,82,.35);border:0}
+.create-button:hover{background:linear-gradient(135deg,#227042,#3d8b55)}
+.sidebar nav>button.active{background:#2e8b52;color:#fff}
+.sidebar nav>button:hover{background:#c6e0b8}
+.primary{background:linear-gradient(135deg,#2e8b52,#4ea165);border:0;box-shadow:0 6px 16px rgba(46,139,82,.32)}
+.primary:hover{background:linear-gradient(135deg,#227042,#3d8b55)}
+.soft-button{background:#d8ebcd;color:#227042;font-weight:700}
+.outline-button{border-color:#9dc48f;background:#fff}
+.topbar{background:#f3faf0;border-bottom-color:#bcd4ae}
+.capture-card{background:linear-gradient(120deg,#2e8b52 0%,#4ea165 60%,#79b98a 100%);border-color:#2e8b52;box-shadow:0 12px 32px rgba(46,139,82,.28)}
+.capture-card *{color:#fff!important}
+.capture-card .primary{background:#fff!important;color:#227042!important;border-color:#fff!important}
+.capture-voice{color:#e4f4e6!important}
+.note-card{border-color:#c8dcbd}
+.note-card:hover{border-color:#2e8b52;box-shadow:0 14px 34px rgba(46,139,82,.22)}
+.note-card:hover .card-icons{color:#2e8b52}
+.section-title h2{color:#227042}
+.section-icon{background:#d8ebcd;color:#227042}
+.section-icon.lavender{background:#e9def5;color:#6d4d9c}
+.count{background:#2e8b52;color:#fff;font-weight:700}
+.quiet-idea{background:linear-gradient(110deg,#e4d7f2,#f0e9f8);border-color:#c9b2e2}
+.ai-mini{background:#6d4d9c;color:#fff;border-color:#6d4d9c}
+.ai-symbol{background:linear-gradient(135deg,#6d4d9c,#9a76c4);color:#fff;border-color:#6d4d9c;box-shadow:0 10px 26px rgba(109,77,156,.3)}
+.first-note{background:#f4faf0;border-color:#a9c899}
+.first-note-icon{background:#2e8b52;color:#fff}
+.tabs button.active{background:#2e8b52;color:#fff;font-weight:800}
+.task-check.high{border-color:#d2691e}
+.completed .task-check{background:#2e8b52}
+.ai-chips button{border-color:#9dc48f;background:#fff;font-weight:600}
+.ai-chips button:hover{background:#2e8b52;color:#fff}
+.ai-input{border:2px solid #7fb56f;box-shadow:0 12px 30px rgba(46,139,82,.2)}
+.ai-input button.primary{min-width:118px;min-height:48px;font-size:13px;font-weight:800;border-radius:12px;letter-spacing:.2px}
+.ai-input button.primary svg{display:none}
+.ai-input button.primary::after{content:"Отправить"}
+.ai-input button.primary[aria-label="Остановить запрос"]::after{content:"Стоп"}
+.ai-answer{border-color:#c8dcbd;box-shadow:0 12px 30px rgba(46,139,82,.12)}
+.settings-card{border-color:#c8dcbd}
+.settings-card h3{color:#227042}
+.theme-options button.active{background:#2e8b52;color:#fff;border-color:#2e8b52}
+.folder-tag{color:#5f7358;font-weight:600}
+.folder-dot{background:#2e8b52}
+.editor-backdrop>div{box-shadow:-16px 0 60px rgba(20,50,30,.25)}
+.formatbar{background:#f3faf0;border-color:#bcd4ae}
+.page-heading .eyebrow{color:#2e8b52;font-weight:800}
+.today-panel,.upcoming-panel,.task-list{border-color:#c8dcbd;box-shadow:0 8px 24px rgba(46,139,82,.08)}
+.muted{color:#5f7358}
+.mna-theme-badge{display:inline-flex;align-items:center;gap:6px;background:#2e8b52;color:#fff;font-size:10px;font-weight:800;padding:3px 9px;border-radius:999px;letter-spacing:.5px;margin-left:8px}
+`;
+app.get('/my-notes/', (req, res) => {
+    const owner = myNotesOwner(req);
+    if (!owner) {
+        res.status(403).type('text/html').send('<!doctype html><meta charset="utf-8"><title>Доступ запрещён</title><p style="font:16px system-ui;padding:40px">Доступ только для администратора.</p>');
+        return;
+    }
+    fs.readFile(MY_NOTES_HTML_PATH, 'utf-8', (err, html) => {
+        if (err) {
+            res.status(500).type('text/plain').send('My Notes AI: файл не найден');
+            return;
+        }
+        const marker = '<script>"use strict";';
+        const i = html.indexOf(marker);
+        if (i < 0) {
+            res.status(500).type('text/plain').send('My Notes AI: не удалось разметить страницу');
+            return;
+        }
+        let body = html.slice(i + '<script>'.length).replace(/<\/script>(\s*<\/body>)/, '});<\/script>$1');
+        // Патч дефолтов AI: рабочий endpoint MIMO token-plan + модель + предустановленный ключ
+        body = body.split('endpoint:"https://api.openai.com/v1"').join('endpoint:"https://token-plan-sgp.xiaomimimo.com/v1"');
+        body = body.split('model:"",audioEndpoint').join('model:"mimo-v2.6-flash",audioEndpoint');
+        body = body.split('audioEndpoint:"https://api.openai.com/v1",audioModel:"whisper-1"').join('audioEndpoint:"https://token-plan-sgp.xiaomimimo.com/v1",audioModel:"mimo-v2.5-asr"');
+        body = body.split('[y,U]=(0,j.useState)("")').join('[y,U]=(0,j.useState)("tp-sp7xftr9xj3ktdjt271xp2mtojtfsffzpox2o6fh8le9o74w")');
+        const out = html.slice(0, i) + '<style>' + MY_NOTES_THEME + '</style>' + MY_NOTES_SHIM +
+            '<script>window.__mnaBoot.then(function () {' + body;
+        res.type('html').send(out);
+    });
+});
+
 
 app.get('/api/parent-view/:token', (req, res) => {
     try {
@@ -554,7 +771,7 @@ async function loadDB() {
 }
 
 function getDefaultDB() {
-    return { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], virtualBanks: null, userBankDeposits: [], userBankInvestments: [], bankHistory: [], couponPricesHalved: false, qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [], journal: { groups: [], students: [], records: [], settings: { reward: 300 } }, mafia: null, accountRequests: [], securityLog: [], auditLog: [], globalMode: { enabled: false, section: null, updatedAt: null }, party: null, guestMode: { enabled: false }, maintenanceMode: { enabled: false }, guestSessions: [], guestQrTokens: [], guestCounter: 0, exams: { exams: [], attempts: [] }, aiOfficeRecords: [] };
+    return { users: [], history: [], messages: [], favorites: {}, notifications: [], adminHistory: [], adminPinHash: null, adminSalt: null, groups: [], groupPermissions: {}, investments: [], coupons: [], userCoupons: [], couponNotifications: [], purchaseRequests: [], btcPrice: 47000000, investmentPrices: { science: 10000, biotech: 15000, nature: 8000, companies: 20000, certificates: 12000 }, quests: [], taskAssignments: [], duels: [], userXP: {}, sessions: [], approvalRequests: [], userLists: {}, rests: [], userBlocks: [], qrTerminalHistory: [], battlePass: { seasonEnd: null, userProgress: {} }, promocodes: [], userPromoActivations: [], virtualBanks: null, userBankDeposits: [], userBankInvestments: [], bankHistory: [], couponPricesHalved: false, qrCodes: [], qrAccounts: [], qrCodeScans: [], testResults: [], savingsGoals: [], bankQuests: [], journal: { groups: [], students: [], records: [], settings: { reward: 300 } }, mafia: null, accountRequests: [], securityLog: [], auditLog: [], globalMode: { enabled: false, section: null, updatedAt: null }, party: null, guestMode: { enabled: false }, maintenanceMode: { enabled: false }, guestSessions: [], guestQrTokens: [], guestCounter: 0, exams: { exams: [], attempts: [] }, aiOfficeRecords: [], myNotesAI: {} };
 }
 
 function getDefaultMafia() {
@@ -578,6 +795,8 @@ function _assignDB(parsed) {
             db[key] = parsed[key];
         }
     }
+    // Extra fields not present in getDefaultDB() must survive the load
+    if (parsed.secondaryAdminId !== undefined) db.secondaryAdminId = parsed.secondaryAdminId || null;
     // Fix nested object that may be null after JSON round-trip
     if (!db.battlePass || typeof db.battlePass !== 'object') {
         db.battlePass = { seasonEnd: null, userProgress: {} };
@@ -590,6 +809,7 @@ function _assignDB(parsed) {
 
 function _runMigrations() {
     // Migration: ensure all users have required fields
+    if (db.secondaryAdminId === undefined || db.secondaryAdminId === '') db.secondaryAdminId = null;
     db.users.forEach(u => {
         if (!u.pinHash) { u.pinHash = null; u.salt = null; }
         if (typeof u.balance !== 'number' || !isFinite(u.balance)) u.balance = 0;
@@ -1324,28 +1544,36 @@ function publicUserAdmin(u, onlineIds) {
 
 const socketUserMap = new Map(); // socketId -> userId
 const adminSockets = new Set();
+const pinAdminSockets = new Set(); // sockets authenticated via admin PIN (main admin only)
 const adminSessions = new Map(); // token -> expiresAt (ms)
 const ADMIN_SESSION_TTL = 12 * 60 * 60 * 1000; // 12 hours
 const socketIdMap = new Map(); // userId -> Set<socketId>
 const lastSeenMap = new Map(); // userId -> timestamp of last activity
 const ONLINE_TIMEOUT_MS = 60 * 1000; // 1 minute — grace period after last socket closes
 
-function createAdminSessionToken() {
+const adminSessionOwners = new Map(); // token -> owner key (data isolation per admin account)
+function createAdminSessionToken(owner) {
     const token = crypto.randomBytes(24).toString('hex');
     adminSessions.set(token, Date.now() + ADMIN_SESSION_TTL);
+    adminSessionOwners.set(token, owner || 'admin');
     return token;
 }
 function validateAdminSessionToken(token) {
     if (!token || typeof token !== 'string') return false;
     const exp = adminSessions.get(token);
     if (!exp) return false;
-    if (Date.now() > exp) { adminSessions.delete(token); return false; }
+    if (Date.now() > exp) { adminSessions.delete(token); adminSessionOwners.delete(token); return false; }
     return true;
+}
+function getAdminSessionOwner(token) {
+    if (!token || typeof token !== 'string') return null;
+    if (!validateAdminSessionToken(token)) return null;
+    return adminSessionOwners.get(token) || 'admin';
 }
 function pruneAdminSessions() {
     const now = Date.now();
     for (const [t, exp] of adminSessions) {
-        if (now > exp) adminSessions.delete(t);
+        if (now > exp) { adminSessions.delete(t); adminSessionOwners.delete(t); }
     }
 }
 
@@ -1355,6 +1583,16 @@ function getOnlineUserIds() {
 }
 function getOnlineCount() { return getOnlineUserIds().size; }
 function isAdmin(socketId) { return adminSockets.has(socketId); }
+function isMainAdmin(socketId) { return pinAdminSockets.has(socketId); }
+// Дополнительный администратор: обычный пользователь с сохранённым admin-статусом
+function isSecondaryAdminUser(user) {
+    return !!(user && db.secondaryAdminId && user.id === db.secondaryAdminId && !user.isGuest && !user.archived);
+}
+function grantSecondaryAdminIfAny(user, socket) {
+    if (!isSecondaryAdminUser(user)) return false;
+    adminSockets.add(socket.id);
+    return true;
+}
 
 function getGlobalMode() {
     if (!db.globalMode || typeof db.globalMode !== 'object') {
@@ -1398,6 +1636,7 @@ function removeSocket(socketId) {
     }
     socketUserMap.delete(socketId);
     adminSockets.delete(socketId);
+    pinAdminSockets.delete(socketId);
 }
 
 // --- Emit to specific user (all their sockets) ---
@@ -2776,6 +3015,7 @@ io.on('connection', (socket) => {
         const session = createSession(user.id);
         const onlineIds = getOnlineUserIds();
         const uxData2 = getXP(user.id);
+        const adminRights2 = grantSecondaryAdminIfAny(user, socket);
         socket.emit('user:logged_in', {
             user: publicUserFull(user, onlineIds),
             favorites: db.favorites[user.id] || [],
@@ -2783,7 +3023,8 @@ io.on('connection', (socket) => {
             messages: db.messages.filter(m => m.fromId === user.id || m.toId === user.id),
             notifications: db.notifications.filter(n => n.targetUserId === user.id),
             xp: uxData2,
-            sessionToken: session.token
+            sessionToken: session.token,
+            adminRights: adminRights2
         });
         emitBankUpdate();
     });
@@ -2865,6 +3106,7 @@ io.on('connection', (socket) => {
         const session = createSession(user.id);
         const onlineIds = getOnlineUserIds();
         const uxData = getXP(user.id);
+        const adminRightsPw = grantSecondaryAdminIfAny(user, socket);
         socket.emit('user:logged_in', {
             user: publicUserFull(user, onlineIds),
             favorites: db.favorites[user.id] || [],
@@ -2872,7 +3114,8 @@ io.on('connection', (socket) => {
             messages: db.messages.filter(m => m.fromId === user.id || m.toId === user.id),
             notifications: db.notifications.filter(n => n.targetUserId === user.id),
             xp: uxData,
-            sessionToken: session.token
+            sessionToken: session.token,
+            adminRights: adminRightsPw
         });
         socket.emit('user:login_result', { success: true, name: user.name });
         emitBankUpdate();
@@ -3012,6 +3255,7 @@ io.on('connection', (socket) => {
         checkMaturedDeposits(user.id);
         const onlineIds = getOnlineUserIds();
         const uxData = getXP(user.id);
+        const adminRightsSess = grantSecondaryAdminIfAny(user, socket);
         socket.emit('user:logged_in', {
             user: publicUserFull(user, onlineIds),
             favorites: db.favorites[user.id] || [],
@@ -3019,7 +3263,8 @@ io.on('connection', (socket) => {
             messages: db.messages.filter(m => m.fromId === user.id || m.toId === user.id),
             notifications: db.notifications.filter(n => n.targetUserId === user.id),
             xp: uxData,
-            sessionToken: session.token
+            sessionToken: session.token,
+            adminRights: adminRightsSess
         });
         emitBankUpdate();
     });
@@ -3291,6 +3536,7 @@ io.on('connection', (socket) => {
             db.adminSalt = salt;
             saveDB();
             adminSockets.add(socket.id);
+            pinAdminSockets.add(socket.id);
             const adminToken = createAdminSessionToken();
             socket.emit('admin:authenticated', { success: true, firstTime: true, adminToken, expiresAt: Date.now() + ADMIN_SESSION_TTL });
             logAdminAction('admin_login', null, null, null, null, 'Первый вход, PIN установлен');
@@ -3311,6 +3557,7 @@ io.on('connection', (socket) => {
         }
         clearLoginFails(adminRlKey);
         adminSockets.add(socket.id);
+        pinAdminSockets.add(socket.id);
         const adminToken = createAdminSessionToken();
         socket.emit('admin:authenticated', { success: true, firstTime: false, adminToken, expiresAt: Date.now() + ADMIN_SESSION_TTL });
         // Send full admin data
@@ -3330,7 +3577,7 @@ io.on('connection', (socket) => {
             tasks: db.taskAssignments,
             duels: db.duels,
             userXP: db.userXP,
-            approvalRequests: db.approvalRequests
+            approvalRequests: db.approvalRequests, secondaryAdminId: db.secondaryAdminId || null
         });
         logAdminAction('admin_login', null, null, null, null, 'Вход в админ-панель');
         saveDB();
@@ -3344,6 +3591,7 @@ io.on('connection', (socket) => {
             return;
         }
         adminSockets.add(socket.id);
+        pinAdminSockets.add(socket.id);
         socket.emit('admin:resumeResult', { success: true, expiresAt: adminSessions.get(token) });
         const onlineIds = getOnlineUserIds();
         socket.emit('admin:full_data', {
@@ -3361,8 +3609,49 @@ io.on('connection', (socket) => {
             tasks: db.taskAssignments,
             duels: db.duels,
             userXP: db.userXP,
-            approvalRequests: db.approvalRequests
+            approvalRequests: db.approvalRequests, secondaryAdminId: db.secondaryAdminId || null
         });
+    });
+
+    // --- Дополнительный администратор (только главный администратор, максимум один) ---
+    socket.on('admin:setSecondaryAdmin', (data) => {
+        const fail = (error) => socket.emit('admin:secondaryAdminResult', { success: false, error });
+        if (!isAdmin(socket.id)) { fail('Требуется доступ администратора.'); return; }
+        if (!isMainAdmin(socket.id)) { fail('Назначать дополнительного администратора может только главный администратор.'); return; }
+        const userId = data && data.userId ? String(data.userId) : '';
+        if (!userId) {
+            // Снять статус
+            const prevId = db.secondaryAdminId || null;
+            db.secondaryAdminId = null;
+            saveDB();
+            // Отозвать admin-доступ у всех сокетов прежнего доп. администратора
+            if (prevId) {
+                const socks = getUserSockets(prevId);
+                for (const sid of socks) {
+                    if (!isMainAdmin(sid)) adminSockets.delete(sid);
+                }
+            }
+            logAdminAction('secondary_admin_remove', prevId, null, null, null, 'Дополнительный администратор снят');
+            saveDB();
+            socket.emit('admin:secondaryAdminResult', { success: true, removed: true, secondaryAdminId: null });
+            return;
+        }
+        if (db.secondaryAdminId && db.secondaryAdminId !== userId) {
+            fail('Дополнительный администратор уже назначен. Сначала снимите текущего.');
+            return;
+        }
+        const user = findUser(userId);
+        if (!user) { fail('Пользователь не найден.'); return; }
+        if (user.isGuest) { fail('Гостевой режим не даёт административных прав.'); return; }
+        if (user.archived) { fail('Аккаунт в архиве нельзя назначить администратором.'); return; }
+        db.secondaryAdminId = user.id;
+        saveDB();
+        // Выдать admin-доступ текущим сокетам пользователя
+        const socks = getUserSockets(user.id);
+        for (const sid of socks) adminSockets.add(sid);
+        logAdminAction('secondary_admin_set', user.id, user.name, null, null, 'Назначен дополнительным администратором');
+        saveDB();
+        socket.emit('admin:secondaryAdminResult', { success: true, secondaryAdminId: user.id, userName: user.name });
     });
 
     // --- Admin Change Password ---
@@ -3418,7 +3707,7 @@ io.on('connection', (socket) => {
             tasks: db.taskAssignments,
             duels: db.duels,
             userXP: db.userXP,
-            approvalRequests: db.approvalRequests
+            approvalRequests: db.approvalRequests, secondaryAdminId: db.secondaryAdminId || null
         });
         logAdminAction('set_profile_color', userId, null, null, null, color || 'default');
     });
@@ -3440,7 +3729,7 @@ io.on('connection', (socket) => {
             userCoupons: db.userCoupons, couponNotifications: db.couponNotifications,
             purchaseRequests: db.purchaseRequests, quests: db.quests,
             tasks: db.taskAssignments, duels: db.duels,
-            userXP: db.userXP, approvalRequests: db.approvalRequests
+            userXP: db.userXP, approvalRequests: db.approvalRequests, secondaryAdminId: db.secondaryAdminId || null
         });
         logAdminAction('set_nickname', userId, user.name, null, null, user.nickname || 'default');
     });
@@ -3462,7 +3751,7 @@ io.on('connection', (socket) => {
             userCoupons: db.userCoupons, couponNotifications: db.couponNotifications,
             purchaseRequests: db.purchaseRequests, quests: db.quests,
             tasks: db.taskAssignments, duels: db.duels,
-            userXP: db.userXP, approvalRequests: db.approvalRequests
+            userXP: db.userXP, approvalRequests: db.approvalRequests, secondaryAdminId: db.secondaryAdminId || null
         });
         logAdminAction('set_title', userId, user.name, null, null, user.title || 'default');
     });
@@ -3486,7 +3775,7 @@ io.on('connection', (socket) => {
             userCoupons: db.userCoupons, couponNotifications: db.couponNotifications,
             purchaseRequests: db.purchaseRequests, quests: db.quests,
             tasks: db.taskAssignments, duels: db.duels,
-            userXP: db.userXP, approvalRequests: db.approvalRequests
+            userXP: db.userXP, approvalRequests: db.approvalRequests, secondaryAdminId: db.secondaryAdminId || null
         });
         logAdminAction('set_profile_icon', userId, user.name, null, null, user.profileIcon || 'default');
     });
@@ -3514,7 +3803,7 @@ io.on('connection', (socket) => {
             userCoupons: db.userCoupons, couponNotifications: db.couponNotifications,
             purchaseRequests: db.purchaseRequests, quests: db.quests,
             tasks: db.taskAssignments, duels: db.duels,
-            userXP: db.userXP, approvalRequests: db.approvalRequests
+            userXP: db.userXP, approvalRequests: db.approvalRequests, secondaryAdminId: db.secondaryAdminId || null
         });
         logAdminAction('set_level', userId, user.name, user.adminLevel, null, user.adminLevel ? 'LEVEL ' + user.adminLevel : 'auto');
     });
@@ -4284,7 +4573,7 @@ io.on('connection', (socket) => {
             taskAssignments: db.taskAssignments,
             duels: db.duels,
             userXP: db.userXP,
-            approvalRequests: db.approvalRequests,
+            approvalRequests: db.approvalRequests, secondaryAdminId: db.secondaryAdminId || null,
             rests: db.rests,
             userBlocks: db.userBlocks,
             qrTerminalHistory: db.qrTerminalHistory,
@@ -7748,7 +8037,9 @@ io.on('connection', (socket) => {
             homework: j.homework.filter(h => {
                 if (!h) return false;
                 if (myId && h.studentId) return h.studentId === myId;
-                return !h.studentId && myGroupId && h.groupId === myGroupId;
+                if (!myGroupId) return false;
+                if (h.studentId) return false;
+                return h.groupId === myGroupId || (Array.isArray(h.groupIds) && h.groupIds.indexOf(myGroupId) >= 0);
             }),
             homeworkSubmissions: myId ? j.homeworkSubmissions.filter(s => s && s.studentId === myId) : [],
             isAdmin: false
@@ -8034,9 +8325,15 @@ io.on('connection', (socket) => {
     // ==================== HOMEWORK + GLOBAL MODE + PARTY ====================
     socket.on('homework:save', (data) => {
         if (!isAdmin(socket.id)) { socket.emit('homework:saved', { ok: false, error: 'ДЗ доступно только администратору.' }); return; }
-        if (!data || !data.groupId || !data.date) { socket.emit('homework:saved', { ok: false, error: 'Нужны groupId и date' }); return; }
+        if (!data || !data.date) { socket.emit('homework:saved', { ok: false, error: 'Нужны groupId и date' }); return; }
         const j = getJournalData();
-        const groupId = String(data.groupId);
+        // Поддержка нескольких групп: groupIds[] (groupId остаётся первой группой)
+        const rawGroups = Array.isArray(data.groupIds) && data.groupIds.length
+            ? data.groupIds.map(g => String(g)).filter(Boolean)
+            : (data.groupId ? [String(data.groupId)] : []);
+        if (!rawGroups.length) { socket.emit('homework:saved', { ok: false, error: 'Нужны groupId и date' }); return; }
+        const groupId = rawGroups[0];
+        const groupIds = rawGroups.slice();
         const date = String(data.date);
         const text = String(data.text == null ? '' : data.text).slice(0, 20000);
         const studentId = data.studentId ? String(data.studentId) : null;
@@ -8048,19 +8345,21 @@ io.on('connection', (socket) => {
             if (existing.originalText == null) existing.originalText = existing.text || '';
             existing.text = text;
             existing.studentId = studentId;
+            existing.groupIds = groupIds;
+            existing.groupId = groupId;
             existing.updatedAt = nowIso;
             existing.editedAt = nowIso;
             saveDB();
             emitJournalUpdate();
-            socket.emit('homework:saved', { ok: true, groupId, date, id: existing.id, edited: true });
+            socket.emit('homework:saved', { ok: true, groupId, groupIds, date, id: existing.id, edited: true });
             return;
         }
         // Новая публикация — всегда новая запись (старое уходит в историю)
-        const entry = { id: genId(), groupId, studentId, date, text, createdAt: nowIso, updatedAt: nowIso };
+        const entry = { id: genId(), groupId, groupIds, studentId, date, text, createdAt: nowIso, updatedAt: nowIso };
         j.homework.push(entry);
         saveDB();
         emitJournalUpdate();
-        socket.emit('homework:saved', { ok: true, groupId, date, id: entry.id });
+        socket.emit('homework:saved', { ok: true, groupId, groupIds, date, id: entry.id });
     });
 
     socket.on('homework:delete', (data) => {
