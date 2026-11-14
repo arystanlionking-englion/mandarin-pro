@@ -9,7 +9,7 @@ const inferWorkflow=t=>{const s=String(t||'').toLowerCase();if(/презента
 const workflowAgent=w=>({slides:'document',excel:'document',word:'document',research:'research',lesson:'education',test:'education',code:'development'})[w]||'document';
 const AGENTS=[['document','Линь','Документы','文','#e8c37a'],['research','Атлас','Исследования','知','#8fb6e8'],['education','Мэй','Обучение','学','#8fd6b0'],['development','Нео','Разработка','码','#c9a2f2']];
 const agentById=id=>AGENTS.find(a=>a[0]===id)||AGENTS[0];
-const statusLabel=s=>({queued:'Ожидает',running:'Выполняется',done:'Завершено','needs-review':'Завершено · проверьте',error:'Ошибка',cancelled:'Остановлено',interrupted:'Ошибка',idle:'Готов к работе'}[s]||'Ожидает');
+const statusLabel=s=>({queued:'Ожидает',running:'Выполняется',done:'Готово','needs-review':'Готово',error:'Не выполнено',cancelled:'Остановлено',interrupted:'Остановлено',idle:'Готов к работе'}[s]||'Ожидает');
 const statusClass=s=>s==='running'?'run':s==='queued'?'wait':(s==='done'||s==='needs-review')?'ok':s==='idle'?'idle':'err';
 const agentTasks=id=>S.tasks.filter(t=>t.project===U.project&&t.agent===id);
 function agentStatus(id){const ts=agentTasks(id);if(ts.some(t=>t.status==='running'))return 'running';if(ts.some(t=>t.status==='queued'))return 'queued';if(ts.some(t=>['done','needs-review'].includes(t.status)))return 'done';if(ts.some(t=>['error','interrupted','cancelled'].includes(t.status)))return 'error';return 'idle'}
@@ -31,26 +31,37 @@ function switchProject(id){saveDraft();U.project=id;U.files=[];U.task='';U.doc=n
 function focusAgent(id){saveDraft();const same=id===U.agent;U.agent=id;U.sel=[id];const d=U.drafts[id];U.prompt=d?.prompt||'';U.editor=d?.editor||'';U.followup=d?.followup||'';if(!same){const ts=agentTasks(id);U.task=ts.length?ts[0].id:''}render()}
 function toggleAgent(id){saveDraft();const same=id===U.agent;U.sel=U.sel.includes(id)?U.sel.filter(x=>x!==id):[...U.sel,id];if(!U.sel.length)U.sel=[id];if(U.sel.includes(id)){U.agent=id;const d=U.drafts[id];U.prompt=d?.prompt||'';U.editor=d?.editor||'';U.followup=d?.followup||'';if(!same){const ts=agentTasks(id);U.task=ts.length?ts[0].id:''}}render()}
 function setEditor(s){U.editor=s;const el=document.querySelector('#editor');if(el)el.value=s;saveDraft()}
-function render(){
-  const ta0=U.prompt;
-  app.innerHTML=`<div class="shell2">
-    <header class="top2">
-      <div class="brand2"><b>文</b><span>AI OFFICE</span></div>
-      <div class="asst-bar" id="asst-bar">${asstBarHTML()}</div>
-      <div class="top2-actions">${B('history','История','button')}${B('settings','⚙ Настройки','button')}</div>
-    </header>
-    <main class="stream-wrap" id="stream-wrap">
-      ${U.section==='settings'?settingsPageHTML():U.section==='history'?historyPageHTML():U.section==='word'&&U.doc?docPageHTML()+workspace():streamHTML()+workspace()}
-    </main>
-    <footer class="composer2">
-      <form id="prompt-form">
-        <textarea id="prompt" maxlength="25000" placeholder="Напишите запрос: вопрос ассистенту, документ, презентация, урок, тест…">${E(ta0)}</textarea>
+function promptFormHTML(big){return `<form id="prompt-form" class="${big?'hero-form':''}">
+        <textarea id="prompt" maxlength="25000" placeholder="Напишите запрос: вопрос, документ, презентация, урок, тест…">${E(U.prompt)}</textarea>
         <div class="composer2-row">
           <div class="composer2-tools">${B('upload','＋ Файлы')}${B('materials','▱ Материалы ('+U.files.length+')')}${B('voice',U.recording?'■ Стоп':'◉ Голос')}${B('voice-queue','Записи')}</div>
           <button class="primary send2" ${U.busy||U.asstBusy?'disabled':''}>${U.busy||U.asstBusy?'Отправка…':'Отправить ↑'}</button>
         </div>
-      </form>
-    </footer>
+      </form>`}
+function visibleStreamItems(){
+  const from=U.lastSendTs||Infinity; // на главном экране — только текущий запрос, не вся история
+  const items=buildStream().filter(i=>(i.ts||0)>=from);
+  let idx=-1;
+  for(let i=items.length-1;i>=0;i--){if(items[i].kind==='u'){idx=i;break}}
+  return idx>=0?items.slice(idx):[];
+}
+function homeHTML(){
+  const t=U.task?task():null;
+  const showWs=!!(t||(U.editor&&U.editor.trim()));
+  return `<div class="hero">${promptFormHTML(true)}</div><div class="stream home-latest" id="stream">${visibleStreamItems().map(streamItemHTML).join('')}</div>`+(showWs?workspace():'');
+}
+function render(){
+  const withComposer=U.section==='word'&&U.doc;
+  app.innerHTML=`<div class="shell2${withComposer?' with-composer':''}">
+    <header class="top2">
+      <button type="button" class="brand2" data-action="home" title="На главный экран"><b>文</b><span>AI OFFICE</span></button>
+      <div class="asst-bar" id="asst-bar">${asstBarHTML()}</div>
+      <div class="top2-actions">${B('home','⌂ Домой','button')}${B('history','История','button')}${B('settings','⚙ Настройки','button')}</div>
+    </header>
+    <main class="stream-wrap" id="stream-wrap">
+      ${U.section==='settings'?settingsPageHTML():U.section==='history'?historyPageHTML():U.section==='word'&&U.doc?docPageHTML()+workspace():homeHTML()}
+    </main>
+    ${withComposer?`<footer class="composer2">${promptFormHTML(false)}</footer>`:''}
   </div>
   <input id="upload" type="file" multiple hidden>
   <dialog id="modal">${modalHTML()}</dialog>`;
@@ -100,7 +111,7 @@ function streamHTML(){
 }
 function streamRender(){
   const el=document.querySelector('#stream');
-  if(el){el.innerHTML=buildStream().map(streamItemHTML).join('');el.scrollTop=el.scrollHeight;}
+  if(el){el.innerHTML=visibleStreamItems().map(streamItemHTML).join('');el.scrollTop=el.scrollHeight;}
 }
 function historyPageHTML(){
   const items=buildStream().slice().reverse();
@@ -111,26 +122,19 @@ function historyPageHTML(){
   }).join('')||'<div class="empty">История пуста.</div>'}</section>`;
 }
 function settingsPageHTML(){
-  return asstSettingsHTML()+settingsHTML();
+  return asstSettingsHTML()+instructionsHTML()+`<details class="adv"><summary>Дополнительные настройки</summary>${settingsHTML()}</details>`;
 }
 function asstSettingsHTML(){
   const main=U.asstMain;
   return `<section class="panel padded"><h2>AI-ассистенты</h2>
-  <p class="hint">Ключи хранятся только на сервере (маска вместо ключа). Выберите основного ассистента и проверьте подключение.</p>
+  <p class="hint">Ключи хранятся только на сервере. Введите API-ключ и нажмите «Сохранить» — ассистент сразу готов к работе.</p>
   <div class="control-grid"><label>Основной ассистент<select id="asst-main">${O((U.asstList||[]).map(a=>[a.id,a.name]),main)}</select></label></div>
   ${(U.asstList||[]).map(a=>`<details class="asst-cfg" ${a.id===main?'open':''}>
     <summary>${E(a.emoji||'🤖')} ${E(a.name)} ${a.hasKey?'· ключ сохранён':'· <b style="color:#c0392b">нет ключа</b>'}</summary>
     <div class="control-grid">
       ${F('Название','asst-name-'+a.id,a.name)}
-      <label>Провайдер<select data-asst-field="provider" data-id="${a.id}">${O([['dify','Dify'],['openai','OpenAI-совместимый'],['claude','Claude'],['langflow','Langflow'],['openwebui','Open WebUI']],a.provider)}</select></label>
-      ${F('Base URL','asst-base-'+a.id,a.baseUrl)}
-      ${F('Модель / ID флоу','asst-model-'+a.id,a.model)}
-    </div>
-    <div class="control-grid">
       <label>API-ключ (сохранён: ${E(a.keyMask||'не задан')})<input name="asst-key-${a.id}" type="password" autocomplete="off" placeholder="новый ключ — вставьте для замены"></label>
-      <label>Температура<input name="asst-temp-${a.id}" type="number" min="0" max="2" step="0.1" value="${E(a.temperature)}"></label>
     </div>
-    <label>Системный промпт<textarea name="asst-system-${a.id}">${E(a.system||'')}</textarea></label>
     <div class="form-actions">
       ${B('asst-save','Сохранить','primary',`data-id="${a.id}"`)}
       ${B('asst-test','Проверить связь','button',`data-id="${a.id}"`)}
@@ -138,15 +142,23 @@ function asstSettingsHTML(){
       ${B('asst-clear-chat','Очистить диалог','button',`data-id="${a.id}"`)}
     </div>
     <div class="asst-test-out" id="asst-test-${a.id}"></div>
+    <details class="adv"><summary>Дополнительно</summary>
+      <div class="control-grid">
+        <label>Провайдер<select data-asst-field="provider" data-id="${a.id}">${O([['dify','Dify'],['openai','OpenAI-совместимый'],['claude','Claude'],['langflow','Langflow'],['openwebui','Open WebUI']],a.provider)}</select></label>
+        ${F('Base URL','asst-base-'+a.id,a.baseUrl)}
+        ${F('Модель / ID флоу','asst-model-'+a.id,a.model)}
+        ${F('Температура','asst-temp-'+a.id,a.temperature,'number')}
+      </div>
+      <label>Системный промпт<textarea name="asst-system-${a.id}">${E(a.system||'')}</textarea></label>
+    </details>
   </details>`).join('')}
-  <div class="hint instr"><b>Ошибка подключения</b> (неверный ключ, недостаточно баланса, недействительный ключ, недоступный адрес) показывается под ассистентом после проверки. Просроченный ключ заменяется полем «API-ключ» и кнопкой «Сохранить» — старый ключ стирается кнопкой «Удалить ключ».</div>
   </section>`;
 }
 function docPageHTML(){
   return `<section class="panel"><div class="panel-heading"><h2>Документ</h2><div>${B('new-document','Новый','button')}${B('save-doc','Скачать .docx','primary')}</div></div><div id="doc-area"></div></section>`;
 }
 function wsStatusHTML(){const t=task();if(!t)return '<div class="ws-status bar-idle"><b>Ожидает</b><span>Опишите задачу в панели ниже</span></div>';const st=statusClass(t.status);return `<div class="ws-status bar-${st}"><b>${statusLabel(t.status)}</b><span>${E(t.stage||'')}</span><small>${new Date(t.created).toLocaleString('ru-RU')}</small>${['running','queued'].includes(t.status)?B('cancel','■ Остановить','button',`data-id="${t.id}"`):B('retry','↻ Повторить','button',`data-id="${t.id}"`)}</div>`}
-function wsResultsHTML(){const t=task();if(!t)return '<div class="ready-note">✦ Готов к задаче</div>';const answers=(t.answers||[]).map((a,i)=>`<article><div class="answer-title"><strong>${E(a.name)}</strong>${a.status==='done'?B('use-answer','В редактор','',`data-task="${t.id}" data-index="${i}"`):`<em>${a.status==='error'?'Ошибка':'Выполняется…'}</em>`}</div><pre>${E(a.text||a.error||'')}</pre></article>`).join('');return `${answers?`<div class="answers">${answers}</div>`:''}${t.output?`<details ${['team','synthesis'].includes(t.mode)?'open':''}><summary>Итоговый ответ</summary><pre>${E(t.output)}</pre></details><div class="export-bar"><span>Итог:</span>${B('use-result','Взять ответ в редактор','button')}</div>`:''}${t.validation&&t.validation!=='ok'?`<div class="warning">${E(t.validation)}</div>`:''}`}
+function wsResultsHTML(){const t=task();if(!t)return '<div class="ready-note">✦ Готов к задаче</div>';const answers=(t.answers||[]).map((a,i)=>`<article><div class="answer-title"><strong>${E(a.name)}</strong>${a.status==='done'?B('use-answer','В редактор','',`data-task="${t.id}" data-index="${i}"`):`<em>${a.status==='error'?'Не выполнено':'Выполняется…'}</em>`}</div><pre>${E(a.text||a.error||'')}</pre></article>`).join('');return `${answers?`<div class="answers">${answers}</div>`:''}${t.output?`<details ${['team','synthesis'].includes(t.mode)?'open':''}><summary>Итоговый ответ</summary><pre>${E(t.output)}</pre></details><div class="export-bar"><span>Итог:</span>${B('use-result','Взять ответ в редактор','button')}</div>`:''}${t.validation&&t.validation!=='ok'?`<div class="warning">${E(t.validation)}</div>`:''}`}
 function wsHistoryHTML(){const ts=agentTasks(U.agent);return `<span>История заданий</span>${ts.slice(0,6).map(x=>B('open-task',E((x.title||x.prompt||'').slice(0,70))+' · '+statusLabel(x.status),'file-choice',`data-id="${x.id}"`)).join('')||'<small>Пока нет заданий</small>'}`}
 function workspace(){
   const t=task();
@@ -170,7 +182,8 @@ function workspace(){
 }
 function sectionHTML(){return streamHTML()+workspace()}
 function filesHTML(){return `<section class="panel"><div class="panel-heading"><div><h2>Материалы проекта</h2><small>Оригиналы и версии · до 25 МБ на файл · DOCX, PDF, TXT</small></div>${B('upload','＋ Загрузить','primary')}</div>${files().map(f=>`<article class="file-row"><span class="file-symbol">${f.name.endsWith('.docx')?'W':/\.pdf$/i.test(f.name)?'P':'▤'}</span><div><strong>${E(f.name)}</strong><small>${(f.size/1024).toFixed(1)} КБ · ${f.originalId?'новая версия':'оригинал'} · ${f.hasText?'текст извлечён':'без извлечённого текста'}</small></div><div>${B('download','↓','',`data-id="${f.id}"`)}${B('extract','Текст','',`data-id="${f.id}"`)}${/\.(docx|pptx|xlsx)$/i.test(f.name)?B('open-doc','Редактировать','',`data-id="${f.id}"`):''}${B('rename-file','✎','',`data-id="${f.id}"`)}</div></article>`).join('')||'<div class="empty"><span>▱</span><p>Загрузите первые материалы.</p></div>'}</section>`}
-function settingsHTML(){const P=S.providerInfo||{};return `<section class="panel padded"><h2>Подключение · API-подключения</h2><p>Ключи вводятся один раз и хранятся зашифрованно на сервере (AES-256-GCM). В браузер возвращаются только маска и статус. Сохранённый ключ не считается рабочим — проверяйте его кнопкой «Проверить».</p><div class="connection-row" style="opacity:.85"><div><strong>⚠ Тестовый адаптер (без ИИ)</strong><small>demo · временная заглушка, пока нет ключей. Ответы не от модели и явно помечаются.</small></div></div>${S.connections.map(c=>{const m=P[c.provider]||{};return `<div class="connection-row"><div><strong>${E(c.name)}</strong><small>${E(c.provider)} · ${E(c.model)} · ${E(c.mask)}${m.disabled?' · <b style="color:#c0392b">недоступно</b>':''}</small></div>${B('check-connection','Проверить подключение','button',`data-id="${c.id}"`)}${B('replace-key','Заменить ключ','button',`data-id="${c.id}"`)}${B('delete-connection','Удалить','',`data-id="${c.id}"`)}</div>`}).join('')}<form id="connection-form"><div class="control-grid"><label>Провайдер<select name="provider">${O([['mimo','Xiaomi MiMo (MiMo Code) — основной'],['groq','Groq'],['openrouter','OpenRouter'],['huggingface','Hugging Face'],['github','GitHub Models — сервис отключён (30.07.2026)']],'mimo')}</select></label>${F('Название (необязательно)','name','')}${F('Model ID (необязательно — возьмём модель по умолчанию)','model','')}</div><div class="control-grid">${F('API-ключ','key','','password')}${F('Температура (необязательно)','temperature','','number')}</div><div class="form-actions">${B('test-key','Проверить ключ','button')}<button class="primary">Добавить подключение</button></div></form><div class="hint instr"><b>Инструкция для администратора</b><ol><li>Получите API-ключ у выбранного провайдера (ссылки ниже).</li><li>Вставьте ключ в поле «API-ключ».</li><li>При необходимости укажите Model ID (иначе возьмём модель по умолчанию).</li><li>Нажмите «Проверить ключ» — убедитесь, что тестовый запрос успешен.</li><li>Нажмите «Добавить подключение».</li><li>Кнопкой «Проверить подключение» убедитесь, что связь работает.</li></ol><b>Где получать ключи и какие модели поддерживаются</b><ul><li><b>Xiaomi MiMo (MiMo Code)</b> — основная модель по умолчанию: <code>api.xiaomimimo.com</code>, модель <code>mimo-v2.5</code>. Ключ — в личном кабинете Xiaomi MiMo.</li><li><b>Groq</b> — <code>console.groq.com</code>, ключ <code>gsk_…</code>, модель <code>llama-3.3-70b-versatile</code>. Голос — только через Groq.</li><li><b>OpenRouter</b> — <code>openrouter.ai</code>, ключ <code>sk-or-…</code>, модель <code>openai/gpt-4o-mini</code> (или любая из каталога OpenRouter).</li><li><b>Hugging Face</b> — <code>huggingface.co</code>, токен <code>hf_…</code>, модель <code>Qwen/Qwen2.5-72B-Instruct</code>.</li><li><b>GitHub Models</b> — отключён GitHub 30.07.2026, ключ для ИИ не используется.</li></ul>Причина каждой ошибки показывается конкретно: неверный ключ, модель недоступна, недостаточно средств, лимит запросов, формат запроса, ошибка сервера. Ошибка одного провайдера не блокирует остальные.</div></section><section class="panel padded"><h2>Оформление и инструкции</h2><form id="settings-form"><div class="control-grid">${F('Шрифт Word','font',S.settings.font||'Arial')}${F('Размер, пт','size',S.settings.size||12,'number')}${F('Поля, мм','margin',S.settings.margin||20,'number')}${F('Язык ответа','language',S.settings.language||'русский')}${F('Колонтитул','header',S.settings.header||'')}</div><label>Системные инструкции<textarea name="system">${E(S.settings.system||'')}</textarea></label><button class="primary">Сохранить</button></form></section><section class="panel padded"><h2>Резервная копия</h2><p>Экспорт ниже содержит историю и настройки без ключей и бинарных файлов.</p>${B('backup','Скачать историю и настройки','button')}</section>`}
+function instructionsHTML(){return `<section class="panel padded"><h2>Оформление и инструкции</h2><form id="settings-form"><div class="control-grid">${F('Шрифт Word','font',S.settings.font||'Arial')}${F('Размер, пт','size',S.settings.size||12,'number')}${F('Поля, мм','margin',S.settings.margin||20,'number')}${F('Язык ответа','language',S.settings.language||'русский')}${F('Колонтитул','header',S.settings.header||'')}</div><label>Системные инструкции<textarea name="system">${E(S.settings.system||'')}</textarea></label><button class="primary">Сохранить</button></form></section>`}
+function settingsHTML(){const P=S.providerInfo||{};return `<section class="panel padded"><h2>Подключение · API-подключения</h2><p>Ключи вводятся один раз и хранятся зашифрованно на сервере (AES-256-GCM). В браузер возвращаются только маска и статус. Сохранённый ключ не считается рабочим — проверяйте его кнопкой «Проверить».</p><div class="connection-row" style="opacity:.85"><div><strong>⚠ Тестовый адаптер (без ИИ)</strong><small>demo · временная заглушка, пока нет ключей. Ответы не от модели и явно помечаются.</small></div></div>${S.connections.map(c=>{const m=P[c.provider]||{};return `<div class="connection-row"><div><strong>${E(c.name)}</strong><small>${E(c.provider)} · ${E(c.model)} · ${E(c.mask)}${m.disabled?' · <b style="color:#c0392b">недоступно</b>':''}</small></div>${B('check-connection','Проверить подключение','button',`data-id="${c.id}"`)}${B('replace-key','Заменить ключ','button',`data-id="${c.id}"`)}${B('delete-connection','Удалить','',`data-id="${c.id}"`)}</div>`}).join('')}<form id="connection-form"><div class="control-grid"><label>Провайдер<select name="provider">${O([['mimo','Xiaomi MiMo (MiMo Code) — основной'],['groq','Groq'],['openrouter','OpenRouter'],['huggingface','Hugging Face'],['github','GitHub Models — сервис отключён (30.07.2026)']],'mimo')}</select></label>${F('Название (необязательно)','name','')}${F('Model ID (необязательно — возьмём модель по умолчанию)','model','')}</div><div class="control-grid">${F('API-ключ','key','','password')}${F('Температура (необязательно)','temperature','','number')}</div><div class="form-actions">${B('test-key','Проверить ключ','button')}<button class="primary">Добавить подключение</button></div></form><div class="hint instr"><b>Инструкция для администратора</b><ol><li>Получите API-ключ у выбранного провайдера (ссылки ниже).</li><li>Вставьте ключ в поле «API-ключ».</li><li>При необходимости укажите Model ID (иначе возьмём модель по умолчанию).</li><li>Нажмите «Проверить ключ» — убедитесь, что тестовый запрос успешен.</li><li>Нажмите «Добавить подключение».</li><li>Кнопкой «Проверить подключение» убедитесь, что связь работает.</li></ol><b>Где получать ключи и какие модели поддерживаются</b><ul><li><b>Xiaomi MiMo (MiMo Code)</b> — основная модель по умолчанию: <code>api.xiaomimimo.com</code>, модель <code>mimo-v2.5</code>. Ключ — в личном кабинете Xiaomi MiMo.</li><li><b>Groq</b> — <code>console.groq.com</code>, ключ <code>gsk_…</code>, модель <code>llama-3.3-70b-versatile</code>. Голос — только через Groq.</li><li><b>OpenRouter</b> — <code>openrouter.ai</code>, ключ <code>sk-or-…</code>, модель <code>openai/gpt-4o-mini</code> (или любая из каталога OpenRouter).</li><li><b>Hugging Face</b> — <code>huggingface.co</code>, токен <code>hf_…</code>, модель <code>Qwen/Qwen2.5-72B-Instruct</code>.</li><li><b>GitHub Models</b> — отключён GitHub 30.07.2026, ключ для ИИ не используется.</li></ul>Причина каждой ошибки показывается конкретно: неверный ключ, модель недоступна, недостаточно средств, лимит запросов, формат запроса, ошибка сервера. Ошибка одного провайдера не блокирует остальные.</div></section><section class="panel padded"><h2>Резервная копия</h2><p>Экспорт ниже содержит историю и настройки без ключей и бинарных файлов.</p>${B('backup','Скачать историю и настройки','button')}</section>`}
 function results(){const a=document.querySelector('#ws-status');if(a)a.innerHTML=wsStatusHTML();const b=document.querySelector('#ws-results');if(b)b.innerHTML=wsResultsHTML();const c=document.querySelector('#ws-history');if(c)c.innerHTML=wsHistoryHTML()}
 function taskList(){const el=document.querySelector('#task-list');if(el)el.innerHTML=S.tasks.filter(t=>t.project===U.project).map(t=>{const [,an,,sym]=agentById(t.agent);return `<article class="file-row"><span class="file-symbol">${sym}</span><div><strong>${E(t.title||t.prompt.slice(0,120))}</strong><small>${E(an)} · ${statusLabel(t.status)} · ${new Date(t.created).toLocaleString('ru-RU')}</small>${t.output?`<small class="task-preview">${E(t.output.slice(0,120))}…</small>`:''}</div>${B('open-task','Открыть','button',`data-id="${t.id}"`)}</article>`}).join('')||'<div class="empty">Пока нет заданий</div>'}
 function renderDoc(){const el=document.querySelector('#doc-area');if(!el||!U.doc)return;const b=U.doc.info.blocks[U.index];el.innerHTML=`<div class="doc-info"><strong>${E(U.doc.file.name)}</strong><small>Текстовый предпросмотр. Точный макет смотрите в офисном приложении.</small></div><div class="warning">Сложные элементы защищены. Изменение объёма текста может сдвинуть страницы.</div><div class="doc-layout"><div class="doc-outline">${U.doc.info.blocks.map((b,i)=>`<button data-block="${i}" class="${i===U.index?'active':''}"><small>${i+1} ${b.editable?'':'🔒'}</small><span>${E(b.text.slice(0,100)||'Пустой элемент')}</span>${U.patches.has(i)?'●':''}</button>`).join('')}</div><div class="doc-edit"><label>Исходный текст<textarea readonly>${E(b.text)}</textarea></label><label>Предлагаемое изменение<textarea id="paragraph" ${b.editable?'':'disabled'}>${E(U.patches.get(U.index)?.after??b.text)}</textarea></label><small>${E(b.reason||'Остальные элементы документа сохраняются.')}</small><div class="export-bar">${B('accept','Принять','primary')}${B('reject','Отклонить','button')}${B('ai-paragraph','Исправить с ИИ','button',b.editable?'':'disabled')}${B('paste-paragraph','Вставить ответ ИИ','button',b.editable?'':'disabled')}</div></div></div><div class="export-bar">${B('undo','↶ Отменить','button')}${B('original','Оригинал','button')}${B('save-doc','Скачать исправленный файл','primary')}${B('save-version','Новая версия в проекте','button')}<span>Правок: ${U.patches.size}</span></div>`}
@@ -178,7 +191,7 @@ function modalHTML(){const close=B('close','×','modal-close','aria-label="За�
 async function modal(name){U.modal=name;render();if(name==='voice-queue')await voiceList()}
 async function saveBlob(blob,name,originalId=null){if(!U.project)throw Error('Выберите проект');return A({action:'upload',project:U.project,name,mime:blob.type,data:b64(new Uint8Array(await blob.arrayBuffer())),originalId})}
 async function upload(list){if(!U.project)throw Error('Создайте проект');for(const f of list){if(f.size>25*1024*1024)throw Error(f.name+': максимум 25 МБ');notice('Загружаю '+f.name+'…');const bytes=new Uint8Array(await f.arrayBuffer());let extracted='';try{extracted=await docop('extract',bytes,f.name)}catch{}await A({action:'upload',project:U.project,name:f.name,mime:f.type,data:b64(bytes),extracted})}await refresh();notice('Файлы сохранены. Выберите их в материалах задания.')}
-async function run(){if(U.busy||U.asstBusy)return;const pel=document.querySelector('#prompt');const text=String((pel&&pel.value)||U.prompt||'').trim();if(!text)throw Error('Введите запрос');U.prompt='';const wf=inferWorkflow(text);
+async function run(){if(U.busy||U.asstBusy)return;const pel=document.querySelector('#prompt');const text=String((pel&&pel.value)||U.prompt||'').trim();if(!text)throw Error('Введите запрос');U.prompt='';U.lastSendTs=Date.now()-15000;const wf=inferWorkflow(text);
 if(wf){
   if(!U.project){try{const p=await A({action:'project',name:'Мои документы'});if(p&&p.id)U.project=p.id}catch(e){}}
   if(!U.project)throw Error('Не удалось создать проект для документов');
@@ -188,7 +201,6 @@ if(wf){
     if(wf==='lesson')prompt+='\nУровень: '+U.level+'. Занятие: '+U.minutes+' минут.';
     if(wf==='test')prompt+='\nРовно '+U.count+' вопросов.';
     const conns=U.selected.length?U.selected:['demo'];
-    if(conns[0]==='demo')notice('Тестовый адаптер: ответ будет не от ИИ.');
     const agents=[workflowAgent(wf)];
     U.agent=agents[0];U.sel=agents.slice();U.section=wf;
     const res=await A({action:'task',requestId:crypto.randomUUID(),project:U.project,prompt,connections:conns,main:U.main||conns[0],mode:U.mode,workflow:wf,agents,files:U.files,sourceOnly:U.sourceOnly,count:wf==='test'?U.count:null,maxTokens:U.maxTokens});
@@ -209,7 +221,7 @@ if(wf){
 }
 function json(s){return JSON.parse(s.trim().replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,''))}
 function testData(){const d=json(U.editor);if(!Array.isArray(d.questions)||d.questions.length!==Number(U.count))throw Error('Требуется '+U.count+' вопросов');const seen=new Set();for(const q of d.questions){if(typeof q.question!=='string'||!Array.isArray(q.options)||!Number.isInteger(q.answer)||q.answer<0||q.answer>=q.options.length)throw Error('Неверный вопрос или ключ');const k=q.question.trim().toLowerCase();if(seen.has(k))throw Error('Есть повтор вопроса');seen.add(k)}return d}
-async function act(name,el){switch(name){case'menu':U.mobile=!U.mobile;render();break;case'settings':U.section='settings';render();break;case'new-project':case'rename-project':case'archives':case'templates':case'materials':case'open-word':await modal(name);break;case'close':U.modal='';render();break;case'toggle-office':U.office=!U.office;render();break;case'agents-all':saveDraft();U.sel=AGENTS.map(a=>a[0]);render();break;case'agents-one':U.sel=[U.agent];render();break;case'agent-toggle':toggleAgent(el.dataset.agent);break;case'refresh':await refresh();break;case'upload':document.querySelector('#upload').click();break;
+async function act(name,el){switch(name){case'menu':U.mobile=!U.mobile;render();break;case'home':saveDraft();U.section='chat';U.modal='';render();break;case'settings':U.section='settings';render();break;case'new-project':case'rename-project':case'archives':case'templates':case'materials':case'open-word':await modal(name);break;case'close':U.modal='';render();break;case'toggle-office':U.office=!U.office;render();break;case'agents-all':saveDraft();U.sel=AGENTS.map(a=>a[0]);render();break;case'agents-one':U.sel=[U.agent];render();break;case'agent-toggle':toggleAgent(el.dataset.agent);break;case'refresh':await refresh();break;case'upload':document.querySelector('#upload').click();break;
 case'copy-project':if(!U.project)throw Error('Выберите проект');{const p=await A({action:name,id:U.project});await refresh();switchProject(p.id)}break;
 case'archive':if(!U.project)throw Error('Выберите проект');if(confirm('Переместить проект в архив?')){await A({action:'project',...S.projects.find(p=>p.id===U.project),archived:true});U.project='';await refresh()}break;
 case'restore':await A({action:'project',...S.projects.find(p=>p.id===el.dataset.id),archived:false});U.modal='';await refresh();break;
@@ -272,7 +284,7 @@ app.addEventListener('change',e=>{const el=e.target;if(el.dataset.connection){if
 app.addEventListener('cancel',()=>U.modal='',true);
 app.addEventListener('keydown',e=>{if(e.target.id==='prompt'&&e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&matchMedia('(min-width:800px)').matches){e.preventDefault();void run().catch(e=>notice(e.message,true))}});
 app.addEventListener('submit',e=>{e.preventDefault();const f=e.target,b=Object.fromEntries(new FormData(f));void(async()=>{if(f.id==='prompt-form')return run();if(f.id==='login-form'){await api('login',b);return boot()}if(f.id==='project-form'){const p=await A({action:'project',name:b.name,...(U.modal==='rename-project'?{id:U.project}:{})});U.modal='';await refresh();switchProject(p.id)}if(f.id==='replace-key-form'){await A({action:'update-connection',id:U.replaceId,key:b.key,...(b.model&&String(b.model).trim()?{model:String(b.model).trim()}:{})});U.modal='';await refresh();notice('Ключ заменён')}if(f.id==='connection-form'){await A({action:'connection',...b});f.reset();await refresh();notice('Подключение сохранено')}if(f.id==='settings-form'){await A({action:'settings',...b});await refresh();notice('Настройки сохранены')}if(f.id==='template-form'){await A({action:'template',...b});await refresh();notice('Шаблон сохранён')}if(f.id==='image-form'){U.busy=true;f.querySelector('button').disabled=true;notice('Создаётся изображение…');try{await A({action:'image',project:U.project,...b});await refresh();notice('Изображение сохранено в файлах')}finally{U.busy=false;render()}}})().catch(e=>notice(e.message,true))});
-let timer;async function boot(){clearInterval(timer);try{const a=await api('auth');if(location.hash==='#settings')U.section='settings';if(!a.user){app.innerHTML=`<div class="login"><div class="brand"><b>文</b><div>AI OFFICE <strong>ULTIMATE</strong></div></div><h1>${a.setup?'Ваш личный AI-офис':'Добро пожаловать'}</h1><p>${a.integrated?'Войдите через учётную запись Mandarin Pro.':a.setup?'Задайте пароль владельца — не менее 10 символов.':'Введите пароль владельца.'}</p>${a.integrated?'':`<form id="login-form"><label>Пароль<input name="password" type="password" required minlength="${a.setup?10:1}" autocomplete="${a.setup?'new-password':'current-password'}"></label><button class="primary">${a.setup?'Создать кабинет':'Войти'}</button></form>`}<small>API-ключи добавляются после входа.</small></div>`;return}await refresh();if(!U.mimoChecked){U.mimoChecked=true;const mimo=S.connections.find(c=>c.provider==='mimo');if(!mimo)notice('Xiaomi MiMo Code не подключён — добавьте ключ в разделе «Подключение», чтобы использовать основную модель.');else{try{const r=await A({action:'check-connection',id:mimo.id});if(r.ok)notice('Xiaomi MiMo Code на связи'+(r.sample?': '+r.sample:''));else notice('Xiaomi MiMo Code недоступен: '+(r.error||'ошибка')+'. Выберите другого провайдера в «Параметрах моделей».',true)}catch(e){notice('Xiaomi MiMo Code: '+e.message,true)}}}timer=setInterval(async()=>{try{await refresh(false);await drainVoice()}catch(e){if(e.status===401)await boot()}},4000)}catch(e){app.innerHTML='<div class="login"><h1>AI Office Ultimate</h1><p>'+E(e.message)+'</p><p>Запустите START_WINDOWS.bat, START_MAC_LINUX.sh или npm start, затем откройте http://127.0.0.1:8787/ai-office/</p></div>'}}
+let timer;async function boot(){clearInterval(timer);try{const a=await api('auth');if(location.hash==='#settings')U.section='settings';if(!a.user){app.innerHTML=`<div class="login"><div class="brand"><b>文</b><div>AI OFFICE <strong>ULTIMATE</strong></div></div><h1>${a.setup?'Ваш личный AI-офис':'Добро пожаловать'}</h1><p>${a.integrated?'Войдите через учётную запись Mandarin Pro.':a.setup?'Задайте пароль владельца — не менее 10 символов.':'Введите пароль владельца.'}</p>${a.integrated?'':`<form id="login-form"><label>Пароль<input name="password" type="password" required minlength="${a.setup?10:1}" autocomplete="${a.setup?'new-password':'current-password'}"></label><button class="primary">${a.setup?'Создать кабинет':'Войти'}</button></form>`}<small>API-ключи добавляются после входа.</small></div>`;return}await refresh();timer=setInterval(async()=>{try{await refresh(false);await drainVoice()}catch(e){if(e.status===401)await boot()}},4000)}catch(e){app.innerHTML='<div class="login"><h1>AI Office Ultimate</h1><p>'+E(e.message)+'</p><p>Запустите START_WINDOWS.bat, START_MAC_LINUX.sh или npm start, затем откройте http://127.0.0.1:8787/ai-office/</p></div>'}}
 function kbFix(){const vv=window.visualViewport;if(!vv)return;const kb=Math.max(0,window.innerHeight-vv.height-vv.offsetTop);document.documentElement.style.setProperty('--kb',kb+'px')}
 if(window.visualViewport){window.visualViewport.addEventListener('resize',kbFix);window.visualViewport.addEventListener('scroll',kbFix);kbFix()}
 window.addEventListener('online',()=>void drainVoice().catch(e=>notice(e.message,true)));window.addEventListener('message',e=>{if(e.data&&e.data.aioSection){U.section=e.data.aioSection;render()}});void boot();

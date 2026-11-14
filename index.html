@@ -11769,7 +11769,6 @@ body.mynotes-fullscreen .dict-close{color:#fff!important;font-weight:700}
                     <button class="btn btn-ghost btn-sm" onclick="showA('backup')"><i data-lucide="database" style="width:18px;height:18px"></i> Резервная копия</button>
                     <button class="btn btn-warning btn-sm" onclick="forceUpdateAll()"><i data-lucide="refresh-cw" style="width:18px;height:18px"></i> 🔄 Принудительное обновление</button>
                     <button class="btn btn-accent btn-sm" onclick="openAiOffice()" style="background:linear-gradient(135deg,#7c5cff,#293e32);color:#fff;font-weight:700"><i data-lucide="bot" style="width:18px;height:18px"></i> 🤖 AI Office</button>
-                    <button class="btn btn-accent btn-sm" onclick="openAiOffice()" style="background:linear-gradient(135deg,#0ea5e9,#293e32);color:#fff;font-weight:700"><i data-lucide="messages-square" style="width:18px;height:18px"></i> 🧠 4 ассистента</button>
                     <button class="btn btn-accent btn-sm" onclick="openAdminQrTerminal()" style="background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:700"><i data-lucide="scan" style="width:18px;height:18px"></i> ⚡ QR-ТЕРМИНАЛ</button>
                 </div>
                 <div class="stitle mt-12">🛰️ Гостевой режим и техработы</div>
@@ -12281,7 +12280,6 @@ body.mynotes-fullscreen .dict-close{color:#fff!important;font-weight:700}
                 <div class="stitle mt-12">🧰 Инструменты</div>
                 <div class="aactions">
                     <button class="btn btn-accent btn-sm" onclick="openAiOffice()" style="background:linear-gradient(135deg,#7c5cff,#293e32);color:#fff;font-weight:700"><i data-lucide="bot" style="width:18px;height:18px"></i> 🤖 AI Office</button>
-                    <button class="btn btn-accent btn-sm" onclick="openAiOffice()" style="background:linear-gradient(135deg,#0ea5e9,#293e32);color:#fff;font-weight:700"><i data-lucide="messages-square" style="width:18px;height:18px"></i> 🧠 4 ассистента</button>
                     <button class="btn btn-ghost btn-sm" onclick="openAiOffice('settings')"><i data-lucide="key-round" style="width:18px;height:18px"></i> Настройки ИИ</button>
                     <button class="btn btn-ghost btn-sm" onclick="showA('backup')"><i data-lucide="database" style="width:18px;height:18px"></i> Резервная копия</button>
                     <button class="btn btn-accent btn-sm" onclick="showA('startRest')"><i data-lucide="moon" style="width:18px;height:18px"></i> 😴 Отдых (Alt+5)</button>
@@ -12290,7 +12288,7 @@ body.mynotes-fullscreen .dict-close{color:#fff!important;font-weight:700}
                 </div>
                 <div class="stitle mt-12">👤 Дополнительный администратор</div>
                 <div class="bal-card" style="padding:16px">
-                    <div style="font-size:12px;color:var(--dim);margin-bottom:10px">Главный администратор может назначить одного дополнительного администратора из числа пользователей. Выбранный пользователь получит полный административный доступ при входе по своему логину и паролю.</div>
+                    <div style="font-size:12px;color:var(--dim);margin-bottom:10px">Главный администратор может назначить одного дополнительного администратора из числа пользователей — в том числе свой собственный аккаунт. Выбранный пользователь получит полный административный доступ автоматически при каждом входе по своему логину и паролю, без повторного ввода PIN.</div>
                     <div id="secondaryAdminInfo" style="font-size:13px;font-weight:600;margin-bottom:10px">Дополнительный администратор не назначен</div>
                     <div style="display:flex;gap:8px;flex-wrap:wrap">
                         <button class="btn btn-accent btn-sm" onclick="openSecondaryAdminPicker()"><i data-lucide="user-plus" style="width:16px;height:16px"></i> Добавить администратора</button>
@@ -14599,6 +14597,10 @@ window.renderAdminHomeNotifs=function(){
 };
 
 // --- Дополнительный администратор ---
+// Права определяются аккаунтом: токен сохраняется и cookie ставится один раз, без повторного PIN
+window.sealAdminCookie=function(token){
+    try{fetch('/api/ai-office/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminToken:token}),credentials:'same-origin'});}catch(e){}
+};
 window._secondaryAdminId=null;
 window.renderSecondaryAdminInfo=function(){
     const el=$('secondaryAdminInfo');
@@ -14617,7 +14619,7 @@ window.openSecondaryAdminPicker=function(){
         return;
     }
     cont.innerHTML='';
-    const list=users.filter(u=>!u.archived&&!u.isGuest&&u.id!==U?.id);
+    const list=users.filter(u=>!u.archived&&!u.isGuest);
     if(!list.length){cont.innerHTML='<div class="empty">Нет доступных пользователей</div>';}
     list.forEach(u=>{
         const el=document.createElement('div');
@@ -14658,10 +14660,27 @@ socket.on('admin:secondaryAdminResult',function(d){
         renderSecondaryAdminInfo();
         if(d.removed)toast('s','Доп. администратор','Административный доступ снят');
         else toast('s','Доп. администратор',(d.userName||'Пользователь')+' назначен администратором');
+        // Назначен собственный аккаунт — права действуют сразу, без повторного входа
+        if(!d.removed&&d.secondaryAdminId&&U&&d.secondaryAdminId===U.id){
+            isAdmin=true;
+            if(!window._isMainAdmin)window._secondaryAdmin=true;
+            adminSessionExpiry=0;
+            if(d.adminToken){try{localStorage.setItem('pb_admin_token',d.adminToken);}catch(e){} sealAdminCookie(d.adminToken);}
+            updateAdminUI();
+        }
         if(typeof cm==='function')cm('mSecondaryAdmin');
     }else{
         toast('e','Доп. администратор',(d&&d.error)||'Ошибка');
     }
+});
+// Права за аккаунтом назначены (в том числе с другого устройства) — принимаем без PIN
+socket.on('admin:granted',function(d){
+    isAdmin=true;
+    if(!window._isMainAdmin)window._secondaryAdmin=true;
+    adminSessionExpiry=0;
+    if(d&&d.adminToken){try{localStorage.setItem('pb_admin_token',d.adminToken);}catch(e){} sealAdminCookie(d.adminToken);}
+    updateAdminUI();
+    if(typeof renderAdmin==='function')renderAdmin();
 });
 
 window.exitAdmin=function(){
@@ -14675,7 +14694,9 @@ window.exitAdmin=function(){
 };
 
 function checkAdminSession(){
-    if(isAdmin&&Date.now()>adminSessionExpiry){
+    // Права дополнительного администратора закреплены за аккаунтом и не истекают
+    if(window._secondaryAdmin)return;
+    if(isAdmin&&adminSessionExpiry&&Date.now()>adminSessionExpiry){
         isAdmin=false;
         adminSessionExpiry=0;
         if(adminSessionTimer){clearInterval(adminSessionTimer);adminSessionTimer=null;}
@@ -14712,14 +14733,14 @@ socket.on('init',d=>{
 socket.on('user:logged_in',d=>{
     U=d.user;favs=d.favorites||[];hist=d.history||[];msgs=d.messages||[];notifs=d.notifications||[];
     if(d.xp)userXP=d.xp;
-    // Дополнительный администратор: вход по своему логину/паролю даёт admin-доступ
+    // Дополнительный администратор: права закреплены за аккаунтом — вход даёт admin-доступ автоматически
     if(d.adminRights){
         isAdmin=true;
         window._secondaryAdmin=true;
         window._isMainAdmin=false;
-        if(!adminSessionExpiry)adminSessionExpiry=Date.now()+12*60*60*1000;
-        if(adminSessionTimer)clearInterval(adminSessionTimer);
-        adminSessionTimer=setInterval(checkAdminSession,30000);
+        adminSessionExpiry=0;
+        if(d.adminToken){try{localStorage.setItem('pb_admin_token',d.adminToken);}catch(e){} sealAdminCookie(d.adminToken);}
+        if(adminSessionTimer){clearInterval(adminSessionTimer);adminSessionTimer=null;}
     }
     // Save session token for fast re-entry
     if(d.sessionToken){
@@ -14772,16 +14793,20 @@ socket.on('admin:authenticated',d=>{
 socket.on('admin:resumeResult',d=>{
     if(d&&d.success){
         isAdmin=true;
-        window._isMainAdmin=true;
-        adminSessionExpiry=d.expiresAt||(Date.now()+600000);
+        window._isMainAdmin=d.main!==false;
+        if(!window._isMainAdmin)window._secondaryAdmin=true;
+        adminSessionExpiry=window._secondaryAdmin?0:(d.expiresAt||(Date.now()+600000));
         if(adminSessionTimer)clearInterval(adminSessionTimer);
-        adminSessionTimer=setInterval(checkAdminSession,30000);
+        if(!window._secondaryAdmin)adminSessionTimer=setInterval(checkAdminSession,30000);
         updateAdminUI();
         if(window.Mafia&&window.Mafia.reload){try{window.Mafia.reload();}catch(e){}}
     }else{
-        isAdmin=false;
-        adminSessionExpiry=0;
-        try{localStorage.removeItem('pb_admin_token');}catch(e){}
+        // Не сбрасываем права, если они закреплены за аккаунтом
+        if(!window._secondaryAdmin){
+            isAdmin=false;
+            adminSessionExpiry=0;
+            try{localStorage.removeItem('pb_admin_token');}catch(e){}
+        }
         updateAdminUI();
     }
 });

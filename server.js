@@ -128,7 +128,7 @@ app.use((req, res, next) => {
     const pagePath = String(req.url || '').split('?')[0];
     res.setHeader('Cache-Control', 'no-store');
     if (req.method === 'GET' && (pagePath === '/ai-office' || pagePath === '/ai-office/') && !aiOfficeAuthenticate(req)) {
-        res.status(403).type('html').send(moduleGatePage('/api/ai-office/auth', 'AI Office · 4 ассистента'));
+        res.status(403).type('html').send(moduleGatePage('/api/ai-office/auth', 'AI Office'));
         return;
     }
     _aiOfficeHandler(req, res);
@@ -179,6 +179,17 @@ button:active{transform:scale(.98)}#err{color:#ff9c8f;font-size:12px;margin-top:
 <script src="/socket.io/socket.io.js"></script><script>
 (function(){
 var err=document.getElementById('err');
+// Уже есть админ-токен в этом браузере (вход по аккаунту) — открываем без повторного PIN
+try{
+  var saved=localStorage.getItem('pb_admin_token');
+  if(saved){
+    err.textContent='Проверяем доступ…';
+    fetch('${authPath}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminToken:saved}),credentials:'same-origin'})
+      .then(function(r){return r.json().catch(function(){return {}})})
+      .then(function(d){if(d&&d.ok!==false){location.reload();}else{err.textContent='';}})
+      .catch(function(){err.textContent='';});
+  }
+}catch(e){}
 function go(){
   var pin=document.getElementById('pin').value.trim();
   if(!/^[0-9]{4,6}$/.test(pin)){err.textContent='Введите PIN (4–6 цифр)';return;}
@@ -2421,17 +2432,19 @@ const lastSeenMap = new Map(); // userId -> timestamp of last activity
 const ONLINE_TIMEOUT_MS = 60 * 1000; // 1 minute — grace period after last socket closes
 
 const adminSessionOwners = new Map(); // token -> owner key (data isolation per admin account)
-function createAdminSessionToken(owner) {
+const mainAdminTokens = new Set(); // токены входа по PIN (главный администратор); токены за аккаунтом сюда не входят
+function createAdminSessionToken(owner, kind) {
     const token = crypto.randomBytes(24).toString('hex');
     adminSessions.set(token, Date.now() + ADMIN_SESSION_TTL);
     adminSessionOwners.set(token, owner || 'admin');
+    if (kind !== 'account') mainAdminTokens.add(token);
     return token;
 }
 function validateAdminSessionToken(token) {
     if (!token || typeof token !== 'string') return false;
     const exp = adminSessions.get(token);
     if (!exp) return false;
-    if (Date.now() > exp) { adminSessions.delete(token); adminSessionOwners.delete(token); return false; }
+    if (Date.now() > exp) { adminSessions.delete(token); adminSessionOwners.delete(token); mainAdminTokens.delete(token); return false; }
     return true;
 }
 function getAdminSessionOwner(token) {
@@ -2442,7 +2455,7 @@ function getAdminSessionOwner(token) {
 function pruneAdminSessions() {
     const now = Date.now();
     for (const [t, exp] of adminSessions) {
-        if (now > exp) { adminSessions.delete(t); adminSessionOwners.delete(t); }
+        if (now > exp) { adminSessions.delete(t); adminSessionOwners.delete(t); mainAdminTokens.delete(t); }
     }
 }
 
@@ -2460,7 +2473,8 @@ function isSecondaryAdminUser(user) {
 function grantSecondaryAdminIfAny(user, socket) {
     if (!isSecondaryAdminUser(user)) return false;
     adminSockets.add(socket.id);
-    return true;
+    // Права закреплены за аккаунтом: выдаём админ-токен для модулей (AI Office, My Notes)
+    return createAdminSessionToken('admin', 'account');
 }
 
 function getGlobalMode() {
@@ -3893,7 +3907,8 @@ io.on('connection', (socket) => {
             notifications: db.notifications.filter(n => n.targetUserId === user.id),
             xp: uxData2,
             sessionToken: session.token,
-            adminRights: adminRights2
+            adminRights: !!adminRights2,
+            adminToken: adminRights2 || ''
         });
         emitBankUpdate();
     });
@@ -3984,7 +3999,8 @@ io.on('connection', (socket) => {
             notifications: db.notifications.filter(n => n.targetUserId === user.id),
             xp: uxData,
             sessionToken: session.token,
-            adminRights: adminRightsPw
+            adminRights: !!adminRightsPw,
+            adminToken: adminRightsPw || ''
         });
         socket.emit('user:login_result', { success: true, name: user.name });
         emitBankUpdate();
@@ -4133,7 +4149,8 @@ io.on('connection', (socket) => {
             notifications: db.notifications.filter(n => n.targetUserId === user.id),
             xp: uxData,
             sessionToken: session.token,
-            adminRights: adminRightsSess
+            adminRights: !!adminRightsSess,
+            adminToken: adminRightsSess || ''
         });
         emitBankUpdate();
     });
@@ -4460,8 +4477,8 @@ io.on('connection', (socket) => {
             return;
         }
         adminSockets.add(socket.id);
-        pinAdminSockets.add(socket.id);
-        socket.emit('admin:resumeResult', { success: true, expiresAt: adminSessions.get(token) });
+        if (mainAdminTokens.has(token)) pinAdminSockets.add(socket.id);
+        socket.emit('admin:resumeResult', { success: true, expiresAt: adminSessions.get(token), main: mainAdminTokens.has(token) });
         const onlineIds = getOnlineUserIds();
         socket.emit('admin:full_data', {
             users: db.users.map(u => publicUserAdmin(u, onlineIds)),
@@ -4515,12 +4532,16 @@ io.on('connection', (socket) => {
         if (user.archived) { fail('Аккаунт в архиве нельзя назначить администратором.'); return; }
         db.secondaryAdminId = user.id;
         saveDB();
-        // Выдать admin-доступ текущим сокетам пользователя
+        // Выдать admin-доступ текущим сокетам пользователя и закрепить права за аккаунтом
         const socks = getUserSockets(user.id);
-        for (const sid of socks) adminSockets.add(sid);
+        const grantToken = createAdminSessionToken('admin', 'account');
+        for (const sid of socks) {
+            adminSockets.add(sid);
+            io.to(sid).emit('admin:granted', { adminToken: grantToken, userId: user.id });
+        }
         logAdminAction('secondary_admin_set', user.id, user.name, null, null, 'Назначен дополнительным администратором');
         saveDB();
-        socket.emit('admin:secondaryAdminResult', { success: true, secondaryAdminId: user.id, userName: user.name });
+        socket.emit('admin:secondaryAdminResult', { success: true, secondaryAdminId: user.id, userName: user.name, adminToken: grantToken });
     });
 
     // --- Admin Change Password ---
