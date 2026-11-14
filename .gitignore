@@ -12,4 +12,7 @@ _backup_before_exam_restore_2026-11-04/
 
 .chrome_ui_admin/
 database.json.pre_stability.bak
+database.json.*.bak
 .chrome_asst_ui/
+.chrome_aio_check/
+.chrome_merged_check/

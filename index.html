@@ -11540,44 +11540,6 @@ body.mynotes-fullscreen .dict-toolbar .btn{color:#fff!important;border-color:rgb
 body.mynotes-fullscreen .dict-toolbar .btn:hover{background:rgba(255,255,255,.18)!important}
 body.mynotes-fullscreen .dict-close{color:#fff!important;font-weight:700}
 @media (max-width:768px){body.mynotes-fullscreen .dict-wrap{height:100dvh!important}}
-/* --- AI Assistants (admin only, overlay): 4 независимых ассистента --- */
-.asst-overlay{position:fixed;inset:0;z-index:600;display:none;background:rgba(8,10,14,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:16px;box-sizing:border-box}
-.asst-overlay.on{display:flex;align-items:center;justify-content:center}
-.asst-panel{width:min(1060px,100%);height:min(860px,100%);background:#0f1420;color:#e8ecf4;border:1px solid rgba(255,255,255,.1);border-radius:18px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.5)}
-.asst-head{display:flex;align-items:center;gap:10px;padding:12px 16px;background:rgba(13,13,20,.92);border-bottom:1px solid rgba(255,255,255,.08);flex-wrap:wrap}
-.asst-head h3{margin:0;font-size:16px;font-weight:800;flex:1}
-.asst-tabs{display:flex;gap:8px;padding:10px 12px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03)}
-.asst-tab{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#dfe6f2;border-radius:12px;padding:8px 12px;font-size:13px;font-weight:700;cursor:pointer}
-.asst-tab.on{background:linear-gradient(135deg,#7c5cff,#293e32);border-color:transparent;color:#fff}
-.asst-body{flex:1;display:flex;min-height:0}
-.asst-chat{flex:1;display:flex;flex-direction:column;min-width:0}
-.asst-msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
-.asst-msg{max-width:78%;padding:10px 12px;border-radius:14px;font-size:14px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
-.asst-msg.user{align-self:flex-end;background:#7c5cff;color:#fff}
-.asst-msg.bot{align-self:flex-start;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08)}
-.asst-msg.sys{align-self:center;background:transparent;color:#9aa7bd;font-size:12px;text-align:center}
-.asst-empty{color:#8fa0b8;font-size:13px;text-align:center;margin:24px auto;max-width:420px;line-height:1.5}
-.asst-inputrow{display:flex;gap:8px;padding:12px;border-top:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03)}
-.asst-inputrow textarea{flex:1;resize:none;min-height:56px;max-height:160px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:#0b101b;color:#e8ecf4;padding:10px 12px;font-size:14px;font-family:inherit}
-.asst-btn{border:0;border-radius:12px;padding:10px 16px;font-size:13px;font-weight:800;cursor:pointer;background:#7c5cff;color:#fff;min-height:44px}
-.asst-btn:disabled{opacity:.55;cursor:default}
-.asst-btn.ghost{background:rgba(255,255,255,.08);color:#e8ecf4;border:1px solid rgba(255,255,255,.12)}
-.asst-settings{width:min(380px,100%);border-left:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);padding:14px;overflow-y:auto;display:none}
-.asst-settings.on{display:block}
-.asst-settings h4{margin:0 0 10px;font-size:14px}
-.asst-field{margin-bottom:10px}
-.asst-field label{display:block;font-size:11px;color:#9db0c9;margin-bottom:4px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
-.asst-field input,.asst-field select,.asst-field textarea{width:100%;box-sizing:border-box;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:#0b101b;color:#e8ecf4;padding:8px 10px;font-size:13px;font-family:inherit}
-.asst-field textarea{min-height:110px;resize:vertical}
-.asst-row{display:flex;gap:8px}
-.asst-note{font-size:11px;color:#8fa0b8;line-height:1.45;margin:8px 0}
-.asst-status{font-size:12px;padding:8px 12px;border-top:1px solid rgba(255,255,255,.08);color:#9db0c9;min-height:18px}
-@media(max-width:860px){
-  .asst-overlay{padding:0}
-  .asst-panel{width:100%;height:100%;border-radius:0}
-  .asst-body{flex-direction:column}
-  .asst-settings{width:100%;border-left:0;border-top:1px solid rgba(255,255,255,.08)}
-}
 @media (max-width:768px){
   .dict-wrap{height:calc(100vh - 140px);border-radius:0;border-left:0;border-right:0}
   .hw-card-actions .btn{flex:1 1 auto}
@@ -11807,7 +11769,7 @@ body.mynotes-fullscreen .dict-close{color:#fff!important;font-weight:700}
                     <button class="btn btn-ghost btn-sm" onclick="showA('backup')"><i data-lucide="database" style="width:18px;height:18px"></i> Резервная копия</button>
                     <button class="btn btn-warning btn-sm" onclick="forceUpdateAll()"><i data-lucide="refresh-cw" style="width:18px;height:18px"></i> 🔄 Принудительное обновление</button>
                     <button class="btn btn-accent btn-sm" onclick="openAiOffice()" style="background:linear-gradient(135deg,#7c5cff,#293e32);color:#fff;font-weight:700"><i data-lucide="bot" style="width:18px;height:18px"></i> 🤖 AI Office</button>
-                    <button class="btn btn-accent btn-sm" onclick="openAssistants()" style="background:linear-gradient(135deg,#0ea5e9,#293e32);color:#fff;font-weight:700"><i data-lucide="messages-square" style="width:18px;height:18px"></i> 🧠 4 ассистента</button>
+                    <button class="btn btn-accent btn-sm" onclick="openAiOffice()" style="background:linear-gradient(135deg,#0ea5e9,#293e32);color:#fff;font-weight:700"><i data-lucide="messages-square" style="width:18px;height:18px"></i> 🧠 4 ассистента</button>
                     <button class="btn btn-accent btn-sm" onclick="openAdminQrTerminal()" style="background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:700"><i data-lucide="scan" style="width:18px;height:18px"></i> ⚡ QR-ТЕРМИНАЛ</button>
                 </div>
                 <div class="stitle mt-12">🛰️ Гостевой режим и техработы</div>
@@ -12280,6 +12242,20 @@ body.mynotes-fullscreen .dict-close{color:#fff!important;font-weight:700}
                             <button class="btn btn-ghost btn-sm" onclick="closeMnaAdmin()">✕ Закрыть</button>
                         </header>
                         <div id="mnaAdminStats" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
+                        <div style="font-size:12px;font-weight:800;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;margin:14px 0 8px">🔗 Прямые ссылки на модули</div>
+                        <div style="display:flex;flex-direction:column;gap:8px">
+                            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                                <code id="mnaLinkNotes" style="flex:1;min-width:180px;font-size:11px;overflow-wrap:anywhere;background:var(--card,#1a221c);border:1px solid var(--border,#2c3a2e);border-radius:8px;padding:8px 10px"></code>
+                                <button class="btn btn-ghost btn-sm" onclick="copyModuleLink('mnaLinkNotes')">📋 Копировать</button>
+                                <button class="btn btn-accent btn-sm" onclick="event.stopPropagation();openMyNotes()">Открыть</button>
+                            </div>
+                            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                                <code id="mnaLinkOffice" style="flex:1;min-width:180px;font-size:11px;overflow-wrap:anywhere;background:var(--card,#1a221c);border:1px solid var(--border,#2c3a2e);border-radius:8px;padding:8px 10px"></code>
+                                <button class="btn btn-ghost btn-sm" onclick="copyModuleLink('mnaLinkOffice')">📋 Копировать</button>
+                                <button class="btn btn-accent btn-sm" onclick="event.stopPropagation();openAiOffice()">Открыть</button>
+                            </div>
+                            <div style="font-size:11px;color:var(--dim);line-height:1.6">Ссылки работают независимо от главного экрана: открывают сразу модуль. Доступ — только для авторизованного администратора (PIN). Заметки и история синхронизируются с основной программой.</div>
+                        </div>
                         <div style="font-size:12px;font-weight:800;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;margin:10px 0 6px">Журнал действий</div>
                         <div id="mnaAdminLog" style="font-size:12px;line-height:1.7"></div>
                         <div style="font-size:12px;font-weight:800;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;margin:14px 0 6px">⚠️ Подозрительные действия</div>
@@ -12305,7 +12281,7 @@ body.mynotes-fullscreen .dict-close{color:#fff!important;font-weight:700}
                 <div class="stitle mt-12">🧰 Инструменты</div>
                 <div class="aactions">
                     <button class="btn btn-accent btn-sm" onclick="openAiOffice()" style="background:linear-gradient(135deg,#7c5cff,#293e32);color:#fff;font-weight:700"><i data-lucide="bot" style="width:18px;height:18px"></i> 🤖 AI Office</button>
-                    <button class="btn btn-accent btn-sm" onclick="openAssistants()" style="background:linear-gradient(135deg,#0ea5e9,#293e32);color:#fff;font-weight:700"><i data-lucide="messages-square" style="width:18px;height:18px"></i> 🧠 4 ассистента</button>
+                    <button class="btn btn-accent btn-sm" onclick="openAiOffice()" style="background:linear-gradient(135deg,#0ea5e9,#293e32);color:#fff;font-weight:700"><i data-lucide="messages-square" style="width:18px;height:18px"></i> 🧠 4 ассистента</button>
                     <button class="btn btn-ghost btn-sm" onclick="openAiOffice('settings')"><i data-lucide="key-round" style="width:18px;height:18px"></i> Настройки ИИ</button>
                     <button class="btn btn-ghost btn-sm" onclick="showA('backup')"><i data-lucide="database" style="width:18px;height:18px"></i> Резервная копия</button>
                     <button class="btn btn-accent btn-sm" onclick="showA('startRest')"><i data-lucide="moon" style="width:18px;height:18px"></i> 😴 Отдых (Alt+5)</button>
@@ -12549,29 +12525,7 @@ body.mynotes-fullscreen .dict-close{color:#fff!important;font-weight:700}
             </div>
         </div>
 
-        <!-- AI ASSISTANTS (admin only): 4 независимых ассистента — Dify / LiteLLM / Claude -->
-        <div class="asst-overlay" id="asstOverlay" aria-hidden="true">
-            <div class="asst-panel" role="dialog" aria-label="ИИ-ассистенты">
-                <div class="asst-head">
-                    <h3>🧠 ИИ-ассистенты</h3>
-                    <button type="button" class="asst-btn ghost" id="asstSettingsBtn" onclick="toggleAsstSettings()">⚙️ Настройки</button>
-                    <button type="button" class="asst-btn ghost" onclick="closeAssistants()">✕ Закрыть</button>
-                </div>
-                <div class="asst-tabs" id="asstTabs"></div>
-                <div class="asst-body">
-                    <div class="asst-chat">
-                        <div class="asst-msgs" id="asstMsgs"></div>
-                        <div class="asst-status" id="asstStatus">4 независимых ассистента: свой провайдер, ключ, модель и история у каждого.</div>
-                        <div class="asst-inputrow">
-                            <button type="button" class="asst-btn ghost" title="Очистить диалог" onclick="asstClearChat()">🧹</button>
-                            <textarea id="asstInput" placeholder="Сообщение… (Enter — отправить, Shift+Enter — новая строка)" onkeydown="asstInputKey(event)"></textarea>
-                            <button type="button" class="asst-btn" id="asstSendBtn" onclick="asstSend()">➤</button>
-                        </div>
-                    </div>
-                    <div class="asst-settings" id="asstSettings"></div>
-                </div>
-            </div>
-        </div>
+        <!-- ИИ-ассистенты объединены с AI Office → единый интерфейс /ai-office/ -->
 
         <!-- TEACHER / ADMIN JOURNAL -->
         <div class="sec" id="secJournal">
@@ -14044,8 +13998,6 @@ window.closeDictionary=function(){
 // Esc тоже закрывает словарь, AI Office и My Notes AI
 document.addEventListener('keydown',function(e){
     if(e.key!=='Escape')return;
-    var asstOv=document.getElementById('asstOverlay');
-    if(asstOv&&asstOv.classList.contains('on')){window.closeAssistants();return;}
     if(document.body.classList.contains('dict-fullscreen')){
         window.closeDictionary();
         return;
@@ -14497,6 +14449,11 @@ window.reloadMyNotes=function(){var fr=document.getElementById('myNotesFrame');i
 window.openMnaAdmin=function(){
     if(typeof isAdmin!=='undefined'&&!isAdmin){toast('w','My Notes AI','Доступ только для администратора');return;}
     var m=document.getElementById('mnaAdminModal');if(m)m.style.display='flex';
+    try{
+        var ln=document.getElementById('mnaLinkNotes'),lo=document.getElementById('mnaLinkOffice');
+        if(ln)ln.textContent=location.origin+'/my-notes/';
+        if(lo)lo.textContent=location.origin+'/ai-office/';
+    }catch(e){}
     var log=document.getElementById('mnaAdminLog');
     if(log)log.innerHTML='<div class="empty">Загружаю…</div>';
     mnaAdminApi('/api/my-notes/admin/overview').then(function(d){
@@ -14512,6 +14469,12 @@ window.openMnaAdmin=function(){
     }).catch(function(e){if(log)log.innerHTML='<div class="empty">Ошибка: '+String(e.message||e)+'</div>'});
 };
 window.closeMnaAdmin=function(){var m=document.getElementById('mnaAdminModal');if(m)m.style.display='none';};
+window.copyModuleLink=function(id){
+    var el=document.getElementById(id);if(!el)return;
+    var txt=el.textContent.trim();
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(function(){toast('s','Ссылка скопирована',txt)}).catch(function(){prompt('Скопируйте ссылку:',txt)});}
+    else{prompt('Скопируйте ссылку:',txt);}
+};
 window.askMnaAdmin=function(){
     var q=document.getElementById('mnaAdminQ');var out=document.getElementById('mnaAdminAnswer');
     if(!q||!q.value.trim()){toast('w','My Notes AI','Введите вопрос');return;}
@@ -14525,302 +14488,9 @@ function mnaAdminApi(path,method,body){
     return fetch(path,{method:method||'GET',headers:{'Content-Type':'application/json','X-Admin-Token':token},credentials:'same-origin',body:body?JSON.stringify(body):undefined}).then(function(r){return r.json().then(function(d){if(!r.ok||d.ok===false)throw new Error(d.error||('HTTP '+r.status));return d})});
 }
 
-// --- AI Assistants (4 независимых ассистента: Dify / LiteLLM / Claude, только админ) ---
-window._asst={active:'admin',assistants:[],chats:{},mem0:{},busy:false,settingsOpen:false};
-function asstToken(){try{return localStorage.getItem('pb_admin_token')||'';}catch(e){return '';}}
-async function asstApi(path,body,root){
-    var r=await fetch((root||'/api/assistants')+path,{
-        method:body?'POST':'GET',
-        headers:{'Content-Type':'application/json','X-Admin-Token':asstToken()},
-        credentials:'same-origin',
-        body:body?JSON.stringify(body):undefined
-    });
-    var data={};try{data=await r.json();}catch(e){}
-    if(!r.ok||data.ok===false)throw new Error(data.error||('HTTP '+r.status));
-    return data;
-}
-function asstEsc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
-function asstStatus(msg,isErr){var el=document.getElementById('asstStatus');if(el){el.textContent=msg||'';el.style.color=isErr?'#ff8f8f':'#9db0c9';}}
-function asstActive(){for(var i=0;i<window._asst.assistants.length;i++){if(window._asst.assistants[i].id===window._asst.active)return window._asst.assistants[i];}return null;}
-window.openAssistants=function(){
-    if(typeof isAdmin!=='undefined'&&!isAdmin){toast('w','ИИ-ассистенты','Доступ только для администратора');return;}
-    if(!asstToken()){toast('w','ИИ-ассистенты','Сначала войдите в панель администратора');return;}
-    var ov=document.getElementById('asstOverlay');if(!ov)return;
-    ov.classList.add('on');ov.setAttribute('aria-hidden','false');
-    asstRefresh();
-};
-window.closeAssistants=function(){
-    var ov=document.getElementById('asstOverlay');if(!ov)return;
-    ov.classList.remove('on');ov.setAttribute('aria-hidden','true');
-};
-window.toggleAsstSettings=function(){
-    window._asst.settingsOpen=!window._asst.settingsOpen;
-    var el=document.getElementById('asstSettings');
-    if(el)el.classList.toggle('on',window._asst.settingsOpen);
-    renderAsstSettings();
-};
-async function asstRefresh(){
-    try{
-        var data=await asstApi('/state');
-        window._asst.assistants=data.assistants||[];
-        window._asst.chats=data.chats||{};
-        try{
-            var mem=await asstApi('/state',null,'/api/mem0');
-            window._asst.mem0=mem.mem0||{};
-        }catch(e){window._asst.mem0=window._asst.mem0||{};}
-        var found=false;for(var i=0;i<window._asst.assistants.length;i++){if(window._asst.assistants[i].id===window._asst.active)found=true;}
-        if(!found)window._asst.active=(window._asst.assistants[0]&&window._asst.assistants[0].id)||'admin';
-        renderAsstTabs();renderAsstChat();renderAsstSettings();
-    }catch(e){asstStatus('Ошибка: '+e.message,true);}
-}
-function renderAsstTabs(){
-    var root=document.getElementById('asstTabs');if(!root)return;
-    root.innerHTML=window._asst.assistants.map(function(a){
-        return '<button type="button" class="asst-tab'+(a.id===window._asst.active?' on':'')+'" onclick="asstSelect(\''+asstEsc(a.id)+'\')">'+asstEsc(a.emoji||'')+' '+asstEsc(a.name)+(a.hasKey?'':' · нет ключа')+'</button>';
-    }).join('');
-}
-window.asstSelect=function(id){window._asst.active=id;renderAsstTabs();renderAsstChat();renderAsstSettings();};
-function renderAsstChat(){
-    var root=document.getElementById('asstMsgs');if(!root)return;
-    var msgs=(window._asst.chats&&window._asst.chats[window._asst.active])||[];
-    if(!msgs.length){
-        root.innerHTML='<div class="asst-empty">Диалог пуст. Ассистенты независимы: у каждого свой провайдер, ключ, модель и своя история.<br><br>Подключение: Dify API, LiteLLM / OpenAI-совместимый API или Claude.</div>';
-        return;
-    }
-    root.innerHTML=msgs.map(function(m){
-        var cls=m.role==='user'?'user':(m.role==='assistant'?'bot':'sys');
-        return '<div class="asst-msg '+cls+'">'+asstEsc(m.content)+'</div>';
-    }).join('');
-    root.scrollTop=root.scrollHeight;
-}
-function renderAsstSettings(){
-    var root=document.getElementById('asstSettings');if(!root)return;
-    var a=asstActive();if(!a){root.innerHTML='';return;}
-    var mem=window._asst.mem0||{enabled:false,baseUrl:'https://api.mem0.ai',hasKey:false,keyMask:''};
-    root.innerHTML=
-        '<h4>'+asstEsc(a.emoji)+' '+asstEsc(a.name)+'</h4>'+
-        '<div class="asst-note">Ключ хранится только на сервере. Введите новый ключ, чтобы заменить; пустое поле не стирает сохранённый.</div>'+
-        '<div class="asst-field"><label>Название</label><input id="asstCfgName" value="'+asstEsc(a.name)+'"></div>'+
-        '<div class="asst-field"><label>Провайдер</label><select id="asstCfgProvider">'+
-            '<option value="dify"'+(a.provider==='dify'?' selected':'')+'>Dify API</option>'+
-            '<option value="openai"'+(a.provider==='openai'?' selected':'')+'>LiteLLM / OpenAI-совместимый</option>'+
-            '<option value="claude"'+(a.provider==='claude'?' selected':'')+'>Claude (Anthropic)</option>'+
-            '<option value="langflow"'+(a.provider==='langflow'?' selected':'')+'>Langflow (флоу)</option>'+
-            '<option value="openwebui"'+(a.provider==='openwebui'?' selected':'')+'>Open WebUI</option>'+
-        '</select></div>'+
-        '<div class="asst-field"><label>Base URL</label><input id="asstCfgBaseUrl" value="'+asstEsc(a.baseUrl)+'" placeholder="https://api.dify.ai/v1 / 127.0.0.1:7860 (Langflow)"></div>'+
-        '<div class="asst-field"><label>Модель / ID флоу</label><input id="asstCfgModel" value="'+asstEsc(a.model)+'" placeholder="gpt-4o-mini / claude-sonnet-4-5 / ID флоу Langflow"></div>'+
-        '<div class="asst-field"><label>API-ключ '+(a.hasKey?('сохранён: '+asstEsc(a.keyMask)):'(не задан)')+'</label><input id="asstCfgKey" type="password" autocomplete="off" placeholder="вставьте ключ"></div>'+
-        '<div class="asst-row"><div class="asst-field" style="flex:1"><label>Temperature</label><input id="asstCfgTemp" type="number" min="0" max="2" step="0.1" value="'+asstEsc(a.temperature)+'"></div>'+
-        '<div class="asst-field" style="flex:1"><label>Max tokens</label><input id="asstCfgMax" type="number" min="256" max="32000" step="256" value="'+asstEsc(a.maxTokens)+'"></div></div>'+
-        '<div class="asst-field"><label>Системный промпт</label><textarea id="asstCfgSystem">'+asstEsc(a.system)+'</textarea></div>'+
-        '<div class="asst-field"><label style="text-transform:none;letter-spacing:0"><input type="checkbox" id="asstCfgMemory"'+(a.memory?' checked':'')+'> Память mem0 у этого ассистента</label></div>'+
-        '<div class="asst-row" style="flex-wrap:wrap">'+
-            '<button type="button" class="asst-btn" onclick="asstSaveConfig()">Сохранить</button>'+
-            '<button type="button" class="asst-btn ghost" onclick="asstTestProvider()">Проверить связь</button>'+
-            '<button type="button" class="asst-btn ghost" onclick="asstShowFlows()">Флоу Langflow…</button>'+
-            '<button type="button" class="asst-btn ghost" onclick="asstShowOwuiModels()">Модели Open WebUI…</button>'+
-            '<button type="button" class="asst-btn ghost" onclick="asstClearKey()">Удалить ключ</button>'+
-        '</div>'+
-        '<div id="asstPickList" class="asst-note"></div>'+
-        '<div class="asst-note" style="border-top:1px solid rgba(255,255,255,.08);margin-top:12px;padding-top:10px"><b>Память (mem0)</b> — факты из прошлых диалогов подставляются в контекст и дописываются после каждого ответа. Ключ mem0 — только на сервере.</div>'+
-        '<div class="asst-field"><label style="text-transform:none;letter-spacing:0"><input type="checkbox" id="asstMem0Enabled"'+(mem.enabled?' checked':'')+'> Включить память mem0</label></div>'+
-        '<div class="asst-field"><label>mem0 Base URL</label><input id="asstMem0Base" value="'+asstEsc(mem.baseUrl||'')+'" placeholder="https://api.mem0.ai"></div>'+
-        '<div class="asst-field"><label>mem0 API-ключ '+(mem.hasKey?('сохранён: '+asstEsc(mem.keyMask)):'(не задан)')+'</label><input id="asstMem0Key" type="password" autocomplete="off" placeholder="вставьте ключ mem0"></div>'+
-        '<div class="asst-row" style="flex-wrap:wrap">'+
-            '<button type="button" class="asst-btn" onclick="asstSaveMem0()">Сохранить подключение</button>'+
-            '<button type="button" class="asst-btn ghost" onclick="asstTestMem0()">Проверить mem0</button>'+
-        '</div>'+
-        '<div class="asst-row" style="flex-wrap:wrap;margin-top:8px">'+
-            '<button type="button" class="asst-btn ghost" onclick="asstShowMemories()">Показать память</button>'+
-            '<button type="button" class="asst-btn ghost" onclick="asstClearMemories()">Очистить память</button>'+
-        '</div>'+
-        '<div id="asstMemList" class="asst-note"></div>';
-}
-window.asstSaveConfig=async function(){
-    var a=asstActive();if(!a)return false;
-    var body={
-        id:a.id,
-        name:document.getElementById('asstCfgName').value,
-        provider:document.getElementById('asstCfgProvider').value,
-        baseUrl:document.getElementById('asstCfgBaseUrl').value,
-        model:document.getElementById('asstCfgModel').value,
-        system:document.getElementById('asstCfgSystem').value,
-        temperature:document.getElementById('asstCfgTemp').value,
-        maxTokens:document.getElementById('asstCfgMax').value,
-        memory:document.getElementById('asstCfgMemory').checked
-    };
-    var key=document.getElementById('asstCfgKey').value;
-    if(key)body.apiKey=key;
-    try{
-        var data=await asstApi('/config',body);
-        for(var i=0;i<window._asst.assistants.length;i++){if(window._asst.assistants[i].id===a.id)window._asst.assistants[i]=data.assistant;}
-        renderAsstTabs();renderAsstSettings();
-        asstStatus('Настройки сохранены');
-        return true;
-    }catch(e){asstStatus('Ошибка: '+e.message,true);return false;}
-};
-window.asstClearKey=async function(){
-    var a=asstActive();if(!a)return;
-    if(!confirm('Удалить сохранённый API-ключ этого ассистента?'))return;
-    try{
-        var data=await asstApi('/config',{id:a.id,clearKey:true});
-        for(var i=0;i<window._asst.assistants.length;i++){if(window._asst.assistants[i].id===a.id)window._asst.assistants[i]=data.assistant;}
-        renderAsstTabs();renderAsstSettings();
-        asstStatus('Ключ удалён');
-    }catch(e){asstStatus('Ошибка: '+e.message,true);}
-};
-window.asstTestProvider=async function(){
-    var a=asstActive();if(!a)return;
-    asstStatus('Проверка подключения…');
-    var saved=await window.asstSaveConfig();
-    if(!saved)return;
-    try{
-        var data=await asstApi('/test',{id:a.id});
-        asstStatus('Связь есть: '+(data.reply||'ok'));
-    }catch(e){asstStatus('Проверка не прошла: '+e.message,true);}
-};
-window.asstClearChat=async function(){
-    var a=asstActive();if(!a)return;
-    if(!confirm('Очистить диалог с этим ассистентом?'))return;
-    try{
-        await asstApi('/clear',{id:a.id});
-        window._asst.chats[a.id]=[];
-        renderAsstChat();
-        asstStatus('Диалог очищен');
-    }catch(e){asstStatus('Ошибка: '+e.message,true);}
-};
-window.asstInputKey=function(e){
-    if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();window.asstSend();}
-};
-window.asstSend=async function(){
-    if(window._asst.busy)return;
-    var a=asstActive();if(!a)return;
-    var input=document.getElementById('asstInput');
-    var text=(input.value||'').trim();
-    if(!text)return;
-    window._asst.busy=true;
-    var btn=document.getElementById('asstSendBtn');if(btn)btn.disabled=true;
-    input.value='';
-    if(!window._asst.chats[a.id])window._asst.chats[a.id]=[];
-    window._asst.chats[a.id].push({role:'user',content:text,ts:Date.now()});
-    window._asst.chats[a.id].push({role:'assistant',content:'… ассистент думает',ts:Date.now()});
-    renderAsstChat();
-    asstStatus('Запрос к «'+a.name+'»…');
-    try{
-        var data=await asstApi('/chat',{id:a.id,message:text});
-        var msgs=window._asst.chats[a.id];
-        msgs[msgs.length-1]={role:'assistant',content:data.reply,ts:Date.now()};
-        renderAsstChat();
-        asstStatus('Готово');
-    }catch(e){
-        var msgs2=window._asst.chats[a.id];
-        msgs2[msgs2.length-1]={role:'assistant',content:'⚠️ '+e.message,ts:Date.now()};
-        renderAsstChat();
-        asstStatus('Ошибка: '+e.message,true);
-    }finally{
-        window._asst.busy=false;
-        var b2=document.getElementById('asstSendBtn');if(b2)b2.disabled=false;
-        var inp=document.getElementById('asstInput');if(inp)inp.focus();
-    }
-};
-// --- Память mem0 (лёгкий REST-клиент, только админ) ---
-window.asstSaveMem0=async function(){
-    var body={
-        enabled:document.getElementById('asstMem0Enabled').checked,
-        baseUrl:document.getElementById('asstMem0Base').value
-    };
-    var key=document.getElementById('asstMem0Key').value;
-    if(key)body.apiKey=key;
-    try{
-        var d=await asstApi('/config',body,'/api/mem0');
-        window._asst.mem0=d.mem0||window._asst.mem0;
-        renderAsstSettings();
-        asstStatus('Подключение mem0 сохранено');
-    }catch(e){asstStatus('mem0: '+e.message,true);}
-};
-window.asstTestMem0=async function(){
-    asstStatus('Проверка mem0…');
-    try{
-        var saved=await window.asstSaveMem0();
-        var d=await asstApi('/test',{},'/api/mem0');
-        asstStatus('mem0 на связи, найдено записей: '+(d.results||0));
-    }catch(e){asstStatus('mem0: '+e.message,true);}
-};
-window.asstShowMemories=async function(){
-    var a=asstActive();if(!a)return;
-    var box=document.getElementById('asstMemList');if(box)box.textContent='Загрузка памяти…';
-    try{
-        var d=await asstApi('/memories?id='+encodeURIComponent(a.id),null,'/api/mem0');
-        if(!box)return;
-        var ms=d.memories||[];
-        if(!ms.length){box.textContent='Память пуста.';return;}
-        box.innerHTML='<b>Память «'+asstEsc(a.name)+'» — '+ms.length+'</b>'+ms.map(function(m){
-            return '<div style="margin:6px 0;padding:6px 8px;border:1px solid rgba(255,255,255,.1);border-radius:8px">'+asstEsc(m.memory)+
-                ' <button type="button" class="asst-btn ghost" style="min-height:26px;padding:2px 8px;font-size:11px" onclick="asstDeleteMemory(\''+asstEsc(m.id)+'\')">✕</button></div>';
-        }).join('');
-    }catch(e){if(box)box.textContent='mem0: '+e.message;}
-};
-window.asstDeleteMemory=async function(memoryId){
-    try{
-        await asstApi('/delete',{memoryId:memoryId},'/api/mem0');
-        await window.asstShowMemories();
-    }catch(e){asstStatus('mem0: '+e.message,true);}
-};
-window.asstClearMemories=async function(){
-    var a=asstActive();if(!a)return;
-    if(!confirm('Удалить всю память ассистента «'+a.name+'»?'))return;
-    try{
-        var d=await asstApi('/delete-all',{id:a.id},'/api/mem0');
-        asstStatus('mem0: удалено записей — '+(d.deleted||0));
-        await window.asstShowMemories();
-    }catch(e){asstStatus('mem0: '+e.message,true);}
-};
-// --- Langflow: список флоу для подстановки ID ---
-window.asstShowFlows=async function(){
-    var a=asstActive();if(!a)return;
-    var box=document.getElementById('asstPickList');if(box)box.textContent='Загрузка списка флоу…';
-    var saved=await window.asstSaveConfig();
-    if(!saved){if(box)box.textContent='Сначала сохраните подключение.';return;}
-    try{
-        var d=await asstApi('/flows?id='+encodeURIComponent(a.id),null,'/api/langflow');
-        if(!box)return;
-        var fs=d.flows||[];
-        if(!fs.length){box.textContent='Флоу не найдены (проверьте Base URL и ключ).';return;}
-        box.innerHTML='<b>Флоу Langflow ('+fs.length+')</b>'+fs.map(function(f){
-            return '<div style="margin:6px 0;padding:6px 8px;border:1px solid rgba(255,255,255,.1);border-radius:8px">'+asstEsc(f.name||'—')+
-                ' <button type="button" class="asst-btn ghost" style="min-height:26px;padding:2px 8px;font-size:11px" onclick="asstUseFlow(\''+asstEsc(f.id)+'\')">Выбрать</button>'+
-                '<div style="font-size:10px;color:#8fa0b8;word-break:break-all">'+asstEsc(f.id)+'</div></div>';
-        }).join('');
-    }catch(e){if(box)box.textContent='Langflow: '+e.message;}
-};
-window.asstUseFlow=function(flowId){
-    var el=document.getElementById('asstCfgModel');
-    if(el){el.value=flowId;asstStatus('ID флоу подставлен в «Модель / ID флоу» — нажмите «Сохранить»');}
-};
-// --- Open WebUI: список моделей для подстановки ---
-window.asstShowOwuiModels=async function(){
-    var a=asstActive();if(!a)return;
-    var box=document.getElementById('asstPickList');if(box)box.textContent='Загрузка моделей Open WebUI…';
-    var saved=await window.asstSaveConfig();
-    if(!saved){if(box)box.textContent='Сначала сохраните подключение.';return;}
-    try{
-        var d=await asstApi('/models?id='+encodeURIComponent(a.id),null,'/api/openwebui');
-        if(!box)return;
-        var ms=d.models||[];
-        if(!ms.length){box.textContent='Модели не найдены (проверьте Base URL и ключ).';return;}
-        box.innerHTML='<b>Модели Open WebUI ('+ms.length+')</b>'+ms.map(function(m){
-            return '<div style="margin:6px 0;padding:6px 8px;border:1px solid rgba(255,255,255,.1);border-radius:8px">'+asstEsc(m.name||m.id)+
-                ' <button type="button" class="asst-btn ghost" style="min-height:26px;padding:2px 8px;font-size:11px" onclick="asstUseOwuiModel(\''+asstEsc(m.id)+'\')">Выбрать</button>'+
-                '<div style="font-size:10px;color:#8fa0b8;word-break:break-all">'+asstEsc(m.id)+'</div></div>';
-        }).join('');
-    }catch(e){if(box)box.textContent='Open WebUI: '+e.message;}
-};
-window.asstUseOwuiModel=function(modelId){
-    var el=document.getElementById('asstCfgModel');
-    if(el){el.value=modelId;asstStatus('Модель подставлена в «Модель / ID флоу» — нажмите «Сохранить»');}
-};
-
+// --- 4 AI-ассистента: объединены с AI Office (единый интерфейс /ai-office/) ---
+window.openAssistants=function(){return window.openAiOffice();};
+window.closeAssistants=function(){return window.closeAiOffice();};
 // --- Admin Login ---
 window.showAdminLogin=function(){
     clearPinFields('adminModalPinFields');

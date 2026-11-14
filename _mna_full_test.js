@@ -95,14 +95,35 @@ function check(name, cond) {
     r = await api(T, '/api/my-notes/ai', 'POST', { message: 'добавь в заметку пункт тест' });
     check('AI edit_note', r.status === 200 && r.d.action === 'edit_note' && r.d.note.html.indexOf('Тест') >= 0);
 
+    // --- checklist via AI + toggle persistence ---
+    queue.push({ reply: 'План добавлен.', action: 'add_checklist', note: { id: noteId, title: 'Идея проекта', checks: [{ text: 'Чтение' }, { text: 'Повторение слов' }, { text: 'Эссе' }] } });
+    r = await api(T, '/api/my-notes/ai', 'POST', { message: 'добавь чекбоксы плана' });
+    check('AI add_checklist', r.status === 200 && r.d.note && Array.isArray(r.d.note.checks) && r.d.note.checks.length === 3);
+    const checkId = r.d.note && r.d.note.checks && r.d.note.checks[0] && r.d.note.checks[0].id;
+    if (checkId) {
+      r = await api(T, '/api/my-notes/notes/' + noteId + '/checks/' + checkId, 'POST', { done: true });
+      check('check toggle', r.status === 200 && r.d.note.checks.find(c => c.id === checkId).done === true);
+      r = await api(T, '/api/my-notes/state');
+      check('check state persisted', r.d.notes[0].checks.find(c => c.id === checkId).done === true);
+    } else {
+      check('check toggle (skipped)', true);
+      check('check state persisted (skipped)', true);
+    }
+
     // --- reminder via AI (dueAt in the past -> scheduler should fire) ---
     queue.push({ reply: 'Напоминание создано.', action: 'create_reminder', reminder: { text: 'Проверить документы', dueAt: new Date(Date.now() - 5000).toISOString() } });
     r = await api(T, '/api/my-notes/ai', 'POST', { message: 'напомни проверить документы' });
     check('AI create_reminder', r.status === 200 && r.d.reminder && r.d.reminders.some(x => x.text === 'Проверить документы'));
 
+    // --- fast routes (local, without AI) ---
+    r = await api(T, '/api/my-notes/ai', 'POST', { message: 'какие у меня планы?' });
+    check('fast list plans', r.status === 200 && r.d.action === 'list' && r.d.notes.length >= 1 && /Идея проекта/.test(r.d.reply));
+    r = await api(T, '/api/my-notes/ai', 'POST', { message: 'найди проект' });
+    check('fast search', r.status === 200 && r.d.action === 'search' && r.d.notes.length >= 1 && /Найдено/.test(r.d.reply));
+
     // --- search action (no mutation) ---
     queue.push({ reply: 'Нашёл: Идея проекта.', action: 'search', query: 'проект' });
-    r = await api(T, '/api/my-notes/ai', 'POST', { message: 'найди проект' });
+    r = await api(T, '/api/my-notes/ai', 'POST', { message: 'подбери проект' });
     check('AI search', r.status === 200 && r.d.action === 'search' && r.d.notes.length === 1);
 
     // --- links ---

@@ -124,6 +124,12 @@ app.use((req, res, next) => {
         res.status(503).type('text/plain').send('AI Office запускается…');
         return;
     }
+    // Прямая ссылка /ai-office/ без cookie администратора → вход по PIN (без главного экрана)
+    const pagePath = String(req.url || '').split('?')[0];
+    if (req.method === 'GET' && (pagePath === '/ai-office' || pagePath === '/ai-office/') && !aiOfficeAuthenticate(req)) {
+        res.status(403).type('html').send(moduleGatePage('/api/ai-office/auth', 'AI Office · 4 ассистента'));
+        return;
+    }
     _aiOfficeHandler(req, res);
 });
 
@@ -159,6 +165,40 @@ function myNotesGetToken(req) {
 function myNotesOwner(req) {
     return getAdminSessionOwner(myNotesGetToken(req));
 }
+// --- Прямые ссылки на модули: вход по PIN администратора без главного экрана ---
+function moduleGatePage(authPath, title) {
+    return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Вход · ${title}</title><style>
+*{box-sizing:border-box}body{margin:0;min-height:100dvh;display:flex;align-items:center;justify-content:center;background:#0e1420;color:#e8ecf4;font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:24px}
+.gate{width:100%;max-width:380px;background:#121c30;border:1px solid #243044;border-radius:18px;padding:28px 22px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+.logo{font-size:38px;margin-bottom:8px}h1{font-size:20px;margin:0 0 6px}p{color:#8fa0b4;font-size:13px;margin:0 0 18px}
+input{width:100%;border:1px solid #2b4a6b;border-radius:12px;padding:14px;font-size:20px;letter-spacing:6px;text-align:center;background:#0b101b;color:#fff;outline:none;min-height:52px}
+button{width:100%;margin-top:12px;min-height:52px;border:0;border-radius:12px;background:linear-gradient(135deg,#2e8b52,#57b071);color:#fff;font-size:15px;font-weight:800;cursor:pointer}
+button:active{transform:scale(.98)}#err{color:#ff9c8f;font-size:12px;margin-top:12px;min-height:18px}
+</style></head><body><div class="gate"><div class="logo">🔐</div><h1>${title}</h1><p>Введите PIN администратора Bank Mandarin Pro</p><input id="pin" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password" placeholder="••••"><button id="go">Войти</button><div id="err"></div></div>
+<script src="/socket.io/socket.io.js"></script><script>
+(function(){
+var err=document.getElementById('err');
+function go(){
+  var pin=document.getElementById('pin').value.trim();
+  if(!/^[0-9]{4,6}$/.test(pin)){err.textContent='Введите PIN (4–6 цифр)';return;}
+  err.textContent='Проверяю…';
+  var s=io({transports:['websocket']}),done=false;
+  s.on('admin:authenticated',function(d){
+    if(done)return;done=true;
+    fetch('${authPath}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminToken:d.adminToken})})
+      .then(function(r){return r.json().catch(function(){return {}})})
+      .then(function(){try{localStorage.setItem('pb_admin_token',d.adminToken)}catch(e){};location.reload();})
+      .catch(function(){err.textContent='Не удалось войти. Попробуйте ещё раз.';s.close();});
+  });
+  s.on('error',function(d){err.textContent=(d&&d.message)||'Неверный PIN';});
+  s.on('connect_error',function(){err.textContent='Сервер недоступен';});
+  setTimeout(function(){if(!done){err.textContent='Сервер не ответил. Обновите страницу.';try{s.close()}catch(e){}}},12000);
+}
+document.getElementById('go').addEventListener('click',go);
+document.getElementById('pin').addEventListener('keydown',function(e){if(e.key==='Enter')go();});
+})();
+</script></body></html>`;
+}
 function myNotesStore(owner) {
     if (!db.myNotesAI || typeof db.myNotesAI !== 'object') db.myNotesAI = {};
     if (!db.myNotesAI[owner] || typeof db.myNotesAI[owner] !== 'object') db.myNotesAI[owner] = {};
@@ -173,11 +213,14 @@ function myNotesStore(owner) {
 const MY_NOTES_DEFAULT_SETTINGS = {
     apiKey: 'tp-sp7xftr9xj3ktdjt271xp2mtojtfsffzpox2o6fh8le9o74w',
     apiEndpoint: 'https://token-plan-sgp.xiaomimimo.com/v1',
-    model: 'mimo-v2.6-flash'
+    model: 'mimo-v2.6-flash',
+    reminders: { browserNotify: true, sound: true, leadMinutes: 10 }
 };
 function myNotesSettings(owner) {
     const s = myNotesStore(owner);
-    return Object.assign({}, MY_NOTES_DEFAULT_SETTINGS, s.settings);
+    const cfg = Object.assign({}, MY_NOTES_DEFAULT_SETTINGS, s.settings);
+    cfg.reminders = Object.assign({}, MY_NOTES_DEFAULT_SETTINGS.reminders, (s.settings && s.settings.reminders) || {});
+    return cfg;
 }
 function myNotesLog(owner, action, detail, noteId) {
     const s = myNotesStore(owner);
@@ -187,8 +230,17 @@ function myNotesLog(owner, action, detail, noteId) {
 function myNotesNoteView(n) {
     return {
         id: n.id, title: n.title || 'Без названия', category: n.category || 'Разное',
-        html: n.html || '', text: n.text || '', createdAt: n.createdAt, updatedAt: n.updatedAt
+        html: n.html || '', text: n.text || '', createdAt: n.createdAt, updatedAt: n.updatedAt,
+        checks: Array.isArray(n.checks) ? n.checks.map(c => ({ id: c.id, text: String(c.text || '').slice(0, 300), done: !!c.done })) : null
     };
+}
+function myNotesNormChecks(checks) {
+    if (!Array.isArray(checks)) return null;
+    return checks.slice(0, 60).map(c => ({
+        id: String((c && c.id) || genId()).slice(0, 40),
+        text: String((c && c.text) || '').replace(/<[^>]+>/g, '').slice(0, 300),
+        done: !!(c && c.done)
+    }));
 }
 function myNotesHtmlToText(html) {
     return String(html || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
@@ -258,6 +310,7 @@ function myNotesExecute(owner, act) {
             category: String(act.note.category || myNotesCategoryOf((act.note.title || '') + ' ' + (act.note.text || ''))).slice(0, 40),
             html: myNotesSafeHtml(act.note.html || myNotesHtmlFromText(act.note.text || act.reply || '')),
             text: act.note.text || myNotesHtmlToText(act.note.html || act.reply || ''),
+            checks: myNotesNormChecks(act.note.checks),
             createdAt: now, updatedAt: now, history: []
         };
         s.notes.unshift(n);
@@ -273,9 +326,43 @@ function myNotesExecute(owner, act) {
             if (act.note.html) n.html = myNotesSafeHtml(act.note.html);
             if (act.note.text) n.text = act.note.text;
             if (act.note.category) n.category = String(act.note.category).slice(0, 40);
+            if (act.note.checks) {
+                const prev = Array.isArray(n.checks) ? n.checks : [];
+                n.checks = myNotesNormChecks(act.note.checks).map(c => {
+                    const old = prev.find(p => p.text === c.text);
+                    return old ? { id: old.id, text: c.text, done: old.done } : c;
+                });
+            }
             n.updatedAt = now;
             out.note = myNotesNoteView(n);
             myNotesLog(owner, 'edit_note', n.title, n.id);
+        }
+    } else if (action === 'add_checklist' && act.note) {
+        const target = act.note.id ? s.notes.find(x => x.id === act.note.id) : null;
+        const items = myNotesNormChecks(act.note.checks) || [];
+        if (target && items.length) {
+            target.history = Array.isArray(target.history) ? target.history : [];
+            target.history.unshift({ at: now, title: target.title, html: target.html });
+            if (target.history.length > 50) target.history.length = 50;
+            const prev = Array.isArray(target.checks) ? target.checks : [];
+            target.checks = prev.concat(items.filter(i => !prev.some(p => p.text === i.text)));
+            if (act.note.html) target.html = myNotesSafeHtml(act.note.html);
+            if (act.note.text) target.text = act.note.text;
+            target.updatedAt = now;
+            out.note = myNotesNoteView(target);
+            myNotesLog(owner, 'add_checklist', target.title, target.id);
+        } else if (!target && items.length) {
+            const n = {
+                id: genId(), title: String(act.note.title || 'План').slice(0, 160),
+                category: String(act.note.category || 'Учёба').slice(0, 40),
+                html: myNotesSafeHtml(act.note.html || ''),
+                text: act.note.text || '',
+                checks: items,
+                createdAt: now, updatedAt: now, history: []
+            };
+            s.notes.unshift(n);
+            out.note = myNotesNoteView(n);
+            myNotesLog(owner, 'add_checklist', n.title, n.id);
         }
     } else if (action === 'delete_note' && act.noteId) {
         const i = s.notes.findIndex(x => x.id === act.noteId);
@@ -360,7 +447,8 @@ app.put('/api/my-notes/state', (req, res) => {
             id: String(n.id || genId()), title: String(n.title || 'Заметка').slice(0, 160),
             category: String(n.category || 'Разное').slice(0, 40), html: myNotesSafeHtml(n.html || ''),
             text: String(n.text || myNotesHtmlToText(n.html || '')), createdAt: Number(n.createdAt) || Date.now(),
-            updatedAt: Number(n.updatedAt) || Date.now(), history: Array.isArray(n.history) ? n.history : []
+            updatedAt: Number(n.updatedAt) || Date.now(), history: Array.isArray(n.history) ? n.history : [],
+            checks: myNotesNormChecks(n.checks)
         }));
     }
     if (Array.isArray(body.reminders)) {
@@ -375,6 +463,65 @@ app.put('/api/my-notes/state', (req, res) => {
     res.json({ ok: true, notes: s.notes.length, reminders: s.reminders.length });
 });
 
+app.post('/api/my-notes/notes/:id/checks/:checkId', (req, res) => {
+    const owner = myNotesOwner(req);
+    if (!owner) { res.status(403).json({ ok: false, error: 'Нет админ-доступа' }); return; }
+    const s = myNotesStore(owner);
+    const n = s.notes.find(x => x.id === req.params.id);
+    if (!n || !Array.isArray(n.checks)) { res.status(404).json({ ok: false, error: 'Чекбокс не найден' }); return; }
+    const c = n.checks.find(x => x.id === req.params.checkId);
+    if (!c) { res.status(404).json({ ok: false, error: 'Чекбокс не найден' }); return; }
+    c.done = (req.body && typeof req.body.done === 'boolean') ? !!req.body.done : !c.done;
+    n.updatedAt = Date.now();
+    myNotesLog(owner, c.done ? 'check_done' : 'check_undone', n.title + ': ' + c.text, n.id);
+    saveDB();
+    res.json({ ok: true, note: myNotesNoteView(n) });
+});
+
+function myNotesFastRoute(owner, s, message) {
+    const m = String(message || '').trim();
+    const low = m.toLowerCase();
+    const notes = s.notes || [];
+    const rems = (s.reminders || []).slice().sort((a, b) => a.dueAt - b.dueAt);
+    const fmtNote = (n, i) => (i + 1) + '. ' + n.title + (n.checks && n.checks.length ? ' [' + n.checks.filter(c => c.done).length + '/' + n.checks.length + ']' : '');
+    // Список планов / заметок
+    if (/^(какие|что|покажи|выведи|список|мои|все)\s/.test(low) && /план|заметк|дела|задач/.test(low)) {
+        if (!notes.length) return { action: 'list', payload: { reply: 'Заметок пока нет. Напишите запрос — я создам первую.', notes: [], reminders: rems } };
+        const lines = notes.slice(0, 30).map(fmtNote);
+        return {
+            action: 'list',
+            payload: {
+                reply: 'Ваши заметки и планы:\n' + lines.join('\n'),
+                notes: notes.map(myNotesNoteView), reminders: rems
+            }
+        };
+    }
+    // Список напоминаний
+    if (/напоминан/.test(low) && /^(какие|что|покажи|выведи|список|мои|все|сколько)/.test(low)) {
+        if (!rems.length) return { action: 'list', payload: { reply: 'Напоминаний нет.', notes: notes.map(myNotesNoteView), reminders: rems } };
+        const lines = rems.slice(0, 30).map((r, i) => (i + 1) + '. ' + r.text + ' — ' + new Date(r.dueAt).toLocaleString('ru-RU') + (r.done ? ' (выполнено)' : ''));
+        return {
+            action: 'list',
+            payload: { reply: 'Ваши напоминания:\n' + lines.join('\n'), notes: notes.map(myNotesNoteView), reminders: rems }
+        };
+    }
+    // Локальный поиск
+    const search = m.match(/(?:найди|поищи|поиск|где)\s+(.{1,80})/i);
+    if (search) {
+        const q = search[1].toLowerCase().trim();
+        const hits = notes.filter(n => (n.title + ' ' + (n.text || '')).toLowerCase().includes(q));
+        const reply = hits.length
+            ? 'Найдено совпадений: ' + hits.length + '\n' + hits.slice(0, 15).map(fmtNote).join('\n')
+            : 'По запросу «' + search[1].trim() + '» ничего не нашлось.';
+        return { action: 'search', payload: { reply, notes: notes.map(myNotesNoteView), reminders: rems, query: search[1].trim() } };
+    }
+    // Счётчик заметок
+    if (/сколько/.test(low) && /заметк|план/.test(low)) {
+        return { action: 'list', payload: { reply: 'Всего заметок: ' + notes.length + '. Из них с чекбоксами: ' + notes.filter(n => n.checks && n.checks.length).length + '.', notes: notes.map(myNotesNoteView), reminders: rems } };
+    }
+    return null;
+}
+
 app.post('/api/my-notes/ai', async (req, res) => {
     const owner = myNotesOwner(req);
     if (!owner) { res.status(403).json({ ok: false, error: 'Нет админ-доступа' }); return; }
@@ -382,21 +529,32 @@ app.post('/api/my-notes/ai', async (req, res) => {
     if (!message.trim()) { res.status(400).json({ ok: false, error: 'Пустой запрос' }); return; }
     try {
         const s = myNotesStore(owner);
+        // Быстрый маршрут: простые запросы без обращения к AI
+        const fast = myNotesFastRoute(owner, s, message);
+        if (fast) {
+            saveDB();
+            res.json(Object.assign({ ok: true, action: fast.action || 'fast' }, fast.payload));
+            return;
+        }
         const notesList = s.notes.slice(0, 40).map((n, i) =>
             (i + 1) + ') id=' + n.id + ' | ' + n.title + ' | категория: ' + (n.category || 'Разное')).join('\n') || '(заметок пока нет)';
         const remList = s.reminders.slice(0, 30).map(r =>
             'id=' + r.id + ' | ' + r.text + ' | ' + new Date(r.dueAt).toISOString() + ' | ' + (r.done ? 'выполнено' : 'активно')).join('\n') || '(напоминаний нет)';
         const system = 'Ты — интеллектуальный секретарь My Notes AI. Управляешь личными заметками и напоминаниями пользователя.\n' +
-            'Понимай запросы на любом языке, исправляй опечатки, выполняй команды. Отвечай по-русски.\n' +
-            'Самостоятельно выбирай категорию заметки (Работа, Финансы, Учёба, Идеи, Личное, Разное) и форматируй текст с заголовками и нумерацией.\n' +
+            'Понимай запросы на любом языке, исправляй опечатки и ошибки в тексте, выполняй команды. Отвечай по-русски.\n' +
+            'Самостоятельно выбирай категорию заметки (Работа, Финансы, Учёба, Идеи, Личное, Разное) и аккуратно форматируй текст.\n' +
+            'Планы и списки дел оформляй с понятной нумерацией (1. 2. 3. …), например:\n' +
+            'Группа Эмира:\n1. Чтение.\n2. Повторение слов.\n3. Эссе.\n4. Грамматика.\n5. Аудирование.\n' +
+            'Если пользователь просит чекбоксы / план / список дел — добавляй пункты в поле checks: [{"text":"пункт"}, …] (action=add_checklist или create_note с checks).\n' +
             'Текущие заметки (id | заголовок | категория):\n' + notesList + '\n\n' +
             'Текущие напоминания (id | текст | срок | статус):\n' + remList + '\n\n' +
             'Сегодня: ' + new Date().toISOString() + '\n' +
             'Ответь СТРОГО одним JSON-объектом без markdown и пояснений:\n' +
-            '{"reply":"краткий ответ пользователю","action":"create_note|edit_note|delete_note|search|merge|summarize|create_reminder|complete_reminder|delete_reminder|list|none",\n' +
-            '"note":{"id":"...","title":"...","category":"...","html":"<p>...</p>","text":"..."},\n' +
+            '{"reply":"краткий ответ пользователю","action":"create_note|edit_note|add_checklist|delete_note|search|merge|summarize|create_reminder|complete_reminder|delete_reminder|list|none",\n' +
+            '"note":{"id":"...","title":"...","category":"...","html":"<p>...</p>","text":"...","checks":[{"text":"пункт плана"}]},\n' +
             '"noteIds":["id1","id2"],"reminder":{"id":"...","text":"...","dueAt":"ISO-8601"},"query":"слово для поиска"}\n' +
             'Для создания заметки — action=create_note и note без id. Для правки — action=edit_note и note.id существующей.\n' +
+            'Для чекбоксов в существующей заметке — action=add_checklist, note.id существующей и note.checks.\n' +
             'Для напоминания — action=create_reminder, reminder.dueAt строго в ISO-8601 (посчитай дату сам: "завтра в 10:00" → ближайшая дата).\n' +
             'Для поиска/выводов — action=search или summarize, без изменения данных.';
         const raw = await myNotesCallAI(owner, [
@@ -423,7 +581,7 @@ app.get('/api/my-notes/settings', (req, res) => {
     const owner = myNotesOwner(req);
     if (!owner) { res.status(403).json({ ok: false, error: 'Нет админ-доступа' }); return; }
     const cfg = myNotesSettings(owner);
-    res.json({ ok: true, settings: { apiEndpoint: cfg.apiEndpoint, model: cfg.model, keyMask: cfg.apiKey ? (cfg.apiKey.slice(0, 6) + '…' + cfg.apiKey.slice(-4)) : '', hasKey: !!cfg.apiKey } });
+    res.json({ ok: true, settings: { apiEndpoint: cfg.apiEndpoint, model: cfg.model, keyMask: cfg.apiKey ? (cfg.apiKey.slice(0, 6) + '…' + cfg.apiKey.slice(-4)) : '', hasKey: !!cfg.apiKey, reminders: cfg.reminders } });
 });
 app.put('/api/my-notes/settings', (req, res) => {
     const owner = myNotesOwner(req);
@@ -433,9 +591,17 @@ app.put('/api/my-notes/settings', (req, res) => {
     if (typeof b.apiKey === 'string' && b.apiKey.trim()) s.settings.apiKey = b.apiKey.trim().slice(0, 200);
     if (typeof b.apiEndpoint === 'string' && /^https?:\/\//i.test(b.apiEndpoint)) s.settings.apiEndpoint = b.apiEndpoint.trim().slice(0, 300);
     if (typeof b.model === 'string' && b.model.trim()) s.settings.model = b.model.trim().slice(0, 100);
+    if (b.reminders && typeof b.reminders === 'object') {
+        s.settings.reminders = Object.assign({}, s.settings.reminders || {}, {
+            browserNotify: b.reminders.browserNotify !== undefined ? !!b.reminders.browserNotify : undefined,
+            sound: b.reminders.sound !== undefined ? !!b.reminders.sound : undefined,
+            leadMinutes: Number.isFinite(Number(b.reminders.leadMinutes)) ? Math.max(0, Math.min(1440, Number(b.reminders.leadMinutes))) : undefined
+        });
+        Object.keys(s.settings.reminders).forEach(k => { if (s.settings.reminders[k] === undefined) delete s.settings.reminders[k]; });
+    }
     saveDB();
     const cfg = myNotesSettings(owner);
-    res.json({ ok: true, settings: { apiEndpoint: cfg.apiEndpoint, model: cfg.model, keyMask: cfg.apiKey ? (cfg.apiKey.slice(0, 6) + '…' + cfg.apiKey.slice(-4)) : '', hasKey: !!cfg.apiKey } });
+    res.json({ ok: true, settings: { apiEndpoint: cfg.apiEndpoint, model: cfg.model, keyMask: cfg.apiKey ? (cfg.apiKey.slice(0, 6) + '…' + cfg.apiKey.slice(-4)) : '', hasKey: !!cfg.apiKey, reminders: cfg.reminders } });
 });
 app.post('/api/my-notes/settings/test', async (req, res) => {
     const owner = myNotesOwner(req);
@@ -679,7 +845,7 @@ app.get('/наш логотип фирмы.jpg', (req, res) => {
 });
 
 // --- My Notes AI: страница модуля (только админ) — единая AI-панель ---
-const MY_NOTES_PAGE = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>My Notes AI</title>
+const MY_NOTES_PAGE = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content"><title>My Notes AI</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--bg:#eef4ec;--card:#fff;--ink:#1b2a1e;--muted:#5f7358;--line:#c8dcbd;--green:#2e8b52;--green2:#4ea165;--soft:#d8ebcd;--danger:#c0564a;--radius:16px}
@@ -701,7 +867,7 @@ header h1{font-size:21px;font-weight:800;letter-spacing:-.3px;flex:1}
 .send-btn{background:linear-gradient(135deg,#14432a,#2e8b52);color:#fff;border:0;border-radius:12px;min-height:44px;padding:0 18px;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 6px 16px rgba(20,67,42,.35);white-space:nowrap}
 .send-btn:disabled{opacity:.5}
 .send-btn:active{transform:scale(.96)}
-.answer{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:15px 16px;margin-bottom:14px;font-size:14px;line-height:1.7;white-space:pre-wrap}
+.answer{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:15px 16px;margin-bottom:14px;font-size:14px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere}
 .answer .tag{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;background:var(--soft);color:#227042;padding:3px 9px;border-radius:999px;margin-bottom:8px}
 .section-title{display:flex;align-items:center;gap:8px;margin:20px 2px 10px;font-size:13px;font-weight:800;color:#227042;text-transform:uppercase;letter-spacing:.7px}
 .section-title .count{background:var(--green);color:#fff;border-radius:999px;font-size:10px;padding:2px 8px}
@@ -713,6 +879,17 @@ header h1{font-size:21px;font-weight:800;letter-spacing:-.3px;flex:1}
 .note-body{font-size:13.5px;color:#3c4c3a;line-height:1.65}
 .note-body p{margin:4px 0}
 .note-actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.check-progress{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;color:#227042;background:var(--soft);border-radius:11px;padding:8px 12px;margin:8px 0 10px}
+.check-progress .bar{flex:1;height:6px;border-radius:999px;background:#c8dcbd;overflow:hidden}
+.check-progress .bar i{display:block;height:100%;background:var(--green);border-radius:999px}
+.check-list{display:flex;flex-direction:column;gap:8px;margin:6px 0}
+.check-item{display:flex;align-items:center;gap:12px;min-height:52px;padding:10px 12px;border-radius:13px;border:1.5px solid var(--line);background:#fbfdfa;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none;width:100%;text-align:left;font-size:15px;line-height:1.4}
+.check-item:active{transform:scale(.98)}
+.check-item .box{width:30px;height:30px;min-width:30px;border-radius:9px;border:2px solid #9db98c;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;color:#fff;background:#fff}
+.check-item.done{background:#eaf6ea;border-color:#9fd0a8}
+.check-item.done .box{background:var(--green);border-color:var(--green)}
+.check-item.done .txt{color:#5f7358;text-decoration:line-through}
+.check-item .txt{flex:1;overflow-wrap:anywhere}
 .mini-btn{font-size:11px;font-weight:700;padding:7px 11px;border-radius:9px;border:1px solid var(--line);background:#f6faf4;cursor:pointer;color:#227042}
 .mini-btn.danger{color:var(--danger);border-color:#e4bdb7;background:#fbf1ef}
 .mini-btn:active{transform:scale(.95)}
@@ -742,6 +919,16 @@ header h1{font-size:21px;font-weight:800;letter-spacing:-.3px;flex:1}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .load{display:inline-block;width:16px;height:16px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px;margin-right:6px}
 @keyframes sp{to{transform:rotate(360deg)}}
+@media(max-width:599px){
+.note-head{flex-wrap:wrap}
+.mini-btn{min-height:42px;padding:9px 14px;font-size:12px}
+.icon-btn{width:44px;height:44px}
+.chip{min-height:38px;font-size:12px}
+.ai-box textarea{font-size:16px}
+.field input,.field select,.field textarea{font-size:16px}
+.note-cat{white-space:normal}
+.send-btn{min-height:48px}
+}
 @media(min-width:600px){.modal-bg{align-items:center}.modal{border-radius:22px}.modal-bg{padding:20px}}
 </style></head><body><div class="wrap">
 <header>
@@ -782,6 +969,13 @@ header h1{font-size:21px;font-weight:800;letter-spacing:-.3px;flex:1}
   <div class="field"><label>API URL</label><input id="setEndpoint" type="url" placeholder="https://…/v1"></div>
   <div class="field"><label>Модель</label><input id="setModel" placeholder="mimo-v2.6-flash"></div>
   <div class="field"><label>API-ключ</label><input id="setKey" type="password" autocomplete="off" placeholder="Оставьте пустым, чтобы не менять"><div style="font-size:11px;color:var(--muted);margin-top:4px" id="keyMask"></div></div>
+  <div class="field"><label>Напоминания</label>
+    <div style="display:flex;flex-direction:column;gap:9px;font-size:13.5px;color:var(--ink)">
+      <label style="display:flex;align-items:center;gap:9px;min-height:44px;text-transform:none;letter-spacing:0;font-size:13.5px;color:var(--ink);margin:0"><input type="checkbox" id="remBrowser" style="width:22px;height:22px"> Системные уведомления браузера</label>
+      <label style="display:flex;align-items:center;gap:9px;min-height:44px;text-transform:none;letter-spacing:0;font-size:13.5px;color:var(--ink);margin:0"><input type="checkbox" id="remSound" style="width:22px;height:22px"> Звуковое оповещение</label>
+      <label style="text-transform:none;letter-spacing:0;font-size:12px;color:var(--muted);margin:0">Предупреждать за N минут<input id="remLead" type="number" min="0" max="1440" value="10" style="margin-top:5px"></label>
+    </div>
+  </div>
   <div class="modal-actions">
     <button class="btn-main" id="saveSettings">Сохранить</button>
     <button class="btn-ghost" id="testSettings">Проверить ключ</button>
@@ -826,6 +1020,29 @@ function closeModal(id){$(id).classList.remove('open')}
 function fmtDate(ts){if(!ts)return '—';var d=new Date(ts);return d.toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}
 function api(path,method,body){return fetch(path,{method:method||'GET',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:body?JSON.stringify(body):undefined}).then(function(r){return r.json().then(function(d){if(!r.ok||d.ok===false)throw new Error(d.error||('HTTP '+r.status));return d})})}
 
+function renderChecks(n){
+  if(!n.checks||!n.checks.length)return '';
+  var done=n.checks.filter(function(c){return c.done}).length;
+  var total=n.checks.length;
+  var pct=total?Math.round(done*100/total):0;
+  var items=n.checks.slice().sort(function(a,b){return (a.done?1:0)-(b.done?1:0)}).map(function(c){
+    return '<button type="button" class="check-item'+(c.done?' done':'')+'" onclick="toggleCheck(\\''+n.id+'\\',\\''+c.id+'\\')">'+
+    '<span class="box">'+(c.done?'✓':'')+'</span><span class="txt">'+esc(c.text)+'</span></button>';
+  }).join('');
+  return '<div class="check-progress"><span>✓ '+done+' / '+total+'</span><span class="bar"><i style="width:'+pct+'%"></i></span><span>осталось '+(total-done)+'</span></div>'+
+    '<div class="check-list">'+items+'</div>';
+}
+function toggleCheck(noteId,checkId){
+  var n=S.notes.find(function(x){return x.id===noteId});
+  if(!n||!n.checks)return;
+  var c=n.checks.find(function(x){return x.id===checkId});
+  if(!c)return;
+  c.done=!c.done;
+  render();
+  api('/api/my-notes/notes/'+noteId+'/checks/'+checkId,'POST',{done:c.done}).then(function(d){
+    if(d.note){var i=S.notes.findIndex(function(x){return x.id===noteId});if(i>=0)S.notes[i]=d.note;render()}
+  }).catch(function(e){c.done=!c.done;render();toast(e.message)})
+}
 function render(){
   $('notesCount').textContent=S.notes.length;
   $('remCount').textContent=S.reminders.filter(function(r){return !r.done}).length;
@@ -835,6 +1052,7 @@ function render(){
     nl.innerHTML=S.notes.map(function(n,i){
       return '<div class="note"><div class="note-head"><div class="note-num">'+(i+1)+'</div><h3>'+esc(n.title)+'</h3><span class="note-cat">'+esc(n.category||'Разное')+'</span></div>'+
       '<div class="note-body">'+(n.html||esc(n.text||''))+'</div>'+
+      renderChecks(n)+
       '<div class="note-actions">'+
       '<button class="mini-btn" onclick="editNote(\\''+n.id+'\\')">✏️ Править</button>'+
       '<button class="mini-btn" onclick="linkNote(\\''+n.id+'\\')">🔗 Ссылка</button>'+
@@ -872,7 +1090,7 @@ function send(){
     S.notes=d.notes||S.notes;S.reminders=d.reminders||S.reminders;
     render();
     $('aiInput').value='';
-    if('Notification'in window&&Notification.permission==='granted'){try{new Notification('My Notes AI',{body:(d.reply||'Готово').slice(0,120)})}catch(e){}}
+    if('Notification'in window&&Notification.permission==='granted'&&(!S.settings.reminders||S.settings.reminders.browserNotify!==false)){try{new Notification('My Notes AI',{body:(d.reply||'Готово').slice(0,120)})}catch(e){}}
   }).catch(function(e){showAnswer('⚠️ '+e.message,'Ошибка')}).finally(function(){btn.disabled=false;btn.textContent='Отправить'})
 }
 function editNote(id){
@@ -915,12 +1133,17 @@ $('btnSettings').addEventListener('click',function(){
     $('setEndpoint').value=d.settings.apiEndpoint||'';
     $('setModel').value=d.settings.model||'';
     $('keyMask').textContent='Сохранённый ключ: '+(d.settings.keyMask||'не задан');
+    var rm=d.settings.reminders||{};
+    $('remBrowser').checked=rm.browserNotify!==false;
+    $('remSound').checked=rm.sound!==false;
+    $('remLead').value=Number(rm.leadMinutes)||0;
     $('setStatus').className='status';
     openModal('modalSettings');
   }).catch(function(e){toast(e.message)})
 });
 $('saveSettings').addEventListener('click',function(){
-  var b={apiEndpoint:$('setEndpoint').value,model:$('setModel').value};
+  var b={apiEndpoint:$('setEndpoint').value,model:$('setModel').value,
+    reminders:{browserNotify:$('remBrowser').checked,sound:$('remSound').checked,leadMinutes:Number($('remLead').value)||0}};
   if($('setKey').value.trim())b.apiKey=$('setKey').value.trim();
   api('/api/my-notes/settings','PUT',b).then(function(d){
     $('keyMask').textContent='Сохранённый ключ: '+(d.settings.keyMask||'не задан');
@@ -967,7 +1190,7 @@ if('Notification'in window&&Notification.permission==='default'){setTimeout(func
 app.get('/my-notes/', (req, res) => {
     const owner = myNotesOwner(req);
     if (!owner) {
-        res.status(403).type('html').send('<!doctype html><meta charset="utf-8"><title>Доступ запрещён</title><p style="font:16px system-ui;padding:40px">Доступ только для администратора.</p>');
+        res.status(403).type('html').send(moduleGatePage('/api/my-notes/auth', 'My Notes AI'));
         return;
     }
     res.type('html').send(MY_NOTES_PAGE);

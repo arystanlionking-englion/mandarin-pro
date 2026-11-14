@@ -5,3 +5,61 @@
 .side-close{align-self:flex-end;min-width:40px;min-height:36px;margin:2px 0 4px;border-radius:9px;border:1px solid #243044;background:#12203a;color:#cfe0f2;font-size:15px}
 .side-backdrop{display:none}
 @media(max-width:800px){.side-backdrop.show{display:block;position:fixed;inset:0;background:rgba(5,8,14,.5);z-index:15}}
+
+/* === Объединённый интерфейс: 4 ассистента + единая панель ввода === */
+.shell2{display:flex;flex-direction:column;min-height:100dvh}
+.top2{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:12px;padding:10px 16px;background:#0d1220;border-bottom:1px solid #1b2637;flex-wrap:wrap}
+.brand2{display:flex;align-items:center;gap:8px;color:#eaf4ff;font-size:12px;letter-spacing:1px;flex-shrink:0}
+.brand2 b{width:34px;height:34px;display:grid;place-items:center;background:linear-gradient(135deg,#e8c37a,#b98f3f);color:#0b0e14;border-radius:8px;font:20px serif}
+.asst-bar{display:flex;gap:8px;flex-wrap:wrap;flex:1;min-width:0}
+.asst-chip{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;min-height:44px;border-radius:12px;border:1px solid #243044;background:#101623;color:#cfe0f2;font-size:11px;cursor:pointer;transition:border-color .15s,background .15s}
+.asst-chip.sel{border-color:#67e8f9;background:#0d2430;box-shadow:0 0 12px #67e8f933}
+.asst-chip.main{outline:2px solid #e8c37a;outline-offset:1px}
+.asst-emoji{font-size:16px}
+.asst-nokey{font-size:8px;color:#facc15;border:1px solid #4a3a12;border-radius:8px;padding:1px 5px}
+.asst-open{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:8px;background:#16213a;color:#67e8f9;font-size:13px}
+.asst-open:hover{background:#1e3a5a}
+.top2-actions{display:flex;gap:8px;flex-shrink:0}
+.top2-actions .button{min-height:40px}
+.stream-wrap{flex:1;width:100%;max-width:1100px;margin:0 auto;padding:18px 16px 170px;min-width:0}
+.stream{display:flex;flex-direction:column;gap:12px;padding-bottom:10px}
+.stream-empty{text-align:center;color:#6c7f96;font-size:12px;padding:60px 20px;line-height:2}
+.st-user{align-self:flex-end;max-width:min(78%,720px);background:linear-gradient(135deg,#1e3a5a,#16283f);border:1px solid #2b4a6b;color:#eaf6ff;border-radius:16px 16px 4px 16px;padding:12px 15px;font-size:13px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere}
+.st-asst{align-self:flex-start;max-width:min(85%,820px);background:#0f1626;border:1px solid #1d2a3d;border-radius:16px 16px 16px 4px;padding:12px 15px}
+.st-asst-head{font-size:10px;color:#e8c37a;margin-bottom:6px;letter-spacing:.5px}
+.st-asst-body{font-size:13px;line-height:1.75;color:#d7e0ea;white-space:pre-wrap;overflow-wrap:anywhere}
+.st-task{border:1px solid #1d2a3d;border-radius:12px;background:#0c1322;padding:14px 16px}
+.st-task-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.st-task-head strong{font-size:12px;color:#eef5ff;flex:1;min-width:120px;overflow-wrap:anywhere}
+.st-task-head em{font-style:normal;font-size:10px;padding:3px 10px;border-radius:20px;background:#16213a;color:#9fb2c8}
+.st-task-head em.ok{color:#4ade80;background:#0e2418}
+.st-task-head em.err{color:#f87171;background:#240e12}
+.st-task-head em.run{color:#67e8f9;background:#0d2430}
+.st-task-meta{font-size:9px;color:#5f748c;margin:6px 0}
+.st-task-out{margin:8px 0;max-height:260px;background:#0a0f1a;border-radius:8px;padding:12px;font-size:11px}
+.st-task-actions{display:flex;gap:8px;flex-wrap:wrap}
+.st-task-actions .button{font-size:10px;padding:8px 12px;min-height:38px}
+.st-task-stage{color:#8fa0b4;font-size:10px}
+.composer2{position:fixed;left:0;right:0;bottom:var(--kb,0px);background:linear-gradient(180deg,transparent,#0b0e14 22%);padding:10px 16px calc(12px + env(safe-area-inset-bottom));z-index:25;transition:bottom .15s}
+.composer2 form{max-width:1100px;margin:0 auto;border:1px solid #243044;border-radius:16px;background:#101623;padding:12px;box-shadow:0 -6px 30px #050a1288}
+.composer2 textarea,.composer2 #prompt{width:100%;border:0;background:transparent;color:#eaf2fb;font-size:16px;line-height:1.6;min-height:56px;max-height:220px;resize:none;outline:none;padding:6px 8px}
+.composer2-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
+.composer2-tools{display:flex;gap:8px;flex-wrap:wrap;flex:1}
+.composer2-tools .button{font-size:10px;padding:8px 11px;min-height:40px}
+.send2{min-height:46px;padding:0 22px;font-size:13px}
+.asst-cfg{border:1px solid #22334b;border-radius:10px;padding:12px;margin:10px 0;background:#0c1322}
+.asst-cfg summary{cursor:pointer;font-size:12px;color:#cfe0f2}
+.asst-test-out{font-size:11px;margin-top:8px;line-height:1.7;overflow-wrap:anywhere}
+.asst-test-out:empty{display:none}
+@media(max-width:800px){
+  .top2{padding:8px 10px;gap:8px}
+  .brand2 span{display:none}
+  .asst-bar{width:100%;order:3;flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+  .asst-chip{flex-shrink:0}
+  .stream-wrap{padding:12px 10px 6px}
+  .st-user{max-width:92%}
+  .st-asst{max-width:96%}
+  .composer2{padding:8px 8px calc(10px + env(safe-area-inset-bottom))}
+  .composer2 textarea{font-size:16px}
+  .composer2-tools .button{min-height:42px}
+}
