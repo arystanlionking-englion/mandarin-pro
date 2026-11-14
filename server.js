@@ -126,6 +126,7 @@ app.use((req, res, next) => {
     }
     // Прямая ссылка /ai-office/ без cookie администратора → вход по PIN (без главного экрана)
     const pagePath = String(req.url || '').split('?')[0];
+    res.setHeader('Cache-Control', 'no-store');
     if (req.method === 'GET' && (pagePath === '/ai-office' || pagePath === '/ai-office/') && !aiOfficeAuthenticate(req)) {
         res.status(403).type('html').send(moduleGatePage('/api/ai-office/auth', 'AI Office · 4 ассистента'));
         return;
@@ -819,6 +820,13 @@ app.use('/api/assistants', createAssistantsRouter({
     mem0: mem0Client
 }));
 
+// Обновления всегда свежие: HTML/JS/CSS не кэшируются браузером
+app.use((req, res, next) => {
+    if (/\.(html?|js|css|mjs)$/i.test(String(req.path || '')) || req.path === '/' || req.path === '/my-notes/') {
+        res.setHeader('Cache-Control', 'no-store');
+    }
+    next();
+});
 app.use(express.static(__dirname));
 
 // --- Parent personal link (public, token-only) ---
@@ -1189,6 +1197,7 @@ if('Notification'in window&&Notification.permission==='default'){setTimeout(func
 
 app.get('/my-notes/', (req, res) => {
     const owner = myNotesOwner(req);
+    res.setHeader('Cache-Control', 'no-store');
     if (!owner) {
         res.status(403).type('html').send(moduleGatePage('/api/my-notes/auth', 'My Notes AI'));
         return;
